@@ -1,16 +1,16 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  17 NOV 2024 21:06
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  23 SEP 2025 23:12
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**"c:/Franklin/Q7/Thermal cycles/HW3/Report/main.tex"
-(c:/Franklin/Q7/Thermal cycles/HW3/Report/main.tex
+**"c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex"
+(c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex
 LaTeX2e <2024-06-01> patch level 2
 L3 programming layer <2024-08-30>
 (C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
 Document Class: article 2024/02/08 v1.4n Standard LaTeX document class
-(C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/base\size11.clo
-File: size11.clo 2024/02/08 v1.4n Standard LaTeX file (size option)
+(C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/base\size12.clo
+File: size12.clo 2024/02/08 v1.4n Standard LaTeX file (size option)
 )
 \c@part=\count194
 \c@section=\count195
@@ -619,23 +619,23 @@ Package hyperref Info: Link coloring OFF on input line 28.
 * layout: <same size as paper>
 * layoutoffset:(h,v)=(0.0pt,0.0pt)
 * modes: 
-* h-part:(L,W,R)=(56.64955pt, 484.20877pt, 56.64955pt)
+* h-part:(L,W,R)=(81.94394pt, 433.62pt, 81.94394pt)
 * v-part:(T,H,B)=(48.93872pt, 722.7pt, 73.40813pt)
 * \paperwidth=597.50787pt
 * \paperheight=845.04684pt
-* \textwidth=484.20877pt
+* \textwidth=433.62pt
 * \textheight=722.7pt
-* \oddsidemargin=-15.62044pt
-* \evensidemargin=-15.62044pt
+* \oddsidemargin=9.67395pt
+* \evensidemargin=9.67395pt
 * \topmargin=-60.33127pt
 * \headheight=12.0pt
 * \headsep=25.0pt
-* \topskip=11.0pt
+* \topskip=12.0pt
 * \footskip=30.0pt
-* \marginparwidth=50.0pt
+* \marginparwidth=35.0pt
 * \marginparsep=10.0pt
 * \columnsep=10.0pt
-* \skip\footins=10.0pt plus 4.0pt minus 2.0pt
+* \skip\footins=10.8pt plus 4.0pt minus 2.0pt
 * \hoffset=0.0pt
 * \voffset=0.0pt
 * \mag=1000
@@ -661,116 +661,42 @@ Package: pdflscape 2022-10-27 v0.13 Display of landscape pages in PDF
 Package: pdflscape-nometadata 2022-10-28 v0.13 Display of landscape pages in PDF (HO)
 Package pdflscape Info: Auto-detected driver: pdftex on input line 81.
 ))
-<Figures/Logo_Univ.png, id=47, 4336.2pt x 289.08pt>
+<Figures/Logo_Univ.png, id=27, 4336.2pt x 289.08pt>
 File: Figures/Logo_Univ.png Graphic file (type png)
 <use Figures/Logo_Univ.png>
 Package pdftex.def Info: Figures/Logo_Univ.png  used on input line 34.
-(pdftex.def)             Requested size: 484.20877pt x 32.2797pt.
-<Figures/ST.png, id=49, 338.76563pt x 429.10312pt>
-File: Figures/ST.png Graphic file (type png)
-<use Figures/ST.png>
-Package pdftex.def Info: Figures/ST.png  used on input line 49.
-(pdftex.def)             Requested size: 252.94499pt x 320.40572pt.
+(pdftex.def)             Requested size: 433.62pt x 28.90527pt.
 
 
 [1
 
-{C:/Users/frank/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map} <./Figures/Logo_Univ.png> <./Figures/ST.png>] (src/intro.tex
-LaTeX Font Info:    Trying to load font information for T1+cmtt on input line 1.
- (C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/base\t1cmtt.fd
-File: t1cmtt.fd 2023/04/13 v2.5m Standard LaTeX font definitions
-)) (src/assumptions.tex) (src/default.tex
-LaTeX Font Info:    Trying to load font information for U+msa on input line 6.
- (C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
-File: umsa.fd 2013/01/14 v3.01 AMS symbols A
-)
-LaTeX Font Info:    Trying to load font information for U+msb on input line 6.
- (C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
-File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-)
+{C:/Users/frank/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map} <./Figures/Logo_Univ.png>] (src/context.tex) (src/literature.tex) (src/research.tex) (src/project.tex) (src/workload.tex) (src/roadmap.tex)
+
+
 pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.55 \end{longtable}
-                     [1]
-<Figures/Ts_diagram.png, id=81, 462.528pt x 346.896pt>
-File: Figures/Ts_diagram.png Graphic file (type png)
-<use Figures/Ts_diagram.png>
-Package pdftex.def Info: Figures/Ts_diagram.png  used on input line 68.
-(pdftex.def)             Requested size: 209.1749pt x 156.87985pt.
-<Figures/hs_diagram.png, id=82, 462.528pt x 346.896pt>
-File: Figures/hs_diagram.png Graphic file (type png)
-<use Figures/hs_diagram.png>
-Package pdftex.def Info: Figures/hs_diagram.png  used on input line 76.
-(pdftex.def)             Requested size: 209.1749pt x 156.87985pt.
-<Figures/pie_energy.png, id=85, 430.60875pt x 419.31656pt>
-File: Figures/pie_energy.png Graphic file (type png)
-<use Figures/pie_energy.png>
-Package pdftex.def Info: Figures/pie_energy.png  used on input line 92.
-(pdftex.def)             Requested size: 152.52405pt x 148.5289pt.
-<Figures/pie_exergy.png, id=86, 429.85594pt x 444.91219pt>
-File: Figures/pie_exergy.png Graphic file (type png)
-<use Figures/pie_exergy.png>
-Package pdftex.def Info: Figures/pie_exergy.png  used on input line 100.
-(pdftex.def)             Requested size: 145.74371pt x 150.84723pt.
-) (src/parametric_FG.tex
-
-[2 <./Figures/Ts_diagram.png> <./Figures/hs_diagram.png> <./Figures/pie_energy.png> <./Figures/pie_exergy.png>]
-<Figures/bleedings.png, id=98, 867.24pt x 433.62pt>
-File: Figures/bleedings.png Graphic file (type png)
-<use Figures/bleedings.png>
-Package pdftex.def Info: Figures/bleedings.png  used on input line 18.
-(pdftex.def)             Requested size: 242.10439pt x 121.04886pt.
-
-Underfull \hbox (badness 10000) in paragraph at lines 37--38
-
- []
-
-) (src/parametric_HW.tex
-
-[3 <./Figures/bleedings.png>]
-<Figures/ts_diagram_0_reheating.png, id=112, 462.528pt x 346.896pt>
-File: Figures/ts_diagram_0_reheating.png Graphic file (type png)
-<use Figures/ts_diagram_0_reheating.png>
-Package pdftex.def Info: Figures/ts_diagram_0_reheating.png  used on input line 16.
-(pdftex.def)             Requested size: 174.3136pt x 130.73674pt.
-<Figures/ts_diagram_2_reheatings.png, id=113, 462.528pt x 346.896pt>
-File: Figures/ts_diagram_2_reheatings.png Graphic file (type png)
-<use Figures/ts_diagram_2_reheatings.png>
-Package pdftex.def Info: Figures/ts_diagram_2_reheatings.png  used on input line 23.
-(pdftex.def)             Requested size: 174.3136pt x 130.73674pt.
-<Figures/ts_p_150.png, id=114, 462.528pt x 346.896pt>
-File: Figures/ts_p_150.png Graphic file (type png)
-<use Figures/ts_p_150.png>
-Package pdftex.def Info: Figures/ts_p_150.png  used on input line 40.
-(pdftex.def)             Requested size: 174.3136pt x 130.73674pt.
-<Figures/ts_p_200.png, id=115, 462.528pt x 346.896pt>
-File: Figures/ts_p_200.png Graphic file (type png)
-<use Figures/ts_p_200.png>
-Package pdftex.def Info: Figures/ts_p_200.png  used on input line 48.
-(pdftex.def)             Requested size: 174.3136pt x 130.73674pt.
-) (src/conclusion.tex)
-
-[4 <./Figures/ts_diagram_0_reheating.png> <./Figures/ts_diagram_2_reheatings.png> <./Figures/ts_p_150.png> <./Figures/ts_p_200.png>] (main.aux)
+l.87 \end{document}
+                    [1] (main.aux)
  ***********
 LaTeX2e <2024-06-01> patch level 2
 L3 programming layer <2024-08-30>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 01B4BC0A698E6044A08C12BA76087AFA;2280.
+(rerunfilecheck)             Checksum: 801580CBC3F12C2B8E0EB52DB8D507F6;875.
  ) 
 Here is how much of TeX's memory you used:
- 20148 strings out of 473899
- 387693 string characters out of 5726500
- 774283 words of memory out of 5000000
- 42689 multiletter control sequences out of 15000+600000
- 571083 words of font info for 66 fonts, out of 8000000 for 9000
+ 19949 strings out of 473899
+ 383405 string characters out of 5726500
+ 747617 words of memory out of 5000000
+ 42534 multiletter control sequences out of 15000+600000
+ 564540 words of font info for 45 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,8n,117p,469b,1132s stack positions out of 10000i,1000n,20000p,200000b,200000s
- <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm0800.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm1095.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ectt1095.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1095.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1095.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx2488.pk><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb>
-Output written on main.pdf (5 pages, 845926 bytes).
+ 75i,6n,117p,353b,951s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1728.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm2074.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx2986.pk>
+Output written on main.pdf (2 pages, 99386 bytes).
 PDF statistics:
- 386 PDF objects out of 1000 (max. 8388607)
- 29 named destinations out of 1000 (max. 500000)
- 144 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 208 PDF objects out of 1000 (max. 8388607)
+ 9 named destinations out of 1000 (max. 500000)
+ 54 words of extra memory for PDF output out of 10000 (max. 10000000)
 

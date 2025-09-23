@@ -1,4 +1,4 @@
-\documentclass[a4paper, 11pt]{article}
+\documentclass[a4paper, 12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -11,7 +11,7 @@
 \usepackage{float}
 \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
-\usepackage[a4paper, total={6.7in, 10in}]{geometry}
+\usepackage[a4paper, total={6in, 10in}]{geometry}
 \usepackage{stackengine} 
 \usepackage{siunitx}
 \usepackage{tabularx}
@@ -31,56 +31,57 @@
 \begin{titlepage}
     \centering
     \begin{figure}[H]
-	    \includegraphics[width = 6.7in]{Figures/Logo_Univ.png}
+	    \includegraphics[width = 6in]{Figures/Logo_Univ.png}
     \end{figure}
 
-    \vspace*{3cm}
+    \vspace*{5cm}
 
-    {\Huge \textbf{Homework 3 - Steam Turbines}}
+    {\fontsize{30}{30}\selectfont \textbf{Design of a dual-evaporator transcritical high temperature heat pump}}
 
     \vspace{1cm}
 
-    {\Large LELME2150: Thermal Cycles}
+    {\LARGE Research Project}
+
 
     \vspace{1cm}
 
-    \begin{figure}[H]
-        \centering
-        \includegraphics[width = 3.5in]{Figures/ST.png}
-    \end{figure}
-    
+    %\begin{figure}[H]
+    %    \centering
+    %    \includegraphics[width = 3.5in]{Figures/ST.png}
+    %\end{figure}
+
     \vfill
 
-    \textbf{Authors:} \\
+    {\large \textbf{Authors:} \\
     Franklin Grégoire \\
-    Hugo Warscotte
+    Hugo Warscotte}
 
     \vspace{1cm}
 
-    \textbf{Date of Submission:} \\
-    \today
+    {\large \textbf{Date:} \today}
 
     \vspace{1cm}
     
-    \textbf{Ecole Polytechnique de Louvain}
+    {\large \textbf{Ecole Polytechnique de Louvain}}
 
 \end{titlepage}
 
-\section*{Introduction}
-\input{src/intro.tex}
+\section{Context}
+\input{src/context.tex}
 
-\setcounter{section}{0} % Start numbering sections from 1
-\section{General methodology and assumptions}
-\input{src/assumptions.tex}
+\section{Literature review}
+\input{src/literature.tex}
 
-\section{Default conditions results}
-\input{src/default.tex}
+\section{Research question}
+\input{src/research.tex}
 
-\section{Parametric analyses}
-\input{src/parametric_FG.tex}
-\input{src/parametric_HW.tex}
+\section{Project description}
+\input{src/project.tex}
 
-\section*{Conclusion}
-\input{src/conclusion.tex}
+\section{Share of workload and responsibilities}
+\input{src/workload.tex}
+
+\section{Roadmap and planning}
+\input{src/roadmap.tex}
 
 \end{document}
