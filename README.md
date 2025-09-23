@@ -1,1 +1,1 @@
-# Master_thesis_HTHP
+Design and Implementation of a Dual-Evaporator Transcritical High Temperature Heat Pump
