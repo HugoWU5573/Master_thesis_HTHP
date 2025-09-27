@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1758957513.35873 "main.aux" "main.bbl" "main" 1758957578.74429 0
+["bibtex main"] 1758962940.70486 "main.aux" "main.bbl" "main" 1758963741.8918 0
   "./src/refs.bib" 1758957513 2168 329963cd8211e39455adcad7d3ce68df ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/bibtex/bst/bibtex/plain.bst" 1291864736 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1758957577 3184 70fa4f476e3d31e567fe6f8fa8fcd7fc "pdflatex"
+  "main.aux" 1758963740 3083 869183df482a2b6484ab3791b8bc18ce "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1758957575.07013 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758957578.74607 0
+["pdflatex"] 1758963738.2882 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758963741.89305 0
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1746017760 83807 b38554b55758e36eaf2c7d766bbbec95 ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk" 1728413261 40136 b9571e52759a8e2f31413dc390f1f60f ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1728.pk" 1728341743 49100 5c71d2cd94187635d0c4efdde7457a3f ""
@@ -158,13 +158,13 @@
   "Figures/COP_and_VHC_improvement.png" 1758907289 399234 2f90bf225cb41c3e83a096b4d908d912 ""
   "Figures/Heat_transfer_improvement.png" 1758954289 180984 b1af91e7393281695bb8309da136bb06 ""
   "Figures/Logo_Univ.png" 1728600167 43930 b869f81af920067d8f6d1b632f97f15f ""
-  "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" 1758900148 2068 cb64f791d2697020d85f2336ebe406d3 ""
-  "main.aux" 1758957577 3184 70fa4f476e3d31e567fe6f8fa8fcd7fc "pdflatex"
-  "main.bbl" 1758957513 1765 70e51096af9c0bfcdd139cc52fbf47d8 "bibtex main"
-  "main.out" 1758957577 875 801580cbc3f12c2b8e0eb52db8d507f6 "pdflatex"
-  "main.tex" 1758900148 2068 cb64f791d2697020d85f2336ebe406d3 ""
+  "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" 1758962910 2068 cb64f791d2697020d85f2336ebe406d3 ""
+  "main.aux" 1758963740 3083 869183df482a2b6484ab3791b8bc18ce "pdflatex"
+  "main.bbl" 1758962941 1765 70e51096af9c0bfcdd139cc52fbf47d8 "bibtex main"
+  "main.out" 1758963740 875 801580cbc3f12c2b8e0eb52db8d507f6 "pdflatex"
+  "main.tex" 1758962910 2068 cb64f791d2697020d85f2336ebe406d3 ""
   "src/context.tex" 1758957574 2080 1fff13a6a6bb668ce4060b7461830fbd ""
-  "src/literature.tex" 1758955677 3940 cbd30dce3804ab432ffd20e825304477 ""
+  "src/literature.tex" 1758963737 4701 e1e84ad910a8181825662721063f9bdf ""
   "src/project.tex" 1758898653 2364 09e577f172d15f7f75d61f7ed40b0d31 ""
   "src/research.tex" 1758661924 48 e2c863413aa270d9d5211230107e1ee4 ""
   "src/roadmap.tex" 1758661924 49 2ba3628ddca4565b494010e030b08354 ""

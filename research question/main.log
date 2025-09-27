@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  27 SEP 2025 09:19
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  27 SEP 2025 11:02
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -694,47 +694,48 @@ Underfull \hbox (badness 10000) in paragraph at lines 15--22
  []
 
 ) (src/literature.tex
-Underfull \hbox (badness 10000) in paragraph at lines 1--5
+Underfull \hbox (badness 10000) in paragraph at lines 1--7
 
  []
 
-<Figures/COP_and_VHC_improvement.png, id=47, 702.37407pt x 264.23718pt>
-File: Figures/COP_and_VHC_improvement.png Graphic file (type png)
-<use Figures/COP_and_VHC_improvement.png>
-Package pdftex.def Info: Figures/COP_and_VHC_improvement.png  used on input line 18.
-(pdftex.def)             Requested size: 433.62pt x 163.1359pt.
 
 
 
 pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.26 
-      [1]
-Underfull \hbox (badness 10000) in paragraph at lines 27--30
+l.15 \newpage
+              [1]
+<Figures/COP_and_VHC_improvement.png, id=59, 702.37407pt x 264.23718pt>
+File: Figures/COP_and_VHC_improvement.png Graphic file (type png)
+<use Figures/COP_and_VHC_improvement.png>
+Package pdftex.def Info: Figures/COP_and_VHC_improvement.png  used on input line 26.
+(pdftex.def)             Requested size: 433.62pt x 163.1359pt.
+
+Underfull \hbox (badness 10000) in paragraph at lines 35--42
 
  []
 
-<Figures/Heat_transfer_improvement.png, id=70, 755.07094pt x 351.56343pt>
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--51
+
+ []
+
+<Figures/Heat_transfer_improvement.png, id=65, 755.07094pt x 351.56343pt>
 File: Figures/Heat_transfer_improvement.png Graphic file (type png)
 <use Figures/Heat_transfer_improvement.png>
-Package pdftex.def Info: Figures/Heat_transfer_improvement.png  used on input line 42.
+Package pdftex.def Info: Figures/Heat_transfer_improvement.png  used on input line 61.
 (pdftex.def)             Requested size: 346.89731pt x 161.51729pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 51--53
 
- []
-
-
-
-[2 <./Figures/COP_and_VHC_improvement.png> <./Figures/Heat_transfer_improvement.png>]
-Underfull \hbox (badness 10000) in paragraph at lines 54--55
+[2 <./Figures/COP_and_VHC_improvement.png>]
+Underfull \hbox (badness 10000) in paragraph at lines 77--78
 
  []
 
 ) (src/research.tex)
 
-[3] (src/project.tex) (src/workload.tex
+[3 <./Figures/Heat_transfer_improvement.png>] (src/project.tex) (src/workload.tex
 
 [4]) (src/roadmap.tex)
 
@@ -755,13 +756,13 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 Here is how much of TeX's memory you used:
  20088 strings out of 473899
  386398 string characters out of 5726500
- 756459 words of memory out of 5000000
+ 754412 words of memory out of 5000000
  42623 multiletter control sequences out of 15000+600000
  571751 words of font info for 67 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,7n,117p,501b,959s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,7n,117p,487b,959s stack positions out of 10000i,1000n,20000p,200000b,200000s
  <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ectt1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1728.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm2074.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx2986.pk><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on main.pdf (7 pages, 671501 bytes).
+Output written on main.pdf (7 pages, 672263 bytes).
 PDF statistics:
  422 PDF objects out of 1000 (max. 8388607)
  29 named destinations out of 1000 (max. 500000)

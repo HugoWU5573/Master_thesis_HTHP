@@ -1,60 +1,84 @@
-As discussed in the previous section, no article has been found on dual-evaporator transcritical
-HTHP's.  However, a short liretature review on the current state of the art technology for HTHP's
-has been conducted and lead to the identification of several reasons why the topic could potentially be 
-of particular interest. \\
+As discussed in the previous section, no publications specifically addressing 
+dual-evaporator transcritical HTHPs were identified. Nevertheless, 
+a brief review of the current state-of-the-art technology for 
+HTHPs was carried out.  This review has led to the identification 
+of several reasons why the topic may be particularly relevant for 
+certain applications and therefore is worth further investigation. \\
 
-First, on the dual-evaporator.  It is shown in \cite{mateu2021advanced} that the use of 
-multiple evaporators has a significant potential for waste heat recovery applications.
-In the study case considered, they observed significant improvements in Coefficient of Performance (COP)
-and Volumetric Heating Capacity (VHC) when using two evaporators instead of one as soon as a significant
-portion of the heat was available at the medium temperature level (MT) (see Figure \ref{fig:mateu2021advanced}).
-This heat source ratio parameter was first introduced in \cite{arpagaus2016multi} as the $\beta$ parameter:
+First, regarding the dual-evaporator configuration:  it has been shown in 
+\cite{mateu2021advanced} that using multiple evaporators offers significant 
+potential for waste heat recovery applications.
+In the case study considered, notable improvements in both the Coefficient of Performance (COP)
+and Volumetric Heating Capacity (VHC) were observed when two evaporators 
+were employed instead of one, once a significant portion of the available 
+heat was present at the medium temperature (MT) level (see Figure \ref{fig:mateu2021advanced}).
+\newpage 
+
+\noindent This proportion of heat available at the medium temperature level relative 
+to the total heat input is quantified by the heat source ratio parameter ($\beta$), 
+first introduced in \cite{arpagaus2016multi}:
 $$\beta \triangleq \frac{\dot{Q}_{MT}}{\dot{Q}_{MT} + \dot{Q}_{LT}}$$
-where $\dot{Q}_{MT}$ and $\dot{Q}_{LT}$ are the thermal powers rates captured at the medium and low temperature evaporators.
-
+where $\dot{Q}_{MT}$ and $\dot{Q}_{LT}$ represent the thermal powers 
+captured at the medium and low temperature evaporators, respectively.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{Figures/COP_and_VHC_improvement.png}
     \begin{minipage}{0.9\textwidth}
-    \caption{The COP and VHC improves drastically when using two evaporators instead of one as soon as the portion
-    of heat captured at the medium temperature source accounts for a significant part of the total heat captured.
-    Figure taken from \cite{mateu2021advanced}.}
+    \caption{COP and VHC increase significantly when using two evaporators instead of one, 
+    once a substantial portion of the total captured heat is available at the 
+    medium-temperature source. Figure taken from \cite{mateu2021advanced}.}
     \label{fig:mateu2021advanced}
     \end{minipage}
 \end{figure}
 
-\noindent The intrest of having a higher COP is not to be demonstrated.  However, the VHC value is also of 
-particular interest since, as explained in \cite{arpagaus2018high}, it is directly linked to the size of the compressor.
-The higher the VHC, the smaller the refrigerant charge and compressor, reducing the cost of the system. \\
+\noindent While the benefit of a higher COP is not to be demonstrated, 
+the VHC is also of particular interest.  
+As explained in \cite{arpagaus2018high}, the VHC is directly 
+related to the refrigerant charge and size of the compressor: a higher VHC allows for 
+a smaller refrigerant charge and a more compact compressor, 
+thereby reducing system costs.  Consequently, both the COP and the 
+VHC are important factors in designing efficient and cost-effective heat pumps. \\
 
-Then, on the transcritical aspect of the cycle.  In \cite{vieren2023thermodynamic}, the authors show that
-the use of a transcritical cycle instead of a subcritical one can lead to significant improvements in the COP
-when the temperature glide at the heat sink is high.  According to them, the ideal heat sink temperature
-glide is around 60 K.  This COP increase is explained by a lower temperature mismatch during the heat transfer 
-at the heat sink (see Figure \ref{fig:temperature_mismatch}).  This improved temperature matching is due to
-the properties of a supercritical fluid.  Indeed since the heat transfer occurs above the critical pressure,
-the fluid does not undergo a phase change.  Therefore, its temperature can vary significantly during the heat transfer,
-leading to a better temperature matching with the heat sink fluid.   
+Next, regarding the transcritical aspect of the cycle: in \cite{vieren2023thermodynamic}, 
+the authors demonstrate that using a transcritical cycle instead of a subcritical 
+one can lead to significant improvements in COP
+when the temperature glide at the heat sink is high.  
+According to their study, the ideal heat sink temperature
+glide is around 60 K.  This COP increase is attributed to a 
+lower temperature mismatch during heat transfer 
+at the heat sink (see Figure \ref{fig:temperature_mismatch}). \\
+
+\noindent The improved temperature matching results from the properties of a supercritical fluid.  
+Since heat transfer occurs above the critical pressure,
+the fluid does not undergo a phase change.  Therefore, its 
+temperature can vary significantly during heat transfer, allowing for 
+better alignment with the heat sink fluid temperature and reduced exergy losses. 
+The authors also show that transcritical cycles generally achieve higher VHC values than subcritical cycles.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{Figures/Heat_transfer_improvement.png}
     \begin{minipage}{0.9\textwidth}
-    \caption{The area between the two curves represents the exergy destruction due to the heat transfer.
-    This area is significantly lower in the transcritical case, leading to reduced irreversibilities and potentially 
-    leading to a higher COP.  Figure taken from \cite{vieren2023thermodynamic}.}
+    \caption{The area between the two curves represents the exergy destruction 
+    due to heat transfer. This area is considerably 
+    smaller in the transcritical case, resulting in 
+    lower irreversibilities and a potentially higher COP. 
+    Figure taken from \cite{vieren2023thermodynamic}.}
     \label{fig:temperature_mismatch}
     \end{minipage}
 \end{figure}
 
-\noindent Additionally, in \cite{vieren2023thermodynamic}, the authors show that transcritical cycles 
-generally lead to higher VHC values than subcritical ones. \\
 
-Finally, on the high temperature. \\
+Finally, on the high temperature.  First, high temperature heat pumps are classified by a 
+heat sink temperature higher than 100°C \cite{arpagaus2018high}.  Classical heat pumps 
+are an already well established technology for domestic applications.
 
-\textcolor{red}{To be completed by FG (2 pages).}
+\textcolor{red}{To be completed.} \\
 
-As a conclusion, a dual-evaporator transcritical high temperature heat pump could potentially
-show higher performance than current HTHP's on the market in applications where heat is available at
-two temperature levels (e.g. waste heat recovery) and where the temperature glide at the heat sink is high.
+In conclusion, a dual-evaporator transcritical high-temperature heat pump has 
+the potential to outperform current HTHPs on the market, particularly 
+in applications where heat is available at two temperature levels (e.g., waste heat recovery) 
+and where the temperature glide at the heat sink is high. The aim of this Master's 
+thesis is to investigate this concept, contributing to the broader effort to 
+advance high-temperature heat pumps and decarbonize industrial heat production.
