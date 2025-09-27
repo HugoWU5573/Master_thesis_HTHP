@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  27 SEP 2025 11:02
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  27 SEP 2025 12:25
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -661,7 +661,7 @@ Package: pdflscape 2022-10-27 v0.13 Display of landscape pages in PDF
 Package: pdflscape-nometadata 2022-10-28 v0.13 Display of landscape pages in PDF (HO)
 Package pdflscape Info: Auto-detected driver: pdftex on input line 81.
 ))
-<Figures/Logo_Univ.png, id=27, 4336.2pt x 289.08pt>
+<Figures/Logo_Univ.png, id=31, 4336.2pt x 289.08pt>
 File: Figures/Logo_Univ.png Graphic file (type png)
 <use Figures/Logo_Univ.png>
 Package pdftex.def Info: Figures/Logo_Univ.png  used on input line 34.
@@ -706,7 +706,7 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has b
                    \relax 
 l.15 \newpage
               [1]
-<Figures/COP_and_VHC_improvement.png, id=59, 702.37407pt x 264.23718pt>
+<Figures/COP_and_VHC_improvement.png, id=63, 702.37407pt x 264.23718pt>
 File: Figures/COP_and_VHC_improvement.png Graphic file (type png)
 <use Figures/COP_and_VHC_improvement.png>
 Package pdftex.def Info: Figures/COP_and_VHC_improvement.png  used on input line 26.
@@ -721,7 +721,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 43--51
 
  []
 
-<Figures/Heat_transfer_improvement.png, id=65, 755.07094pt x 351.56343pt>
+<Figures/Heat_transfer_improvement.png, id=69, 755.07094pt x 351.56343pt>
 File: Figures/Heat_transfer_improvement.png Graphic file (type png)
 <use Figures/Heat_transfer_improvement.png>
 Package pdftex.def Info: Figures/Heat_transfer_improvement.png  used on input line 61.
@@ -737,34 +737,36 @@ Underfull \hbox (badness 10000) in paragraph at lines 77--78
 
 [3 <./Figures/Heat_transfer_improvement.png>] (src/project.tex) (src/workload.tex
 
-[4]) (src/roadmap.tex)
-
-[5] (main.bbl
+[4]
 LaTeX Font Info:    Trying to load font information for T1+cmtt on input line 6.
  (C:\Users\frank\AppData\Local\Programs\MiKTeX\tex/latex/base\t1cmtt.fd
 File: t1cmtt.fd 2023/04/13 v2.5m Standard LaTeX font definitions
-))
+)) (src/roadmap.tex) (src/team.tex
 
-[6] (main.aux)
+[5])
+
+[6] (main.bbl)
+
+[7] (main.aux)
  ***********
 LaTeX2e <2024-06-01> patch level 2
 L3 programming layer <2024-08-30>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 801580CBC3F12C2B8E0EB52DB8D507F6;875.
+(rerunfilecheck)             Checksum: 1970DA25ADF84E7914C544F540BED3D3;981.
  ) 
 Here is how much of TeX's memory you used:
- 20088 strings out of 473899
- 386398 string characters out of 5726500
+ 20116 strings out of 473899
+ 386868 string characters out of 5726500
  754412 words of memory out of 5000000
- 42623 multiletter control sequences out of 15000+600000
- 571751 words of font info for 67 fonts, out of 8000000 for 9000
+ 42636 multiletter control sequences out of 15000+600000
+ 572527 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,7n,117p,487b,959s stack positions out of 10000i,1000n,20000p,200000b,200000s
- <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ectt1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1728.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm2074.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx2986.pk><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on main.pdf (7 pages, 672263 bytes).
+ 75i,7n,117p,487b,1031s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ectt1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1728.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm2074.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx2986.pk><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+Output written on main.pdf (8 pages, 693228 bytes).
 PDF statistics:
- 422 PDF objects out of 1000 (max. 8388607)
- 29 named destinations out of 1000 (max. 500000)
- 64 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 496 PDF objects out of 1000 (max. 8388607)
+ 40 named destinations out of 1000 (max. 500000)
+ 72 words of extra memory for PDF output out of 10000 (max. 10000000)
 
