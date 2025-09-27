@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1758899966.89851 "main.aux" "main.bbl" "main" 1758900235.35612 0
-  "./src/refs.bib" 1758898653 658 d1a74f5926e529b3bd71b23f8df2f04b ""
+["bibtex main"] 1758953815.81273 "main.aux" "main.bbl" "main" 1758953819.53552 0
+  "./src/refs.bib" 1758953810 1864 087b0962d3b8b1db2909fd1b324cd640 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/bibtex/bst/bibtex/plain.bst" 1291864736 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1758900234 1226 5698afd19bc56e7a4c544f6f4ba26a49 "pdflatex"
+  "main.aux" 1758953818 2227 01ba52c62c552250b2c9d1cdf22d128f "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1758900233.53333 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758900235.35675 0
+["pdflatex"] 1758953816.31086 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758953819.53669 0
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1746017760 83807 b38554b55758e36eaf2c7d766bbbec95 ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk" 1728413261 40136 b9571e52759a8e2f31413dc390f1f60f ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1728.pk" 1728341743 49100 5c71d2cd94187635d0c4efdde7457a3f ""
@@ -46,7 +46,11 @@
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/tfm/public/cm/cmsy10.tfm" 1136765053 1124 6c73e740cf17375f03eec0ee63599741 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/tfm/public/cm/cmsy6.tfm" 1136765053 1116 933a60c408fc0a863a92debe84b2d294 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/tfm/public/cm/cmsy8.tfm" 1136765053 1120 8b7d695260f3cff42e636090a8002094 ""
+  "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi12.pfb" 1247596667 36741 0ee9e374ec3e30da87cdfb0ea3575226 ""
+  "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb" 1247596666 35469 dcf3a5f2fc1862f5952e3ee5eb1d98c4 ""
+  "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb" 1247596667 32722 d7379af29a190c3f453aba36302ff5a9 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb" 1247596667 32726 39f0f9e62e84beb801509898a605dbd5 ""
+  "C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb" 1247596673 31764 459c573c03a4949a528c2cc7f557e217 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/context/base/mkii/supp-pdf.mkii" 1580390158 71627 94eb9990bed73c364d7f53f960cc8c5b ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/generic/atbegshi/atbegshi.sty" 1575571100 24708 5584a51a7101caf7e6bbf1fc27d8f7b1 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/generic/babel/babel.sty" 1724932513 146459 bc754156bcff0b0651cf59d8ba0cb2bc ""
@@ -148,14 +152,15 @@
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/latex/url/url.sty" 1388490452 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/latex/varwidth/varwidth.sty" 1238469540 10894 d359a13923460b2a73d4312d613554c8 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/latex/xkeyval/xkeyval.sty" 1656236919 4937 4ce600ce9bd4ec84d0250eb6892fcf4f ""
+  "Figures/COP_and_VHC_improvement.png" 1758907289 399234 2f90bf225cb41c3e83a096b4d908d912 ""
   "Figures/Logo_Univ.png" 1728600167 43930 b869f81af920067d8f6d1b632f97f15f ""
   "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" 1758900148 2068 cb64f791d2697020d85f2336ebe406d3 ""
-  "main.aux" 1758900234 1226 5698afd19bc56e7a4c544f6f4ba26a49 "pdflatex"
-  "main.bbl" 1758899967 569 135b42f2ec8a3eb91187161eea0d55b6 "bibtex main"
-  "main.out" 1758900234 875 801580cbc3f12c2b8e0eb52db8d507f6 "pdflatex"
+  "main.aux" 1758953818 2227 01ba52c62c552250b2c9d1cdf22d128f "pdflatex"
+  "main.bbl" 1758953816 1549 3146ea888b2e99aa04abf7078c5345c2 "bibtex main"
+  "main.out" 1758953818 875 801580cbc3f12c2b8e0eb52db8d507f6 "pdflatex"
   "main.tex" 1758900148 2068 cb64f791d2697020d85f2336ebe406d3 ""
   "src/context.tex" 1758898653 1826 20e370cddb877d3d5899730b012b4a45 ""
-  "src/literature.tex" 1758900232 361 60931b579264e16c3c1b94e05e2a499f ""
+  "src/literature.tex" 1758953537 2166 5d7a81a3d7656cafa779611ca1be918f ""
   "src/project.tex" 1758898653 2364 09e577f172d15f7f75d61f7ed40b0d31 ""
   "src/research.tex" 1758661924 48 e2c863413aa270d9d5211230107e1ee4 ""
   "src/roadmap.tex" 1758661924 49 2ba3628ddca4565b494010e030b08354 ""

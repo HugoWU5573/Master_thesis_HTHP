@@ -1,5 +1,11 @@
 \begin{thebibliography}{1}
 
+\bibitem{arpagaus2016multi}
+Cordin Arpagaus, Fr{\'e}d{\'e}ric Bless, J{\"u}rg Schiffmann, and Stefan~S
+  Bertsch.
+\newblock Multi-temperature heat pumps: A literature review.
+\newblock {\em International Journal of Refrigeration}, 69:437--465, 2016.
+
 \bibitem{arpagaus2018high}
 Cordin Arpagaus, Fr{\'e}d{\'e}ric Bless, Michael Uhlmann, J{\"u}rg Schiffmann,
   and Stefan~S Bertsch.
@@ -11,5 +17,19 @@ Cordin Arpagaus, Fr{\'e}d{\'e}ric Bless, Michael Uhlmann, J{\"u}rg Schiffmann,
 George Kosmadakis.
 \newblock Industrial waste heat potential and heat exploitation solutions.
 \newblock {\em Applied Thermal Engineering}, 246:122957, 2024.
+
+\bibitem{mateu2021advanced}
+Carlos Mateu-Royo, Cordin Arpagaus, Adri{\'a}n Mota-Babiloni, Joaqu{\'\i}n
+  Navarro-Esbr{\'\i}, and Stefan~S Bertsch.
+\newblock Advanced high temperature heat pump configurations using low gwp
+  refrigerants for industrial waste heat recovery: A comprehensive study.
+\newblock {\em Energy conversion and management}, 229:113752, 2021.
+
+\bibitem{vieren2023thermodynamic}
+Elias Vieren, Toon Demeester, Wim Beyne, Alessia Arteconi, Michel De~Paepe, and
+  Steven Lecompte.
+\newblock The thermodynamic potential of high-temperature transcritical heat
+  pump cycles for industrial processes with large temperature glides.
+\newblock {\em Applied Thermal Engineering}, 234:121197, 2023.
 
 \end{thebibliography}
