@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1758968566.68486 "main.aux" "main.bbl" "main" 1758968750.2338 0
-  "./src/refs.bib" 1758957513 2168 329963cd8211e39455adcad7d3ce68df ""
+["bibtex main"] 1758976619.83714 "main.aux" "main.bbl" "main" 1758976659.69646 0
+  "./src/refs.bib" 1758973563 2469 54efe9e4c653af1e6d869d889e746c5f ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/bibtex/bst/bibtex/plain.bst" 1291864736 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1758968748 3192 3bb89fd56dff25c0994d4b4c2878a6e3 "pdflatex"
+  "main.aux" 1758976658 3944 7cea10eece7b519a4a1d64300327511c "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1758968746.51238 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758968750.23493 0
+["pdflatex"] 1758976657.40222 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758976659.69735 0
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1746017760 83807 b38554b55758e36eaf2c7d766bbbec95 ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1200.pk" 1728341356 31952 1de582c74909a88a5d9815f0ef4475ce ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk" 1728413261 40136 b9571e52759a8e2f31413dc390f1f60f ""
@@ -160,13 +160,14 @@
   "Figures/COP_and_VHC_improvement.png" 1758907289 399234 2f90bf225cb41c3e83a096b4d908d912 ""
   "Figures/Heat_transfer_improvement.png" 1758954289 180984 b1af91e7393281695bb8309da136bb06 ""
   "Figures/Logo_Univ.png" 1728600167 43930 b869f81af920067d8f6d1b632f97f15f ""
+  "Figures/heat_temperature_level.png" 1758973848 105029 937bd6fa183427fc45f6c708bdce3d39 ""
   "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" 1758968561 2340 ec0f3a3e3f61060f2853c99132b1e683 ""
-  "main.aux" 1758968748 3192 3bb89fd56dff25c0994d4b4c2878a6e3 "pdflatex"
-  "main.bbl" 1758968567 1765 70e51096af9c0bfcdd139cc52fbf47d8 "bibtex main"
-  "main.out" 1758968748 981 1970da25adf84e7914c544f540bed3d3 "pdflatex"
+  "main.aux" 1758976658 3944 7cea10eece7b519a4a1d64300327511c "pdflatex"
+  "main.bbl" 1758976620 1976 3cb54a6cae62e34739a76bb30dfe08bd "bibtex main"
+  "main.out" 1758976658 981 1970da25adf84e7914c544f540bed3d3 "pdflatex"
   "main.tex" 1758968561 2340 ec0f3a3e3f61060f2853c99132b1e683 ""
   "src/context.tex" 1758957574 2080 1fff13a6a6bb668ce4060b7461830fbd ""
-  "src/literature.tex" 1758963737 4701 e1e84ad910a8181825662721063f9bdf ""
+  "src/literature.tex" 1758976656 5771 809313921b58f9ac9959c77b504459dd ""
   "src/project.tex" 1758898653 2364 09e577f172d15f7f75d61f7ed40b0d31 ""
   "src/research.tex" 1758661924 48 e2c863413aa270d9d5211230107e1ee4 ""
   "src/roadmap.tex" 1758661924 49 2ba3628ddca4565b494010e030b08354 ""
