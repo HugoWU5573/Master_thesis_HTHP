@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  27 SEP 2025 08:16
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.10.8)  27 SEP 2025 08:53
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -715,25 +715,32 @@ Underfull \hbox (badness 10000) in paragraph at lines 27--30
 
  []
 
+<Figures/Heat_transfer_improvement.png, id=68, 755.07094pt x 351.56343pt>
+File: Figures/Heat_transfer_improvement.png Graphic file (type png)
+<use Figures/Heat_transfer_improvement.png>
+Package pdftex.def Info: Figures/Heat_transfer_improvement.png  used on input line 42.
+(pdftex.def)             Requested size: 346.89731pt x 161.51729pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 31--32
+Underfull \hbox (badness 10000) in paragraph at lines 51--53
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 35--36
+
+[2 <./Figures/COP_and_VHC_improvement.png> <./Figures/Heat_transfer_improvement.png>]
+Underfull \hbox (badness 10000) in paragraph at lines 54--55
 
  []
 
 ) (src/research.tex)
 
-[2 <./Figures/COP_and_VHC_improvement.png>] (src/project.tex) (src/workload.tex
+[3] (src/project.tex) (src/workload.tex
 
-[3]) (src/roadmap.tex)
+[4]) (src/roadmap.tex)
 
-[4] (main.bbl)
+[5] (main.bbl)
 
-[5] (main.aux)
+[6] (main.aux)
  ***********
 LaTeX2e <2024-06-01> patch level 2
 L3 programming layer <2024-08-30>
@@ -742,17 +749,17 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: 801580CBC3F12C2B8E0EB52DB8D507F6;875.
  ) 
 Here is how much of TeX's memory you used:
- 20054 strings out of 473899
- 385307 string characters out of 5726500
- 755109 words of memory out of 5000000
- 42596 multiletter control sequences out of 15000+600000
+ 20064 strings out of 473899
+ 385663 string characters out of 5726500
+ 755413 words of memory out of 5000000
+ 42604 multiletter control sequences out of 15000+600000
  571438 words of font info for 66 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,7n,117p,477b,959s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,7n,117p,501b,959s stack positions out of 10000i,1000n,20000p,200000b,200000s
  <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecti1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\tcrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1200.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1728.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx1440.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecrm2074.pk> <C:\Users\frank\AppData\Local\MiKTeX\fonts/pk/ljfour/jknappen/ec/dpi600\ecbx2986.pk><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/frank/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb>
-Output written on main.pdf (6 pages, 530131 bytes).
+Output written on main.pdf (7 pages, 662356 bytes).
 PDF statistics:
- 376 PDF objects out of 1000 (max. 8388607)
- 26 named destinations out of 1000 (max. 500000)
- 59 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 391 PDF objects out of 1000 (max. 8388607)
+ 28 named destinations out of 1000 (max. 500000)
+ 64 words of extra memory for PDF output out of 10000 (max. 10000000)
 

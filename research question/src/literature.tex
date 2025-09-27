@@ -28,10 +28,33 @@ where $\dot{Q}_{MT}$ and $\dot{Q}_{LT}$ are the thermal powers rates captured at
 particular interest since, as explained in \cite{arpagaus2018high}, it is directly linked to the size of the compressor.
 The higher the VHC, the smaller the refrigerant charge and compressor, reducing the cost of the system. \\
 
-Then, on the transcritical aspect of the cycle. \\
+Then, on the transcritical aspect of the cycle.  In \cite{vieren2023thermodynamic}, the authors show that
+the use of a transcritical cycle instead of a subcritical one can lead to significant improvements in the COP
+when the temperature glide at the heat sink is high.  According to them, the ideal heat sink temperature
+glide is around 60 K.  This COP increase is explained by a lower temperature mismatch during the heat transfer 
+at the heat sink (see Figure \ref{fig:temperature_mismatch}).  This improved temperature matching is due to
+the properties of a supercritical fluid.  Indeed since the heat transfer occurs above the critical pressure,
+the fluid does not undergo a phase change.  Therefore, its temperature can vary significantly during the heat transfer,
+leading to a better temperature matching with the heat sink fluid.   
 
-Ideas : Higher COP, higher VHC
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Figures/Heat_transfer_improvement.png}
+    \begin{minipage}{0.9\textwidth}
+    \caption{The area between the two curves represents the exergy destruction due to the heat transfer.
+    This area is significantly lower in the transcritical case, leading to reduced irreversibilities and potentially 
+    leading to a higher COP.  Figure taken from \cite{vieren2023thermodynamic}.}
+    \label{fig:temperature_mismatch}
+    \end{minipage}
+\end{figure}
+
+\noindent Additionally, in \cite{vieren2023thermodynamic}, the authors show that transcritical cycles 
+generally lead to higher VHC values than subcritical ones. \\
 
 Finally, on the high temperature. \\
 
 \textcolor{red}{To be completed by FG (2 pages).}
+
+As a conclusion, a dual-evaporator transcritical high temperature heat pump could potentially
+show higher performance than current HTHP's on the market in applications where heat is available at
+two temperature levels (e.g. waste heat recovery) and where the temperature glide at the heat sink is high.

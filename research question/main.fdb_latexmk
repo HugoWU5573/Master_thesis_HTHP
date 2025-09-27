@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1758953815.81273 "main.aux" "main.bbl" "main" 1758953819.53552 0
+["bibtex main"] 1758955348.80763 "main.aux" "main.bbl" "main" 1758956033.40125 0
   "./src/refs.bib" 1758953810 1864 087b0962d3b8b1db2909fd1b324cd640 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/bibtex/bst/bibtex/plain.bst" 1291864736 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1758953818 2227 01ba52c62c552250b2c9d1cdf22d128f "pdflatex"
+  "main.aux" 1758956032 3112 c2cfa32b986e74bd6987ba74a551b36b "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1758953816.31086 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758953819.53669 0
+["pdflatex"] 1758956029.84915 "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" "main.pdf" "main" 1758956033.40267 0
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1746017760 83807 b38554b55758e36eaf2c7d766bbbec95 ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk" 1728413261 40136 b9571e52759a8e2f31413dc390f1f60f ""
   "C:/Users/frank/AppData/Local/MiKTeX/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1728.pk" 1728341743 49100 5c71d2cd94187635d0c4efdde7457a3f ""
@@ -153,14 +153,15 @@
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/latex/varwidth/varwidth.sty" 1238469540 10894 d359a13923460b2a73d4312d613554c8 ""
   "C:/Users/frank/AppData/Local/Programs/MiKTeX/tex/latex/xkeyval/xkeyval.sty" 1656236919 4937 4ce600ce9bd4ec84d0250eb6892fcf4f ""
   "Figures/COP_and_VHC_improvement.png" 1758907289 399234 2f90bf225cb41c3e83a096b4d908d912 ""
+  "Figures/Heat_transfer_improvement.png" 1758954289 180984 b1af91e7393281695bb8309da136bb06 ""
   "Figures/Logo_Univ.png" 1728600167 43930 b869f81af920067d8f6d1b632f97f15f ""
   "c:/Franklin/Q10/Master_thesis/Master_thesis_HTHP/research question/main.tex" 1758900148 2068 cb64f791d2697020d85f2336ebe406d3 ""
-  "main.aux" 1758953818 2227 01ba52c62c552250b2c9d1cdf22d128f "pdflatex"
-  "main.bbl" 1758953816 1549 3146ea888b2e99aa04abf7078c5345c2 "bibtex main"
-  "main.out" 1758953818 875 801580cbc3f12c2b8e0eb52db8d507f6 "pdflatex"
+  "main.aux" 1758956032 3112 c2cfa32b986e74bd6987ba74a551b36b "pdflatex"
+  "main.bbl" 1758955349 1549 3146ea888b2e99aa04abf7078c5345c2 "bibtex main"
+  "main.out" 1758956032 875 801580cbc3f12c2b8e0eb52db8d507f6 "pdflatex"
   "main.tex" 1758900148 2068 cb64f791d2697020d85f2336ebe406d3 ""
-  "src/context.tex" 1758898653 1826 20e370cddb877d3d5899730b012b4a45 ""
-  "src/literature.tex" 1758953537 2166 5d7a81a3d7656cafa779611ca1be918f ""
+  "src/context.tex" 1758956028 1808 95a381346e2393464073010a9c41189c ""
+  "src/literature.tex" 1758955677 3940 cbd30dce3804ab432ffd20e825304477 ""
   "src/project.tex" 1758898653 2364 09e577f172d15f7f75d61f7ed40b0d31 ""
   "src/research.tex" 1758661924 48 e2c863413aa270d9d5211230107e1ee4 ""
   "src/roadmap.tex" 1758661924 49 2ba3628ddca4565b494010e030b08354 ""
