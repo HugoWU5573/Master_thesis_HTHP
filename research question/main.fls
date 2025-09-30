@@ -312,6 +312,12 @@ INPUT C:\Users\Hugo\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ectt1200
 INPUT .\src\roadmap.tex
 INPUT .\src\roadmap.tex
 INPUT src\roadmap.tex
+INPUT .\Figures\roadmap.pdf
+INPUT .\Figures\roadmap.pdf
+INPUT .\Figures\roadmap.pdf
+INPUT .\Figures\roadmap.pdf
+INPUT .\Figures\roadmap.pdf
+INPUT .\Figures\roadmap.pdf
 INPUT .\src\team.tex
 INPUT .\src\team.tex
 INPUT src\team.tex
