@@ -5,11 +5,13 @@ HTHPs was carried out.  This review has led to the identification
 of several reasons why the topic may be particularly relevant for 
 certain applications and therefore is worth further investigation. \\
 
-First, regarding the dual-evaporator configuration:  it has been shown in 
-\cite{mateu2021advanced} that using multiple evaporators offers significant 
-potential for waste heat recovery applications.
+First, regarding the dual-evaporator configuration, \cite{mateu2021advanced} shows that 
+using multiple evaporators offers significant potential for waste heat recovery, 
+as it enables simultaneous recovery of heat from sources at different temperature levels.
 In the case study considered, notable improvements in both the Coefficient of Performance (COP)
-and Volumetric Heating Capacity (VHC) were observed when two evaporators 
+and Volumetric Heating Capacity (VHC)\footnote{The Volumetric Heating Capacity (VHC), 
+expressed in kJ/m³, is the ratio of the thermal power delivered at the 
+heat sink to the volumetric flow rate of the working fluid.} were observed when two evaporators 
 were employed instead of one, once a significant portion of the available 
 heat was present at the medium temperature (MT) level (see Figure \ref{fig:mateu2021advanced}).
 \newpage 
@@ -43,18 +45,27 @@ VHC are important factors in designing efficient and cost-effective heat pumps. 
 Next, regarding the transcritical aspect of the cycle: in \cite{vieren2023thermodynamic}, 
 the authors demonstrate that using a transcritical cycle instead of a subcritical 
 one can lead to significant improvements in COP
-when the temperature glide at the heat sink is high.  
-According to their study, the ideal heat sink temperature
-glide is around 60 K.  This COP increase is attributed to a 
+when the temperature glide at the heat sink is high.
+For instance, a COP improvement of 4.6\% over the subcritical cycle was 
+reported for a heat sink temperature glide of 81 K.
+According to their study, the ideal heat sink temperature glide is around 60 K, 
+taking into account both practical and economic considerations.  
+This COP increase is attributed to a 
 lower temperature mismatch during heat transfer 
-at the heat sink (see Figure \ref{fig:temperature_mismatch}). \\
-
-\noindent The improved temperature matching results from the properties of a supercritical fluid.  
+at the heat sink (see Figure \ref{fig:temperature_mismatch}). 
+The improved temperature matching results from the properties of a supercritical fluid.  
 Since heat transfer occurs above the critical pressure,
-the fluid does not undergo a phase change.  Therefore, its 
-temperature can vary significantly during heat transfer, allowing for 
-better alignment with the heat sink fluid temperature and reduced exergy losses. 
-The authors also show that transcritical cycles generally achieve higher VHC values than subcritical cycles.
+the fluid does not undergo a phase change.  Therefore, its temperature can vary 
+significantly during heat transfer, allowing for a better match 
+with the heat sink fluid temperature profile and reduced exergy losses. \\
+
+\noindent The authors also show that transcritical cycles consistently 
+achieve higher VHC values than subcritical ones. 
+For example, at a heat sink temperature glide of 81 K, 
+the best transcritical cycle (with R1336mzz(Z)) nearly doubles 
+the VHC of the best subcritical case (with ethanol), 
+although the magnitude of improvement varies with the working 
+fluid and operating conditions (see Tables 5-7 in \cite{vieren2023thermodynamic}).
 
 \begin{figure}[H]
     \centering
