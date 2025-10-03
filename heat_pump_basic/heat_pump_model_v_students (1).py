@@ -303,7 +303,7 @@ def plot_diag_Ts(data_plot):
 
     
     plt.tight_layout()
-    plt.savefig('heat_pump_' + str(int(data_plot['lift'])) + '.png', dpi=300)
+    #plt.savefig('heat_pump_basic/heat_pump_' + str(int(data_plot['lift'])) + '.png', dpi=300)
     plt.show()
 
     return fig
