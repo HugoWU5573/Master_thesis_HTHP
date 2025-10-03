@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Charger les données
-df = pd.read_csv('test_24_03_24.csv', sep=';', decimal=',', encoding='latin1')
+df = pd.read_csv('heat_pump_basic/test_24_03_24.csv', sep=';', decimal=',', encoding='latin1')
 df.columns = df.columns.str.strip()
 
 # Constantes physiques (eau)
