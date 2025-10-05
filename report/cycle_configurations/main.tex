@@ -1,0 +1,144 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{lscape}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper, total={6in, 10in}]{geometry}
+\usepackage{stackengine} 
+\usepackage{siunitx}
+\usepackage{tabularx}
+\usepackage{imakeidx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{pdfpages}
+\usepackage{adjustbox}
+\usepackage{eurosym}
+\usepackage{longtable}
+\usepackage{enumitem}
+\setlength{\parindent}{0pt}
+
+% Start the document
+\begin{document}
+
+% Title page
+\begin{titlepage}
+    \centering
+    \begin{figure}[H]
+	    \includegraphics[width = 6in]{Figures/Logo_Univ.png}
+    \end{figure}
+
+    \vspace*{5cm}
+
+    \rule{\textwidth}{2pt}
+    \vspace{0.5cm}
+
+    {\fontsize{30}{30}\selectfont \textbf{Design and Implementation of a Modular 
+    Dual-Evaporator Transcritical High Temperature Heat Pump}}
+
+    \vspace{1cm}
+
+    {\LARGE Catalogue of Possible Cycle Configurations}
+
+    \vspace{0.5cm}
+    \rule{\textwidth}{2pt}
+
+
+    \vspace{1cm}
+
+    %\begin{figure}[H]
+    %    \centering
+    %    \includegraphics[width = 3.5in]{Figures/ST.png}
+    %\end{figure}
+
+    \vfill
+
+    {\large \textbf{Authors:} \\
+    Franklin Grégoire \\
+    Hugo Warscotte}
+
+    \vspace{1cm}
+
+    {\large \textbf{Date:} \today}
+
+    \vspace{1cm}
+    
+    {\large \textbf{Ecole Polytechnique de Louvain}}
+
+\end{titlepage}
+
+\newpage
+
+\vspace*{2cm}
+
+\section*{Abstract}
+\begin{center}
+    \input{src/abstract.tex}
+\end{center}
+
+\vspace{1cm}
+
+\renewcommand{\contentsname}{Table of Contents}
+\tableofcontents
+
+\vfill
+
+\rule{\textwidth}{2pt}
+
+\section*{Note on AI assistance}
+This document was proofread with the assistance of \texttt{ChatGPT}, 
+an AI language model developed by \texttt{OpenAI}.
+
+\vspace{1cm}
+\newpage
+
+\section{Subcritical Cycles}
+
+\subsection{One Evaporator - SC1}
+\input{src/SC1.tex}
+
+\subsection{One Evaporator with Recuperator - SC1R}
+\input{src/SC1R.tex}
+
+\subsection{Two Evaporators - SC2}
+\input{src/SC2.tex}
+
+\subsection{Two Evaporators with Recuperators - SC2R}
+\input{src/SC2R.tex}
+
+\section{Transcritical Cycles}
+
+\subsection{One Evaporator - TC1}
+\input{src/TC1.tex}
+
+\subsection{One Evaporator with Recuperator - TC1R}
+\input{src/TC1R.tex}
+
+\subsection{Two Evaporators - TC2}
+\input{src/TC2.tex}
+
+\subsection{Two Evaporators with Recuperators - TC2R}
+\input{src/TC2R.tex}
+
+
+\newpage
+
+%\bibliographystyle{plain} % We choose the "plain" reference style
+%\nocite{*}
+%\bibliography{src/refs} % Entries are in the refs.bib file
+
+%\section*{}
+
+%\newpage
+
+%\appendix
+%\section*{Appendix}
+
+\end{document}
