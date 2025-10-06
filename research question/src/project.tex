@@ -1,49 +1,50 @@
 To address the previous research question, this master's 
 thesis is structured into eight steps, as shown in Figure \ref{fig:roadmap}.
 
-\subsection*{P\&ID and Preliminary Thermodynamic Cycle Design}
+\subsection*{Preliminary Thermodynamic Program}
 
-In this first part, we will numerically model the thermodynamic cycle. Each student will work 
-simultaneously on different blocks, determined in advance. The analysis of the cycle will include 
-energy and exergy analyses to ensure optimal performance. The numerical model will be written in 
-\texttt{Python}, and the module \texttt{CoolProp} will be used to access thermodynamic property tables.
+In this first part, a classical heat pump cycle will be modeled numerically. Each student will work 
+simultaneously on different components, such as a semi-empirical model for the compressor 
+or a moving-boundary model for the heat exchangers. The cycle analysis will include 
+both energy and exergy analyses to ensure optimal performance. The numerical model will be developed in 
+\texttt{Python}, using the \texttt{CoolProp} library to access thermodynamic property data.
 
-\subsection*{Optimization of the Thermodynamic Design}
+\subsection*{Final Thermodynamic Program}
 
-Assembling all the different blocks will be the purpose of the second part. Besides connecting 
-the blocks, an optimization process will be developed to determine the optimal parameters under 
-nominal conditions. In addition, more physical aspects will be added to the model, such as head 
-loss calculations and heat transfer modeling.
+The second part focuses on assembling all the individual components. First, various cycle configurations 
+will be simulated to determine the widest possible operating range. Then, the program will be generalized 
+to improve its robustness and flexibility.
 
-\subsection*{Sizing of the Main Components}
+\subsection*{Sizing of the Main Components and P\&ID}
 
-After fixing the thermodynamic states of the cycle in nominal conditions, the main components, 
-such as heat exchangers, expansion valves, and water tanks, will be selected.
+After defining the operating range, the main components, such as heat exchangers and expansion valves, 
+will be selected. A P\&ID (Piping and Instrumentation Diagram) will also be created to illustrate the 
+system layout and control strategies.
 
-\subsection*{Establishment of a First Control Strategy}
+\subsection*{Development of an Initial Control Strategy}
 
-One main advantage of this machine will be its capability to simulate different conditions thanks 
-to the dual evaporator. A control logic must therefore be implemented. This step is crucial 
-for determining the type and placement of the sensors.
+One of the main advantages of this machine lies in its ability to simulate different operating conditions 
+thanks to the dual evaporator. Therefore, a suitable control logic must be implemented. This step is crucial 
+for determining the appropriate type and placement of sensors.
 
 \subsection*{CAD and Operational Model}
 
-In this part, the mechanical design of the machine will be carried out. 
-This will include material and component selection, heat exchanger and insulation design, and 
-the elaboration of precise technical drawings.  The resulting operational model 
-will also be used to analyze the dynamic behavior of the machine.
+In this section, the mechanical design of the machine will be carried out. 
+This includes material and component selection, the design of heat exchangers and insulation, and 
+the creation of detailed technical drawings. The resulting operational model 
+will also serve to analyze the machine’s dynamic behavior.
 
 \subsection*{Prototype Construction and Instrumentation}
 
-This part will consist of constructing the prototype and implementing the necessary instrumentation.
+This stage involves constructing the prototype and installing the necessary instrumentation.
 
 \subsection*{Safety Validation of the Prototype}
 
-Before starting the tests, the prototype will be 
-validated by the CREDEM platform to ensure its safety.
+Before testing, the prototype will be 
+validated by the CREDEM platform to ensure compliance with safety requirements.
 
 \subsection*{Control Logic and Performance Validation}
 
-Finally, the last part will be dedicated to the evaluation of the machine and its control logic. 
-Several tests will take place to ensure proper operation of the machine and to collect data for 
-comparison with theoretical values.
+Finally, the last stage will focus on evaluating the machine and its control logic. 
+A series of tests will be conducted to verify proper operation and to collect data for 
+comparison with theoretical predictions.
