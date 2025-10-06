@@ -5,9 +5,9 @@ HTHPs was carried out.  This review has led to the identification
 of several reasons why the topic may be particularly relevant for 
 certain applications and therefore is worth further investigation. \\
 
-First, regarding the dual-evaporator configuration, \cite{mateu2021advanced} shows that 
+First, regarding the dual-evaporator configuration, Mateu-Royo et al. show that 
 using multiple evaporators offers significant potential for waste heat recovery, 
-as it enables simultaneous recovery of heat from sources at different temperature levels.
+as it enables simultaneous recovery of heat from sources at different temperature levels \cite{mateu2021advanced}.
 In the case study considered, notable improvements in both the Coefficient of Performance (COP)
 and Volumetric Heating Capacity (VHC)\footnote{The Volumetric Heating Capacity (VHC), 
 expressed in kJ/m³, is the ratio of the thermal power delivered at the 
@@ -18,7 +18,7 @@ heat was present at the medium temperature (MT) level (see Figure \ref{fig:mateu
 
 \noindent This proportion of heat available at the medium temperature level relative 
 to the total heat input is quantified by the heat source ratio parameter ($\beta$), 
-first introduced in \cite{arpagaus2016multi}:
+first introduced by Arpagaus et al. \cite{arpagaus2016multi}:
 $$\beta \triangleq \frac{\dot{Q}_{MT}}{\dot{Q}_{MT} + \dot{Q}_{LT}}$$
 where $\dot{Q}_{MT}$ and $\dot{Q}_{LT}$ represent the thermal powers 
 captured at the medium and low temperature evaporators, respectively.
@@ -36,16 +36,16 @@ captured at the medium and low temperature evaporators, respectively.
 
 \noindent While the benefit of a higher COP is not to be demonstrated, 
 the VHC is also of particular interest.  
-As explained in \cite{arpagaus2018high}, the VHC is directly 
+As explained by Arpagaus et al., the VHC is directly 
 related to the refrigerant charge and size of the compressor: a higher VHC allows for 
 a smaller refrigerant charge and a more compact compressor, 
-thereby reducing system costs.  Consequently, both the COP and the 
+thereby reducing system costs \cite{arpagaus2018high}.  Consequently, both the COP and the 
 VHC are important factors in designing efficient and cost-effective heat pumps. \\
 
-Next, regarding the transcritical aspect of the cycle: in \cite{vieren2023thermodynamic}, 
-the authors demonstrate that using a transcritical cycle instead of a subcritical 
+Next, regarding the transcritical aspect of the cycle: Vieren et al. demonstrate 
+that using a transcritical cycle instead of a subcritical 
 one can lead to significant improvements in COP
-when the temperature glide at the heat sink is high.
+when the temperature glide at the heat sink is high \cite{vieren2023thermodynamic}.
 For instance, a COP improvement of 4.6\% over the subcritical cycle was 
 reported for a heat sink temperature glide of 81 K.
 According to their study, the ideal heat sink temperature glide is around 60 K, 
@@ -59,7 +59,7 @@ the fluid does not undergo a phase change.  Therefore, its temperature can vary
 significantly during heat transfer, allowing for a better match 
 with the heat sink fluid temperature profile and reduced exergy losses. \\
 
-\noindent The authors also show that transcritical cycles consistently 
+\noindent Vieren et al. also show that transcritical cycles consistently 
 achieve higher VHC values than subcritical ones. 
 For example, at a heat sink temperature glide of 81 K, 
 the best transcritical cycle (with R1336mzz(Z)) nearly doubles 
@@ -83,9 +83,10 @@ fluid and operating conditions (see Tables 5-7 in \cite{vieren2023thermodynamic}
 Finally, regarding high-temperature applications: heat pumps are classified as 
 “high temperature” when the heat sink temperature exceeds 100 °C \cite{arpagaus2018high}. 
 While conventional heat pumps are already widely used for applications below 100 °C, 
-HTHPs are designed to provide process heat in the range of 100-200°C. According to the IEA, 
-almost 40\% of industrial heat demand is at levels suitable for heat pumps, with temperatures 
-between 100°C and 200°C representing nearly half of this share (see Figure \ref{fig:heat_vs_temperature}) 
+HTHPs based on vapor-compression cycles (i.e., inverse Rankine cycles)
+are designed to provide process heat in the range of 100-200°C. According to the IEA, 
+nearly 20\% of industrial heat demand falls within the temperature range suitable for these heat pumps
+(see Figure \ref{fig:heat_vs_temperature}) 
 \cite{monschauer2022future}.
 
 \begin{figure}[H]
@@ -103,6 +104,8 @@ between 100°C and 200°C representing nearly half of this share (see Figure \re
 Developing efficient high-temperature heat pumps is therefore a crucial step 
 toward decarbonizing this 22 EJ of industrial heat demand between 100°C and 200°C, 
 and more broadly, supporting the energy transition. \\
+
+\newpage
 
 In conclusion, a dual-evaporator transcritical high-temperature heat pump has 
 the potential to outperform current HTHPs on the market, particularly 
