@@ -81,28 +81,28 @@ class HEX():
         EnthalpyVector_h = np.array([self.hin_h - Qmax_ext/self.mdot_h, self.hin_h])
         EnthalpyVector_c = np.array([self.hin_c, self.hin_c + Qmax_ext/self.mdot_c])
 
-        h_h_dew = PropsSI('H', 'P', self.pin_h, 'Q', 0, self.fluid_h)
-        h_h_bub = PropsSI('H', 'P', self.pin_h, 'Q', 1, self.fluid_h)
-        h_c_dew = PropsSI('H', 'P', self.pin_c, 'Q', 0, self.fluid_c)
-        h_c_bub = PropsSI('H', 'P', self.pin_c, 'Q', 1, self.fluid_c)
-        N = 1 # Initial number of cells
+        self.h_h_dew = PropsSI('H', 'P', self.pin_h, 'Q', 1, self.fluid_h)
+        self.h_h_bub = PropsSI('H', 'P', self.pin_h, 'Q', 0, self.fluid_h)
+        self.h_c_dew = PropsSI('H', 'P', self.pin_c, 'Q', 1, self.fluid_c)
+        self.h_c_bub = PropsSI('H', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+        self.N = 1 # Initial number of cells
         
 
         ## A. Insert phase transition enthalpies for the hot stream if applicable
 
             # 1. Check for potential phase transition 2 phase to Liquid (bubble point) 
-        if (EnthalpyVector_h[0] < h_h_bub) and (EnthalpyVector_h[-1] > h_h_bub):
-            EnthalpyVector_h = np.append(EnthalpyVector_h, h_h_bub)
+        if (EnthalpyVector_h[0] < self.h_h_bub) and (EnthalpyVector_h[-1] > self.h_h_bub):
+            EnthalpyVector_h = np.append(EnthalpyVector_h, self.h_h_bub)
             self.condensation_end = True
-            N += 1
+            self.N += 1
         else :
             self.condensation_end = False
 
             # 2. Check for potential phase transition Vapor to 2 phase (dew point)
-        if (EnthalpyVector_h[0] < h_h_dew) and (EnthalpyVector_h[-1] > h_h_dew):
-            EnthalpyVector_h = np.append(EnthalpyVector_h, 1, h_h_dew)
+        if (EnthalpyVector_h[0] < self.h_h_dew) and (EnthalpyVector_h[-1] > self.h_h_dew):
+            EnthalpyVector_h = np.append(EnthalpyVector_h, 1, self.h_h_dew)
             self.condensation_start = True
-            N += 1
+            self.N += 1
         else :
             self.condensation_start = False
 
@@ -111,18 +111,18 @@ class HEX():
         ## B. Insert phase transition enthalpies for the cold stream if applicable
 
             # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
-        if (EnthalpyVector_c[0] < h_c_bub) and (EnthalpyVector_c[-1] > h_c_bub):
-            EnthalpyVector_c = np.append(EnthalpyVector_c, h_c_bub)
+        if (EnthalpyVector_c[0] < self.h_c_bub) and (EnthalpyVector_c[-1] > self.h_c_bub):
+            EnthalpyVector_c = np.append(EnthalpyVector_c, self.h_c_bub)
             self.evaporation_start = True
-            N += 1
+            self.N += 1
         else :
             self.evaporation_start = False
 
             # 2. Check for potential phase transition 2 phase to Vapor (dew point)
-        if (EnthalpyVector_c[0] < h_c_dew) and (EnthalpyVector_c[-1] > h_c_dew):
-            EnthalpyVector_c = np.append(EnthalpyVector_c, h_c_dew)
+        if (EnthalpyVector_c[0] < self.h_c_dew) and (EnthalpyVector_c[-1] > self.h_c_dew):
+            EnthalpyVector_c = np.append(EnthalpyVector_c, self.h_c_dew)
             self.evaporation_end = True
-            N += 1
+            self.N += 1
         else :
             self.evaporation_end = False
         
@@ -131,7 +131,7 @@ class HEX():
 
         ## C. Insert complementary phase transition enthalpies
 
-        for j in range(N):
+        for j in range(self.N):
             Qcell_h = self.mdot_h * (EnthalpyVector_h[j+1] - EnthalpyVector_h[j])
             Qcell_c = self.mdot_c * (EnthalpyVector_c[j+1] - EnthalpyVector_c[j])
             
@@ -153,7 +153,7 @@ class HEX():
         if (len(EnthalpyVector_c) != len(EnthalpyVector_h)):
             raise ValueError("Cell division algorithm failed: Enthalpy vectors have different lengths.")
         
-        if (len(EnthalpyVector_h) != (N+1)):
+        if (len(EnthalpyVector_h) != (self.N+1)):
             raise ValueError("Size of enthalpy vectors does not match the expected number of cells.")
 
         return EnthalpyVector_c, EnthalpyVector_h
@@ -165,25 +165,67 @@ class HEX():
     
     """
     def _Qmax_int(self, EnthalpyVector_c, EnthalpyVector_h):
-        Qmax_int_c = 0 ; Qmax_int_h = 0
-        for i in range(len(EnthalpyVector_c)-1):
-            Qmax_int_c += self.mdot_c * (EnthalpyVector_c[i+1] - EnthalpyVector_c[i])
-            Qmax_int_h += self.mdot_h * (EnthalpyVector_h[i+1] - EnthalpyVector_h[i])
+        self.Qmax_int = self.Qmax_ext
+
+        if (not self.evaporation_start) and (not self.evaporation_end) and (not self.condensation_start) and (not self.condensation_end):
+            # No phase change in either stream -> no internal pinching possible
+            return self.Qmax_int
         
-        if abs(Qmax_int_c - Qmax_int_h) > 1e-6:
-            raise ValueError("Energy balance not satisfied in internal pinching calculation.")
+        TemperatureVector_c = np.zeros(len(EnthalpyVector_c))
+        TemperatureVector_h = np.zeros(len(EnthalpyVector_h))
+
+        for i in range(len(EnthalpyVector_c)):
+            TemperatureVector_c[i] = PropsSI('T', 'P', self.pin_c, 'H', EnthalpyVector_c[i], self.fluid_c)
+            TemperatureVector_h[i] = PropsSI('T', 'P', self.pin_h, 'H', EnthalpyVector_h[i], self.fluid_h)
         
-        self.Qmax_int = Qmax_int_c
+        for j in range(1, len(EnthalpyVector_c)-1):
+            if (TemperatureVector_h[j] + 1e-6 < TemperatureVector_c[j]):
+                # Internal pinching detected
+                if (np.isclose(EnthalpyVector_c[j], self.h_c_bub, atol=1e-3)) :
+                    # Pinch at the start of evaporation -> the cold stream sets the temperature
+                    Tc_bub = PropsSI('T', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+                    TemperatureVector_h[j] = Tc_bub
+                    EnthalpyVector_h[j] = PropsSI('H', 'P', self.pin_h, 'T', Tc_bub, self.fluid_h)
+                
+                elif (np.isclose(EnthalpyVector_c[j], self.h_c_dew, atol=1e-3)) :
+                    # Pinch at the end of evaporation -> the cold stream sets the temperature
+                    Tc_dew = PropsSI('T', 'P', self.pin_c, 'Q', 1, self.fluid_c)
+                    TemperatureVector_h[j] = Tc_dew
+                    EnthalpyVector_h[j] = PropsSI('H', 'P', self.pin_h, 'T', Tc_dew, self.fluid_h)
+                
+                elif (np.isclose(EnthalpyVector_h[j], self.h_h_dew, atol=1e-3)) :
+                    # Pinch at the start of condensation -> the hot stream sets the temperature
+                    Th_dew = PropsSI('T', 'P', self.pin_h, 'Q', 1, self.fluid_h)
+                    TemperatureVector_c[j] = Th_dew
+                    EnthalpyVector_c[j] = PropsSI('H', 'P', self.pin_c, 'T', Th_dew, self.fluid_c)
+                
+                elif (np.isclose(EnthalpyVector_h[j], self.h_h_bub, atol=1e-3)) :
+                    # Pinch at the end of condensation -> the hot stream sets the temperature
+                    Th_bub = PropsSI('T', 'P', self.pin_h, 'Q', 0, self.fluid_h)
+                    TemperatureVector_c[j] = Th_bub
+                    EnthalpyVector_c[j] = PropsSI('H', 'P', self.pin_c, 'T', Th_bub, self.fluid_c)
+
+        # Now that we have updated the enthalpy vectors, we can calculate Qmax_int by summing the minimum heat transfer in each cell
+        Qmax_int = 0
+        for k in range(self.N):
+            Qcell_h = self.mdot_h * (EnthalpyVector_h[k+1] - EnthalpyVector_h[k])
+            Qcell_c = self.mdot_c * (EnthalpyVector_c[k+1] - EnthalpyVector_c[k])
+            Qmax_int += min(Qcell_h, Qcell_c)
+
+        self.Qmax_int = Qmax_int
+
+        if (self.Qmax_int > self.Qmax_ext):
+            raise ValueError("Qmax based on internal pinching cannot be higher than Qmax based on external pinching.")
+        
+        if (self.Qmax_int < 0):
+            raise ValueError("Qmax based on internal pinching cannot be negative.")
 
         return self.Qmax_int
     
 
-
-
 """  
 
     What remains to be done:
-        - Derate corretly the Qmax using the temperature pinch -> Qmax_int is not correct because it is not derated
         - Find the real Q dot using the Brent method between 0 and Qmax_int
 
 
