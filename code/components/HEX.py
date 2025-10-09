@@ -12,9 +12,10 @@ class HEX():
         - mdot: list of mass flow rates [kg/s] for cold and hot streams
         - fluid: list of fluid names for cold and hot streams
         - A: heat exchanger area [m2] (assumed to be equal for both streams (i.e., A_c = A_h))
+        - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
-    def __init__(self, Tin, pin, mdot, fluid, A):
+    def __init__(self, Tin, pin, mdot, fluid, A, Rcond = 0):
         
         self.Tin_c = Tin[0]
         self.Tin_h = Tin[1]
@@ -27,10 +28,13 @@ class HEX():
         self.hin_c = PropsSI('H', 'T', self.Tin_c, 'P', self.pin_c, self.fluid_c)
         self.hin_h = PropsSI('H', 'T', self.Tin_h, 'P', self.pin_h, self.fluid_h)
         self.A = A
+        self.Rcond = Rcond
         self.condensation_start = None  # The hot stream is going from vapor to 2 phase
         self.condensation_end = None    # The hot stream is going from 2 phase to liquid
         self.evaporation_start = None   # The cold stream is going from liquid to 2 phase
         self.evaporation_end = None     # The cold stream is going from 2 phase to vapor
+        self.Q = None
+        self.epsilon = None
 
     """
     This method returns a string representation of the heat exchanger object.
@@ -55,6 +59,9 @@ class HEX():
             result += "Cold stream finishes evaporating from 2 phase to vapor.\n"
         else :
             result += "Cold stream does not evaporate.\n"
+        
+        result += f"Heat exchanger effectiveness: {self.epsilon*100:.2f} %\n"
+        result += f"Heat transfer rate: {self.Q/1000:.2f} kW,th\n"
 
         """ To be completed with more information"""
 
@@ -96,6 +103,7 @@ class HEX():
             # 1. Check for potential phase transition 2 phase to Liquid (bubble point) 
         if (self.EnthalpyVector_h[0] < self.h_h_bub) and (self.EnthalpyVector_h[-1] > self.h_h_bub):
             self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_bub)
+            self.EnthalpyVector_h.sort()
             self.condensation_end = True
             self.N += 1
         else :
@@ -104,18 +112,19 @@ class HEX():
             # 2. Check for potential phase transition Vapor to 2 phase (dew point)
         if (self.EnthalpyVector_h[0] < self.h_h_dew) and (self.EnthalpyVector_h[-1] > self.h_h_dew):
             self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_dew)
+            self.EnthalpyVector_h.sort()
             self.condensation_start = True
             self.N += 1
         else :
             self.condensation_start = False
 
-        self.EnthalpyVector_h.sort()
         
         ## B. Insert phase transition enthalpies for the cold stream if applicable
 
             # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
         if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
             self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
+            self.EnthalpyVector_c.sort()
             self.evaporation_start = True
             self.N += 1
         else :
@@ -124,17 +133,16 @@ class HEX():
             # 2. Check for potential phase transition 2 phase to Vapor (dew point)
         if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
             self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
+            self.EnthalpyVector_c.sort()
             self.evaporation_end = True
             self.N += 1
         else :
             self.evaporation_end = False
-        
-        self.EnthalpyVector_c.sort()
 
 
         ## C. Insert complementary phase transition enthalpies
 
-        for j in range(self.N):
+        for j in range(self.N - 1):
             Qcell_h = self.mdot_h * (self.EnthalpyVector_h[j+1] - self.EnthalpyVector_h[j])
             Qcell_c = self.mdot_c * (self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j])
             
@@ -150,6 +158,7 @@ class HEX():
                 new_h = self.mdot_h/self.mdot_c * (self.EnthalpyVector_h[j+1] - self.EnthalpyVector_h[j]) + self.EnthalpyVector_c[j]
                 self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, new_h)
                 self.EnthalpyVector_c.sort()
+
 
         ## D. Verify that both vectors have the same length
 
@@ -238,7 +247,7 @@ class HEX():
         # Heat transfer rate in cell j
         Qj_h = self.mdot_h * (self.EnthalpyVector_h[cell_index+1] - self.EnthalpyVector_h[cell_index])
         Qj_c = self.mdot_c * (self.EnthalpyVector_c[cell_index+1] - self.EnthalpyVector_c[cell_index])
-        if (np.isclose(Qj_h, Qj_c, atol=1e-6)):
+        if not (np.isclose(Qj_h, Qj_c, atol=1e-6)):
             raise ValueError("Heat transfer rates in cell j are not consistent.")
         else :
             Qj = (Qj_h + Qj_c)/2
@@ -256,11 +265,13 @@ class HEX():
         if (np.isclose(DeltaTA_j, DeltaTB_j, atol=1e-6)):
             LMTDj = DeltaTA_j
         else :
+            DeltaTA_j = max(DeltaTA_j, 1e-6)  # To avoid log(0) or log(negative)
+            DeltaTB_j = max(DeltaTB_j, 1e-6)  # To avoid log(infinity) or log(negative)
             LMTDj = (DeltaTA_j - DeltaTB_j) / np.log(DeltaTA_j / DeltaTB_j)
         
         # Area fraction for cell j
         UArequired_j = Qj / LMTDj
-        Uj = 1 / (1/alpha_h_j + 1/alpha_c_j)  # Overall heat transfer coefficient for cell j (assuming no wall resistance)
+        Uj = 1 / (1/alpha_h_j + self.Rcond + 1/alpha_c_j)  # Overall heat transfer coefficient for cell j (assuming no wall resistance)
         Arequired_j = UArequired_j / Uj
         wj = Arequired_j / self.A
 
@@ -285,6 +296,7 @@ class HEX():
             - Tout_c : outlet temperature of the cold stream [K]
             - Tout_h : outlet temperature of the hot stream [K]
             - Q : heat transfer rate [W]
+            - epsilon : effectiveness of the heat exchanger [-]
     
     """
     def Solve(self):
@@ -309,8 +321,9 @@ class HEX():
         self.hout_h = self.EnthalpyVector_h[0]
         self.Tout_c = PropsSI('T', 'P', self.pin_c, 'H', self.hout_c, self.fluid_c)
         self.Tout_h = PropsSI('T', 'P', self.pin_h, 'H', self.hout_h, self.fluid_h)
+        self.epsilon = self.Q / self._Qmax_ext()
 
-        return self.Tout_c, self.Tout_h, self.Q
+        return self.Tout_c, self.Tout_h, self.Q, self.epsilon
 
     """
     This method returns the normalized enthalpy vectors of both streams for further analysis.
@@ -323,31 +336,47 @@ class HEX():
     """
     def _get_Normalized_EnthalpyVectors(self):
         hc_min = self.EnthalpyVector_c[0]
-        hh_max = self.EnthalpyVector_h[-1]
+        hh_min = self.EnthalpyVector_h[0]
         self.Normalized_EnthalpyVector_c = self.mdot_c * (self.EnthalpyVector_c - hc_min) / self.Q
-        self.Normalized_EnthalpyVector_h = self.mdot_h * (self.EnthalpyVector_h - hh_max) / self.Q
+        self.Normalized_EnthalpyVector_h = self.mdot_h * (self.EnthalpyVector_h - hh_min) / self.Q
 
         return self.Normalized_EnthalpyVector_c, self.Normalized_EnthalpyVector_h
     
     """
     This method plots the heat exchange on a T-h normalized diagram.
+        - Inputs : With_SatLines (boolean) to indicate if saturation lines should be plotted or not
     
     """
-    def _plot(self):
+    def _plot(self, With_SatLines = False):
         self._get_Normalized_EnthalpyVectors()
         TemperatureVector_c = np.zeros(len(self.EnthalpyVector_c))
         TemperatureVector_h = np.zeros(len(self.EnthalpyVector_h))
+        Tsat_c = PropsSI('T', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+        Tsat_h = PropsSI('T', 'P', self.pin_h, 'Q', 0, self.fluid_h)
 
         for i in range(len(self.EnthalpyVector_c)):
             TemperatureVector_c[i] = PropsSI('T', 'P', self.pin_c, 'H', self.EnthalpyVector_c[i], self.fluid_c)
             TemperatureVector_h[i] = PropsSI('T', 'P', self.pin_h, 'H', self.EnthalpyVector_h[i], self.fluid_h)
         
         plt.figure()
-        plt.plot(self.Normalized_EnthalpyVector_c, TemperatureVector_c, marker='o', color="blue")
-        plt.plot(self.Normalized_EnthalpyVector_h, TemperatureVector_h, marker='o', color="red")
+        plt.plot(self.Normalized_EnthalpyVector_c, TemperatureVector_c, marker='o', color="blue", label=self.fluid_c)
+        plt.plot(self.Normalized_EnthalpyVector_h, TemperatureVector_h, marker='o', color="red", label=self.fluid_h)
+        if With_SatLines:
+            plt.axhline(y=Tsat_c, color='blue', linestyle='--')
+            plt.axhline(y=Tsat_h, color='red', linestyle='--')
+        # plt.legend()
         plt.xlabel(r"$\hat{h}[-]$")
+        plt.xlim(0,1)
         plt.ylabel(r"$T[K]$")
         plt.show()
+
+
+# Example of usage
+Evaporator_LT = HEX(Tin=[275, 283], pin=[5.5e5, 1e5], mdot=[0.2, 1], fluid=['R290', 'Water'], A=1)
+Evaporator_LT.Solve()
+print(Evaporator_LT)
+Evaporator_LT._plot()
+
 
 
     
@@ -360,6 +389,11 @@ class HEX():
 
     Notes :
         - The functions wimposed are not needed in our case
+
+    Questions to be answered :
+        - We assume no wall resistance at the moment -> is this valid?
+        - How to handle supercritical operation ?
+        - We assume no pressure drop at the moment -> is this valid?
 
 
 """
