@@ -8,7 +8,7 @@ class Compressor():
         self.eta_is_max = eta_is_max
         self.eta_elme = eta_elme
 
-    def _pout(self, P_el, mdot_wf, state_in, fluid):
+    def pout(self, P_el, mdot_wf, state_in, fluid):
         """
         Calculate the outlet pressure of the compressor based on the inlet state, electrical power input, and mass flow rate with respect 
         to the 3 parameters model.
@@ -41,7 +41,7 @@ class Compressor():
         return p_ex, T_ex
     
 
-    def _modelCompressor2(self, P_el, p_ex, state_in, fluid):
+    def modelCompressor2(self, P_el, p_ex, state_in, fluid):
         """
         2-parameter model for compressor outlet state calculation.
         
