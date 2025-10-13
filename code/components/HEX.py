@@ -12,13 +12,13 @@ class HEX():
         - mdot: list of mass flow rates [kg/s] for cold and hot streams
         - fluid: list of fluid names for cold and hot streams
         - A: heat exchanger area [m2] (assumed to be equal for both streams (i.e., A_c = A_h))
-        - W : heat exchanger width [m]
-        - w : width of a single channel [m]
+        - W : heat exchanger width [m] (default = 0.3 m)
+        - w : width of a single channel [m] (default = 1.5 mm)
         - beta : chevron angle [degrees] (default = 45 degrees)
         - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
-    def __init__(self, Tin, pin, mdot, fluid, A, W, w, beta=45, Rcond = 0):
+    def __init__(self, Tin, pin, mdot, fluid, A, W=0.3, w=1.5e-3, beta=45, Rcond = 0):
         
         self.Tin_c = Tin[0]
         self.Tin_h = Tin[1]
