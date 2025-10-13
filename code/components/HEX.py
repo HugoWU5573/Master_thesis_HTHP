@@ -434,8 +434,8 @@ class HEX():
         G = self.mdot_h / self.Aflow
         Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
 
-        Tsat = PropsSI('T', 'P', self.pin_h, 'Q', x_m, self.fluid_h)
-        Pr = PropsSI("PRANDTL", 'T', Tsat, 'P', self.pin_h, self.fluid_h)
+        #Tsat = PropsSI('T', 'P', self.pin_h, 'Q', x_m, self.fluid_h)
+        Pr = PropsSI("PRANDTL", 'Q', 0, 'P', self.pin_h, self.fluid_h)
 
         k_l = PropsSI('L', 'P', self.pin_h, 'Q', 0, self.fluid_h)
         Re_eq = Geq * Dh / mu_l
@@ -444,7 +444,7 @@ class HEX():
             print("Warning: Reynolds number out of range for the Thonon and Bontemps correlation (condensation).")
         h_l0 = 0.347 * (k_l / Dh) * Re**0.653 * Pr**0.33
         h = 1564 * h_l0 * Re_eq**(-0.76)
-
+        print(h)
         return h
 
 
@@ -544,14 +544,6 @@ class HEX():
             h = 18.485*(kl/Dh)*(self.beta/beta_max)**(0.248)*(x_m*G*Dh/mu_v)**(0.135)*(G*Dh/mu_l)**(0.351)*(rho_l/rho_v)**(0.223)*Bd**(0.235)*Bo**(0.198)
 
         return h
-    
-
-
-# Example of usage
-Evaporator_LT = HEX(Tin=[275, 283], pin=[5.5e5, 1e5], mdot=[1, 1], fluid=['R290', 'Water'], A=1, W = 0.3, w=1.5e-3)
-Evaporator_LT.Solve()
-print(Evaporator_LT)
-Evaporator_LT._plot()
 
 
 

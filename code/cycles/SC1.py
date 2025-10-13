@@ -24,19 +24,19 @@ working_fluid = 'R290'          # Working fluid
 dT_1 = 3                        # Superheating at the compressor inlet [K] 
 p_1 = 10e5
 p_3 = 2.2247 * p_1              # Compressor outlet pressure [Pa] 
-P_comp = 5e3                    # Compressor power [W] 
+P_comp = 10e3                    # Compressor power [W] 
 
 # Heat source parameters
 mdot_LT = 4                   # Mass flow rate [kg/s]
 dT_in_LT = 10                   # Inlet temperature difference [K]
 p_in_LT = 1e5                   # Inlet pressure [Pa]    
-A_LT_0 = 12                      # Heat exchanger area [m²]
+A_LT = 13                      # Heat exchanger area [m²]
 
 # Heat sink parameters
 mdot_MT = 5                  # Mass flow rate [kg/s]
 dT_in_MT = 20                   # Inlet temperature difference [K]
 p_in_MT = 1e5                   # Inlet pressure [Pa]
-A_MT_0 = 10                      # Heat exchanger area [m²]
+A_MT = 10                      # Heat exchanger area [m²]
 
 # Compressor parameters
 BVR = 1/2.1260                  # Built-in Volume Ratio
@@ -64,33 +64,31 @@ compressor = Compressor(BVR=BVR, eta_v=eta_v, eta_is_max=eta_is_max, eta_elme=et
 cycle.mdot_wf, T_ex = compressor.modelCompressor2(P_el=P_comp, p_ex=p_3, state_in=cycle.state_1, fluid=working_fluid)
 cycle.state_3 = State(p=p_3, T=T_ex, fluid=working_fluid)
 
-def iteration(A): 
-    A_LT, A_MT = A
 
-    # State 9
-    cycle.state_4_prime = State(T = cycle.state_3.T - dT_in_MT, p = p_in_MT, fluid='Water')
-    HEX_MT = HEX(cycle.state_4_prime, cycle.state_3, [cycle.mdot_MT, cycle.mdot_wf], fluid = ['Water', working_fluid], A=A_MT)
-    T_3_prime, T_9, h_3_prime, h_9 = HEX_MT.Solve()[:4]
-    cycle.state_9 = State(h = h_9, p=cycle.state_3.p, fluid=working_fluid)
-    cycle.state_3_prime = State(h = h_3_prime, p=p_in_MT, fluid='Water')
+# State 9
+cycle.state_4_prime = State(T = cycle.state_3.T - dT_in_MT, p = p_in_MT, fluid='Water')
+HEX_MT = HEX(cycle.state_4_prime, cycle.state_3, [cycle.mdot_MT, cycle.mdot_wf], fluid = ['Water', working_fluid], A=A_MT)
+T_3_prime, T_9, h_3_prime, h_9 = HEX_MT.Solve()[:4]
+cycle.state_9 = State(h = h_9, p=cycle.state_3.p, fluid=working_fluid)
+cycle.state_3_prime = State(h = h_3_prime, p=p_in_MT, fluid='Water')
 
-    # State 10
-    cycle.state_10 = State(p = cycle.state_1.p, h = cycle.state_9.h, fluid=working_fluid)
+# State 10
+cycle.state_10 = State(p = cycle.state_1.p, h = cycle.state_9.h, fluid=working_fluid)
 
-    # State 1_comp 
-    cycle.state_1_prime = State(T = cycle.state_10.T + dT_in_LT, p = p_in_LT, fluid='Water')
-    HEX_LT = HEX(cycle.state_10, cycle.state_1_prime, [cycle.mdot_wf, cycle.mdot_LT], fluid = [working_fluid, 'Water'], A=A_LT)
-    T_1_comp, T_2_prime, h_1_comp, h_2_prime = HEX_LT.Solve()[:4]
-    cycle.state_2_prime = State(h = h_2_prime, p=p_in_LT, fluid='Water')
-    state_1_comp = State(h = h_1_comp, p=cycle.state_10.p, fluid=working_fluid)
-    print(state_1_comp.T, cycle.state_1.T)
-
-    return (cycle.state_1.T - state_1_comp.T)**2
+# State 1_comp 
+cycle.state_1_prime = State(T = cycle.state_10.T + dT_in_LT, p = p_in_LT, fluid='Water')
+HEX_LT = HEX(cycle.state_10, cycle.state_1_prime, [cycle.mdot_wf, cycle.mdot_LT], fluid = [working_fluid, 'Water'], A=A_LT)
+T_1_comp, T_2_prime, h_1_comp, h_2_prime = HEX_LT.Solve()[:4]
+cycle.state_2_prime = State(h = h_2_prime, p=p_in_LT, fluid='Water')
+state_1_comp = State(h = h_1_comp, p=cycle.state_10.p, fluid=working_fluid)
+print(state_1_comp.T, cycle.state_1.T)
 
 
 
-A_LT, A_MT = minimize(iteration, x0=(A_LT_0, A_MT_0), bounds=((0, 20), (0, 20))).x
-print(f"Optimized Heat Exchanger Areas: A_LT = {A_LT:.2f} m², A_MT = {A_MT:.2f} m²")
+
+
+#A_LT, A_MT = minimize(iteration, x0=(A_LT_0, A_MT_0), bounds=((0, 20), (0, 20))).x
+#print(f"Optimized Heat Exchanger Areas: A_LT = {A_LT:.2f} m², A_MT = {A_MT:.2f} m²")
 
 # Plot T-s diagram with saturation curve
 
