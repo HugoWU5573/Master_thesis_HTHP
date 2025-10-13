@@ -2,35 +2,38 @@ from CoolProp.CoolProp import PropsSI
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
+from state import State
 
 class HEX():
 
     """
     Creates a COUNTER-FLOW heat exchanger object based on the following inputs:
-        - Tin: list of inlet temperatures [K] for cold and hot streams
-        - pin: list of inlet pressures [Pa] for cold and hot streams
+        - state_in_c: State object representing the inlet state of the cold stream
+        - state_in_h: State object representing the inlet state of the hot stream
         - mdot: list of mass flow rates [kg/s] for cold and hot streams
         - fluid: list of fluid names for cold and hot streams
-        - A: heat exchanger area [m2] (assumed to be equal for both streams (i.e., A_c = A_h))
-        - W : heat exchanger width [m] (default = 0.3 m)
+        - N : number of plates in the heat exchanger
+        - L : heat exchanger length [m] (default = 0.3 m)
+        - W : heat exchanger width [m] (default = 0.1 m)
         - w : width of a single channel [m] (default = 1.5 mm)
         - beta : chevron angle [degrees] (default = 45 degrees)
         - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
-    def __init__(self, state_c, state_h, mdot, fluid, A, W=0.3, w=1.5e-3, beta=45, Rcond = 0):
+    def __init__(self, state_in_c, state_in_h, mdot, fluid, N, L = 0.3, W=0.1, w=1.5e-3, beta=45, Rcond = 0):
 
-        self.Tin_c = state_c.T
-        self.Tin_h = state_h.T
-        self.pin_c = state_c.p
-        self.pin_h = state_h.p
+        self.Tin_c = state_in_c.T
+        self.Tin_h = state_in_h.T
+        self.pin_c = state_in_c.p
+        self.pin_h = state_in_h.p
         self.mdot_c = mdot[0]
         self.mdot_h = mdot[1]
         self.fluid_c = fluid[0]
         self.fluid_h = fluid[1]
-        self.hin_c = state_c.h
-        self.hin_h = state_h.h
-        self.A = A
+        self.hin_c = state_in_c.h
+        self.hin_h = state_in_h.h
+        self.Nb_plates = N
+        self.A = L * W * (self.Nb_plates - 2)        # We do not consider the first and last plate for heat transfer
         self.W = W
         self.w = w
         self.Aflow = self.W * self.w    # Cross-sectional flow area for one channel [m2]
@@ -49,7 +52,7 @@ class HEX():
 
     """ 
     def __str__(self):
-        result = ""
+        result = "\n=========================== PHEX ===========================\n"
         if (self.condensation_start) and (self.condensation_end):
             result += "Hot stream condenses from vapor to liquid.\n"
         elif (self.condensation_start) and (not self.condensation_end):
@@ -70,6 +73,7 @@ class HEX():
         
         result += f"Heat exchanger effectiveness: {self.epsilon*100:.2f} %\n"
         result += f"Heat transfer rate: {self.Q/1000:.2f} kW,th\n"
+        result += "============================================================"
 
         return result
 
@@ -350,7 +354,19 @@ class HEX():
             
             return 1 - w_total
         
-        self.Q = brentq(iteration, 0, Qmax_int) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+        try :
+            self.Q = brentq(iteration, 0, Qmax_int) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+        except ValueError as error:
+            if error.args[0]=='f(a) and f(b) must have different signs':
+                # The most probable reason for this error is that the number of plates is too high, meaning that the temperature
+                # difference between the two streams at one of the internal pinch points close to 0 -> we set Q = Qmax_int
+                iteration(Qmax_int)
+                self.Q = Qmax_int
+                print(f"\n[/!\ /!\ /!\ WARNING START /!\ /!\ /!\] \n Brent method did not converge.  This is "
+                      f"likely due to an oversized exchanger (too many plates: N = {self.Nb_plates}).\n"
+                      f"[/!\ /!\ /!\  WARNING END  /!\ /!\ /!\] ")
+            else :
+                raise error  # Re-raise the exception if it's a different error
 
         self.hout_c = self.EnthalpyVector_c[-1]
         self.hout_h = self.EnthalpyVector_h[0]
@@ -434,17 +450,17 @@ class HEX():
         G = self.mdot_h / self.Aflow
         Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
 
-        #Tsat = PropsSI('T', 'P', self.pin_h, 'Q', x_m, self.fluid_h)
-        Pr = PropsSI("PRANDTL", 'Q', 0, 'P', self.pin_h, self.fluid_h)
+        Pr_l = PropsSI("PRANDTL", 'Q', 0, 'P', self.pin_h, self.fluid_h)
+        Pr_g = PropsSI("PRANDTL", 'Q', 1, 'P', self.pin_h, self.fluid_h)
+        Pr = (1-x_m)*Pr_l + x_m*Pr_g
 
         k_l = PropsSI('L', 'P', self.pin_h, 'Q', 0, self.fluid_h)
         Re_eq = Geq * Dh / mu_l
         Re = Dh * G / mu_m
-        if (Re < 100) or (Re > 2000) :
-            print("Warning: Reynolds number out of range for the Thonon and Bontemps correlation (condensation).")
+        #if (Re < 100) or (Re > 2000) :
+        #    print("Warning: Reynolds number out of range for the Thonon and Bontemps correlation (condensation), Re = {:.2f}".format(Re))
         h_l0 = 0.347 * (k_l / Dh) * Re**0.653 * Pr**0.33
         h = 1564 * h_l0 * Re_eq**(-0.76)
-        print(h)
         return h
 
 
@@ -545,6 +561,26 @@ class HEX():
 
         return h
 
+
+# Examples of usage
+if __name__=='__main__':
+
+    # Example 1 : Evaporator with R290 and water
+    state_in_c = State(T=275, p=5.5e5, fluid='R290')
+    state_in_h = State(T=290, p=1e5, fluid='Water')
+    Evaporator = HEX(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.15, 0.4], fluid=['R290', 'Water'], N=10)
+    Evaporator.Solve()
+    print(Evaporator)
+    Evaporator._plot()
+
+    
+    # Example 2 : Condenser with R290 and water
+    state_in_c = State(T=320, p=1e5, fluid='Water') 
+    state_in_h = State(T=350, p=25e5, fluid='R290')
+    Condenser = HEX(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.3, 0.15], fluid=['Water', 'R290'], N=10)
+    Condenser.Solve()
+    print(Condenser)
+    Condenser._plot()
 
 
     
