@@ -18,21 +18,12 @@ class HEX():
         - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
-<<<<<<< HEAD
-    def __init__(self, state_c, state_h, mdot, fluid, A, Rcond = 0):
+    def __init__(self, state_c, state_h, mdot, fluid, A, W=0.3, w=1.5e-3, beta=45, Rcond = 0):
 
         self.Tin_c = state_c.T
         self.Tin_h = state_h.T
         self.pin_c = state_c.p
         self.pin_h = state_h.p
-=======
-    def __init__(self, Tin, pin, mdot, fluid, A, W=0.3, w=1.5e-3, beta=45, Rcond = 0):
-        
-        self.Tin_c = Tin[0]
-        self.Tin_h = Tin[1]
-        self.pin_c = pin[0]
-        self.pin_h = pin[1]
->>>>>>> 604dac3f2928a79e39e131dfc8240424db9d2816
         self.mdot_c = mdot[0]
         self.mdot_h = mdot[1]
         self.fluid_c = fluid[0]
@@ -416,9 +407,6 @@ class HEX():
         plt.ylabel(r"$T[K]$")
         plt.show()
 
-<<<<<<< HEAD
-'''
-=======
 
     """
     This method implements the Thonon and Bontemps (2002) correlation to estimate the convective heat transfer 
@@ -559,13 +547,12 @@ class HEX():
     
 
 
->>>>>>> 604dac3f2928a79e39e131dfc8240424db9d2816
 # Example of usage
 Evaporator_LT = HEX(Tin=[275, 283], pin=[5.5e5, 1e5], mdot=[1, 1], fluid=['R290', 'Water'], A=1, W = 0.3, w=1.5e-3)
 Evaporator_LT.Solve()
 print(Evaporator_LT)
 Evaporator_LT._plot()
-'''
+
 
 
     
