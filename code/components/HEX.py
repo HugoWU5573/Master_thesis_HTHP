@@ -12,15 +12,27 @@ class HEX():
         - mdot: list of mass flow rates [kg/s] for cold and hot streams
         - fluid: list of fluid names for cold and hot streams
         - A: heat exchanger area [m2] (assumed to be equal for both streams (i.e., A_c = A_h))
+        - W : heat exchanger width [m] (default = 0.3 m)
+        - w : width of a single channel [m] (default = 1.5 mm)
+        - beta : chevron angle [degrees] (default = 45 degrees)
         - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
+<<<<<<< HEAD
     def __init__(self, state_c, state_h, mdot, fluid, A, Rcond = 0):
 
         self.Tin_c = state_c.T
         self.Tin_h = state_h.T
         self.pin_c = state_c.p
         self.pin_h = state_h.p
+=======
+    def __init__(self, Tin, pin, mdot, fluid, A, W=0.3, w=1.5e-3, beta=45, Rcond = 0):
+        
+        self.Tin_c = Tin[0]
+        self.Tin_h = Tin[1]
+        self.pin_c = pin[0]
+        self.pin_h = pin[1]
+>>>>>>> 604dac3f2928a79e39e131dfc8240424db9d2816
         self.mdot_c = mdot[0]
         self.mdot_h = mdot[1]
         self.fluid_c = fluid[0]
@@ -28,6 +40,10 @@ class HEX():
         self.hin_c = state_c.h
         self.hin_h = state_h.h
         self.A = A
+        self.W = W
+        self.w = w
+        self.Aflow = self.W * self.w    # Cross-sectional flow area for one channel [m2]
+        self.beta = beta
         self.Rcond = Rcond
         self.condensation_start = None  # The hot stream is going from vapor to 2 phase
         self.condensation_end = None    # The hot stream is going from 2 phase to liquid
@@ -35,6 +51,7 @@ class HEX():
         self.evaporation_end = None     # The cold stream is going from 2 phase to vapor
         self.Q = None
         self.epsilon = None
+
 
     """
     This method returns a string representation of the heat exchanger object.
@@ -63,8 +80,6 @@ class HEX():
         result += f"Heat exchanger effectiveness: {self.epsilon*100:.2f} %\n"
         result += f"Heat transfer rate: {self.Q/1000:.2f} kW,th\n"
 
-        """ To be completed with more information"""
-
         return result
 
     
@@ -80,6 +95,7 @@ class HEX():
         self.Qmax_ext = min(Qmax_h, Qmax_c)
         return self.Qmax_ext
     
+
     """
     This method implements the cell division algorithm to find the Enthalpy Vectors of both streams.
         - Input : Qmax (maximum heat transfer rate based on external pinching)
@@ -170,6 +186,7 @@ class HEX():
 
         return self.EnthalpyVector_c, self.EnthalpyVector_h
     
+
     """
     This method calculates the maximum heat transfer rate based on the assumption of internal pinching.
     
@@ -279,16 +296,42 @@ class HEX():
     
 
     """
-    TO BE COMPLETED
+    This method calculates the convective heat transfer coefficients for both streams in cell "cell_index".
+        - Input : cell_index (index of the cell for which we want to calculate the heat transfer coefficients)
+        - Outputs :
+            - alpha_c : convective heat transfer coefficient for the cold stream [W/m2K]
+            - alpha_h : convective heat transfer coefficient for the hot stream [W/m2K]
     
     """
-    def _alpha(self):
+    def _alpha(self, cell_index):
 
-        """ TO BE COMPLETED"""
+        alpha_c = None
+        alpha_h = None
 
-        return 1000
+        ## Cold stream
+        hc_start = self.EnthalpyVector_c[cell_index]
+        hc_end = self.EnthalpyVector_c[cell_index+1]
+
+        if hc_end <= self.h_c_bub or hc_start >= self.h_c_dew: 
+            # Cold stream is single phase
+            alpha_c = self._SinglePhase_Correlation(cell_index, "cold")
+        else :
+            # Cold stream is in 2 phase and evaporating
+            alpha_c = self._Evaporation_Correlation(cell_index)
+
+        ## Hot stream
+        hh_start = self.EnthalpyVector_h[cell_index]
+        hh_end = self.EnthalpyVector_h[cell_index+1]
+
+        if hh_end <= self.h_h_bub or hh_start >= self.h_h_dew:
+            # Hot stream is single phase liquid
+            alpha_h = self._SinglePhase_Correlation(cell_index, "hot")
+        else :
+            # Hot stream is in 2 phase and condensing
+            alpha_h = self._Condensation_Correlation(cell_index)
+
+        return alpha_c, alpha_h
     
-
 
     """
     This method iteratively solves the heat exchanger model to find the outlet temperatures and heat transfer rate.
@@ -307,10 +350,11 @@ class HEX():
         def iteration(Q):
             self._cell_division(Q)         
             w_total = 0
+            self.wVector = np.zeros(self.N)
             for j in range(self.N):
-                alpha_h_j = self._alpha()
-                alpha_c_j = self._alpha()
+                alpha_c_j, alpha_h_j = self._alpha(j)
                 wj = self._cell_analysis(j, alpha_h_j, alpha_c_j)
+                self.wVector[j] = wj
                 w_total += wj
             
             return 1 - w_total
@@ -324,6 +368,7 @@ class HEX():
         self.epsilon = self.Q / self._Qmax_ext()
 
         return self.Tout_c, self.Tout_h, self.hout_c, self.hout_h, self.Q, self.epsilon
+
 
     """
     This method returns the normalized enthalpy vectors of both streams for further analysis.
@@ -342,6 +387,7 @@ class HEX():
 
         return self.Normalized_EnthalpyVector_c, self.Normalized_EnthalpyVector_h
     
+
     """
     This method plots the heat exchange on a T-h normalized diagram.
         - Inputs : With_SatLines (boolean) to indicate if saturation lines should be plotted or not
@@ -370,9 +416,152 @@ class HEX():
         plt.ylabel(r"$T[K]$")
         plt.show()
 
+<<<<<<< HEAD
 '''
+=======
+
+    """
+    This method implements the Thonon and Bontemps (2002) correlation to estimate the convective heat transfer 
+    coefficient of condensing fluid (ideally R290) inside a plate heat exchanger.
+        - Input : cell_index (index of the cell for which we want to calculate the heat transfer coefficient)
+        - Output : h (heat transfer coefficient) [W/m2K]
+    
+    """
+    def _Condensation_Correlation(self, cell_index):
+        x_start = PropsSI('Q', 'P', self.pin_h, 'H', self.EnthalpyVector_h[cell_index], self.fluid_h)
+        x_end = PropsSI('Q', 'P', self.pin_h, 'H', self.EnthalpyVector_h[cell_index+1], self.fluid_h)
+        x_m = (x_start + x_end) / 2
+
+        mu_l = PropsSI('V', 'P', self.pin_h, 'Q', 0, self.fluid_h)
+        mu_start = PropsSI('V', 'P', self.pin_h, 'H', self.EnthalpyVector_h[cell_index], self.fluid_h)
+        mu_end = PropsSI('V', 'P', self.pin_h, 'H', self.EnthalpyVector_h[cell_index+1], self.fluid_h)
+        mu_m = (mu_start + mu_end) / 2
+
+        rho_l = PropsSI('D', 'P', self.pin_h, 'Q', 0, self.fluid_h)
+        rho_v = PropsSI('D', 'P', self.pin_h, 'Q', 1, self.fluid_h)
+
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+
+        G = self.mdot_h / self.Aflow
+        Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
+
+        Tsat = PropsSI('T', 'P', self.pin_h, 'Q', x_m, self.fluid_h)
+        Pr = PropsSI("PRANDTL", 'T', Tsat, 'P', self.pin_h, self.fluid_h)
+
+        k_l = PropsSI('L', 'P', self.pin_h, 'Q', 0, self.fluid_h)
+        Re_eq = Geq * Dh / mu_l
+        Re = Dh * G / mu_m
+        if (Re < 100) or (Re > 2000) :
+            print("Warning: Reynolds number out of range for the Thonon and Bontemps correlation (condensation).")
+        h_l0 = 0.347 * (k_l / Dh) * Re**0.653 * Pr**0.33
+        h = 1564 * h_l0 * Re_eq**(-0.76)
+
+        return h
+
+
+    """
+    This method implements the Khan et al. (2010) correlation to estimate the convective heat transfer
+    coefficient of single phase fluid (ideally water) inside a plate heat exchanger.
+        - Inputs :
+            - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
+            - stream : "hot" or "cold" to indicate which stream we are considering
+        - Output : h (heat transfer coefficient) [W/m2K]
+
+    """
+    def _SinglePhase_Correlation(self, cell_index, stream):
+
+        beta_max = 60           # Maximum chevron angle [degrees]
+        correction_factor = 1   # Correction factor for Nu when the fluid is not water but propane
+
+        T_start_h = PropsSI('T', 'P', self.pin_h, 'H', self.EnthalpyVector_h[cell_index], self.fluid_h)
+        T_end_h = PropsSI('T', 'P', self.pin_h, 'H', self.EnthalpyVector_h[cell_index+1], self.fluid_h)
+        T_start_c = PropsSI('T', 'P', self.pin_c, 'H', self.EnthalpyVector_c[cell_index], self.fluid_c)
+        T_end_c = PropsSI('T', 'P', self.pin_c, 'H', self.EnthalpyVector_c[cell_index+1], self.fluid_c)
+        T_avg_h = (T_start_h + T_end_h) / 2 ; T_avg_c = (T_start_c + T_end_c) / 2
+        Tw = (T_avg_h + T_avg_c) / 2 
+
+        if stream == "hot":
+            pressure = self.pin_h
+            fluid = self.fluid_h
+            T_start = T_start_h
+            T_end = T_end_h
+            mdot = self.mdot_h
+        else :
+            pressure = self.pin_c
+            fluid = self.fluid_c
+            T_start = T_start_c
+            T_end = T_end_c
+            mdot = self.mdot_c
+        
+        Tm = (T_start + T_end) / 2
+        mu = PropsSI('V', 'P', pressure, 'T', Tm, fluid)
+        mu_w = PropsSI('V', 'P', pressure, 'T', Tw, fluid)
+        Pr = PropsSI("PRANDTL", 'T', Tm, 'P', pressure, fluid)
+
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+        G = mdot / self.Aflow
+        Re = Dh * G / mu
+
+        Nu = (0.0161*self.beta/beta_max+0.1298)*Re**(0.198*self.beta/beta_max+0.6398)*Pr**(0.35)*(mu/mu_w)**(0.14)
+        if (fluid != "Water"):
+            Nu *= correction_factor
+        k = PropsSI('L', 'P', pressure, 'T', Tm, fluid)
+        h = Nu * k / Dh
+
+        return h
+
+
+    """
+    This method implements the Almalfi et al. (2015) correlation to estimate the convective heat transfer
+    coefficient of evaporating fluid inside a plate heat exchanger.
+        - Input : cell_index (index of the cell for which we want to calculate the heat transfer coefficient)
+        - Output : h (heat transfer coefficient) [W/m2K]
+    
+    """
+    def _Evaporation_Correlation(self, cell_index):
+
+        beta_max = 70           # Maximum chevron angle [degrees]
+
+        # Calculation of Bd
+        rho_l = PropsSI('D', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+        rho_v = PropsSI('D', 'P', self.pin_c, 'Q', 1, self.fluid_c)
+        rho_m = (rho_l + rho_v) / 2
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+        g = 9.81
+        x_start = PropsSI('Q', 'P', self.pin_c, 'H', self.EnthalpyVector_c[cell_index], self.fluid_c)
+        x_end = PropsSI('Q', 'P', self.pin_c, 'H', self.EnthalpyVector_c[cell_index+1], self.fluid_c)
+        x_m = (x_start + x_end) / 2
+        sigma = PropsSI('SURFACE_TENSION', 'P', self.pin_c, 'Q', x_m, self.fluid_c)
+        Bd = (g * (rho_l - rho_v) * Dh**2) / sigma
+
+        # Calculation of Bo
+        Q_cell = self.mdot_c * (self.EnthalpyVector_c[cell_index+1] - self.EnthalpyVector_c[cell_index])
+        wj = self.wVector[cell_index]
+        if (wj == 0): wj = 1
+        q_prime_prime = Q_cell / (wj * self.A)  # Local heat flux [W/m2]
+        G = self.mdot_c / self.Aflow
+        hlv = PropsSI('H', 'P', self.pin_c, 'Q', 1, self.fluid_c) - PropsSI('H', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+        Bo = q_prime_prime / (G * hlv)
+        mu_l = PropsSI('V', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+        mu_v = PropsSI('V', 'P', self.pin_c, 'Q', 1, self.fluid_c)
+
+        # Calculation of h
+        kl = PropsSI('L', 'P', self.pin_c, 'Q', 0, self.fluid_c)
+        if (Bd < 4) :
+            h = 982*(kl/Dh)*(self.beta/beta_max)**(1.101)*(G*G*Dh/(rho_m*sigma))**(0.315)*(rho_l/rho_v)**(-0.224)*Bo**(0.320)
+        else :
+            h = 18.485*(kl/Dh)*(self.beta/beta_max)**(0.248)*(x_m*G*Dh/mu_v)**(0.135)*(G*Dh/mu_l)**(0.351)*(rho_l/rho_v)**(0.223)*Bd**(0.235)*Bo**(0.198)
+
+        return h
+    
+
+
+>>>>>>> 604dac3f2928a79e39e131dfc8240424db9d2816
 # Example of usage
-Evaporator_LT = HEX(Tin=[275, 283], pin=[5.5e5, 1e5], mdot=[0.2, 1], fluid=['R290', 'Water'], A=1)
+Evaporator_LT = HEX(Tin=[275, 283], pin=[5.5e5, 1e5], mdot=[1, 1], fluid=['R290', 'Water'], A=1, W = 0.3, w=1.5e-3)
 Evaporator_LT.Solve()
 print(Evaporator_LT)
 Evaporator_LT._plot()
@@ -383,17 +572,15 @@ Evaporator_LT._plot()
 
 """  
 
-    What remains to be done:
-        - Make functions to calculate alpha_h and alpha_c in each cell -> correlations are needed depending on the fluids and flow regimes
-
-
-    Notes :
-        - The functions wimposed are not needed in our case
-
     Questions to be answered :
-        - We assume no wall resistance at the moment -> is this valid?
+        - We assume no wall resistance at the moment (Rcond = t (wall thickness) /k (conductive heat transfer coeff)) -> is this valid?
         - How to handle supercritical operation ?
-        - We assume no pressure drop at the moment -> is this valid?
+        - We assume no pressure drop at the moment -> is this valid -> if it has to be accounted for see p.89 of Rémi ?
+        - We assume no fouling resistance at the moment
+        - Impact of lubricant in the refrigerant is neglected
+
+    Possible refinements :
+        - Adding the possibility to increase the number of cells (divide each cell in 2 or more) to increase accuracy
 
 
 """

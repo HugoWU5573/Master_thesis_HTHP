@@ -1,4 +1,7 @@
 import pandas as pd
+from CoolProp.CoolProp import PropsSI
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 class Cycle():
@@ -11,7 +14,10 @@ class Cycle():
 
     def __init__(self, name):
         self.name = name
-        
+
+        # Working fluid
+        self.working_fluid = None
+
         # Temperatures
         self.T1 = None          # K
         self.T2 = None          # K
@@ -220,6 +226,43 @@ class Cycle():
         output += "\n=================================================================================================================\n"
         return output
     
+    def ts_diagram(self):
+        """
+        Plots the T-s diagram of the cycle using matplotlib.
+        Requires the states to be defined in the cycle.
+        """
+
+        # Generate saturation curve for working fluid
+        T_min = PropsSI('Tmin', self.working_fluid) + 1
+        T_crit = PropsSI('Tcrit', self.working_fluid) - 1
+        print(PropsSI('Tcrit', self.working_fluid))
+        T_sat = np.linspace(T_min, T_crit, 500)
+        s_liq = [PropsSI('S', 'T', T, 'Q', 0, self.working_fluid) for T in T_sat]
+        s_vap = [PropsSI('S', 'T', T, 'Q', 1, self.working_fluid) for T in T_sat]
+
+        plt.figure(figsize=(8,6))
+        plt.plot(s_liq, T_sat, 'black')
+        plt.plot(s_vap, T_sat, 'black')
+        plt.scatter(PropsSI('S', 'T', T_crit, 'Q', 0.5, self.working_fluid), T_crit, color='black', s=10)  # Triple point
+
+        plt.xlabel('Entropy [J/kg-K]')
+        plt.legend(frameon=False)
+
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major')
+        ax.set_title('Temperature [°C]', loc='left')
+
+        # Hide top and right spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # Move bottom and left spines away
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+        plt.show()
+
 
 # Example of usage
 SC1 = Cycle("SC1")
@@ -229,4 +272,7 @@ SC1.p1_prime = 1e5
 SC1.p4_prime = 1e5
 SC1.mdot_LT = 0.4
 SC1.mdot_MT = 0.5
+SC1.working_fluid = 'R290'
 print(SC1)
+
+SC1.ts_diagram()
