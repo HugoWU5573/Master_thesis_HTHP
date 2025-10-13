@@ -15,18 +15,18 @@ class HEX():
         - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
-    def __init__(self, Tin, pin, mdot, fluid, A, Rcond = 0):
-        
-        self.Tin_c = Tin[0]
-        self.Tin_h = Tin[1]
-        self.pin_c = pin[0]
-        self.pin_h = pin[1]
+    def __init__(self, state_c, state_h, mdot, fluid, A, Rcond = 0):
+
+        self.Tin_c = state_c.T
+        self.Tin_h = state_h.T
+        self.pin_c = state_c.p
+        self.pin_h = state_h.p
         self.mdot_c = mdot[0]
         self.mdot_h = mdot[1]
         self.fluid_c = fluid[0]
         self.fluid_h = fluid[1]
-        self.hin_c = PropsSI('H', 'T', self.Tin_c, 'P', self.pin_c, self.fluid_c)
-        self.hin_h = PropsSI('H', 'T', self.Tin_h, 'P', self.pin_h, self.fluid_h)
+        self.hin_c = state_c.h
+        self.hin_h = state_h.h
         self.A = A
         self.Rcond = Rcond
         self.condensation_start = None  # The hot stream is going from vapor to 2 phase
@@ -323,7 +323,7 @@ class HEX():
         self.Tout_h = PropsSI('T', 'P', self.pin_h, 'H', self.hout_h, self.fluid_h)
         self.epsilon = self.Q / self._Qmax_ext()
 
-        return self.Tout_c, self.Tout_h, self.Q, self.epsilon
+        return self.Tout_c, self.Tout_h, self.hout_c, self.hout_h, self.Q, self.epsilon
 
     """
     This method returns the normalized enthalpy vectors of both streams for further analysis.
@@ -370,13 +370,13 @@ class HEX():
         plt.ylabel(r"$T[K]$")
         plt.show()
 
-
+'''
 # Example of usage
 Evaporator_LT = HEX(Tin=[275, 283], pin=[5.5e5, 1e5], mdot=[0.2, 1], fluid=['R290', 'Water'], A=1)
 Evaporator_LT.Solve()
 print(Evaporator_LT)
 Evaporator_LT._plot()
-
+'''
 
 
     
