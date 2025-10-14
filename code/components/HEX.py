@@ -2,7 +2,6 @@ from CoolProp.CoolProp import PropsSI
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
-from state import State
 
 class HEX():
 
@@ -16,11 +15,11 @@ class HEX():
         - L : heat exchanger length [m] (default = 0.3 m)
         - W : heat exchanger width [m] (default = 0.1 m)
         - w : width of a single channel [m] (default = 1.5 mm)
-        - beta : chevron angle [degrees] (default = 45 degrees)
+        - beta : chevron angle [degrees] (default = 60 degrees)
         - Rcond: thermal resistance of the wall separating the two streams [m²K/W] (default = 0)
 
     """
-    def __init__(self, state_in_c, state_in_h, mdot, fluid, N, L = 0.3, W=0.1, w=1.5e-3, beta=45, Rcond = 0):
+    def __init__(self, state_in_c, state_in_h, mdot, fluid, N, L = 0.3, W=0.1, w=1.5e-3, beta=60, Rcond = 0):
 
         self.Tin_c = state_in_c.T
         self.Tin_h = state_in_h.T
@@ -343,6 +342,7 @@ class HEX():
         Qmax_int = self._Qmax_int()         # STEP 3 : Calculate a derated Qmax based on internal pinching
 
         def iteration(Q):
+            print(f"\nCurrent guess for Q: {Q/1000:.2f} kW,th", end='\r')
             self._cell_division(Q)         
             w_total = 0
             self.wVector = np.zeros(self.N)
@@ -355,7 +355,7 @@ class HEX():
             return 1 - w_total
         
         try :
-            self.Q = brentq(iteration, 0, Qmax_int) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+            self.Q = brentq(iteration, 0.01*Qmax_int, Qmax_int) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
         except ValueError as error:
             if error.args[0]=='f(a) and f(b) must have different signs':
                 # The most probable reason for this error is that the number of plates is too high, meaning that the temperature
@@ -559,16 +559,19 @@ class HEX():
         else :
             h = 18.485*(kl/Dh)*(self.beta/beta_max)**(0.248)*(x_m*G*Dh/mu_v)**(0.135)*(G*Dh/mu_l)**(0.351)*(rho_l/rho_v)**(0.223)*Bd**(0.235)*Bo**(0.198)
 
+        print(h)
         return h
 
 
 # Examples of usage
 if __name__=='__main__':
 
+    from state import State
+
     # Example 1 : Evaporator with R290 and water
     state_in_c = State(T=275, p=5.5e5, fluid='R290')
     state_in_h = State(T=290, p=1e5, fluid='Water')
-    Evaporator = HEX(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.15, 0.4], fluid=['R290', 'Water'], N=10)
+    Evaporator = HEX(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.04, 0.4], fluid=['R290', 'Water'], N=5)
     Evaporator.Solve()
     print(Evaporator)
     Evaporator._plot()
