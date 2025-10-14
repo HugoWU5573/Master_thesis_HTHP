@@ -342,7 +342,6 @@ class HEX():
         Qmax_int = self._Qmax_int()         # STEP 3 : Calculate a derated Qmax based on internal pinching
 
         def iteration(Q):
-            print(f"\nCurrent guess for Q: {Q/1000:.2f} kW,th", end='\r')
             self._cell_division(Q)         
             w_total = 0
             self.wVector = np.zeros(self.N)
@@ -559,7 +558,6 @@ class HEX():
         else :
             h = 18.485*(kl/Dh)*(self.beta/beta_max)**(0.248)*(x_m*G*Dh/mu_v)**(0.135)*(G*Dh/mu_l)**(0.351)*(rho_l/rho_v)**(0.223)*Bd**(0.235)*Bo**(0.198)
 
-        print(h)
         return h
 
 
