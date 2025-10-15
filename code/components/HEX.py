@@ -1,9 +1,31 @@
 from CoolProp.CoolProp import PropsSI 
+from components.state import State
+import CoolProp
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
+import pandas as pd
 
-class HEX():
+
+"""  
+
+WHAT NEEDS TO BE DONE BEFORE USING THE HEX_SIMU CLASS :
+    - Using the low level interface of CoolProp instead of the high level one (PropsSI)
+    - Add the handling of supercritical operation
+    - Add the pressure drop calculation within the HEX
+
+POSSIBLE REFINEMENTS :
+    - Adding the possibility to increase the number of cells (divide each cell in 2 or more) to increase accuracy
+
+MAIN ASSUMPTIONS :
+    - Both streams are in counter-flow configuration
+    - No fouling resistance
+    - No wall resistance (Rcond = t (wall thickness) /k (conductive heat transfer coeff))
+    - Impact of lubricant in the refrigerant is neglected
+
+"""
+
+class HEX_Simu():
 
     """
     Creates a COUNTER-FLOW heat exchanger object based on the following inputs:
@@ -559,6 +581,258 @@ class HEX():
             h = 18.485*(kl/Dh)*(self.beta/beta_max)**(0.248)*(x_m*G*Dh/mu_v)**(0.135)*(G*Dh/mu_l)**(0.351)*(rho_l/rho_v)**(0.223)*Bd**(0.235)*Bo**(0.198)
 
         return h
+    
+class HEX_Design():
+
+    """
+    Creates a counter-flow heat exchanger object that will be modelled using the pinch model for design purposes.
+    The parameters are:
+        - states_in : list of State objects for the inlet states of both streams [State_c_in, State_h_in]
+        - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out] (one of the two can be None)
+        - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s]
+        - name : name of the heat exchanger (optional)
+    
+    """
+    def __init__(self, states_in, states_out, mdot, name ="HEX"):
+
+        self.state_in_c = states_in[0]
+        self.state_in_h = states_in[1]
+        self.state_out_c = states_out[0]
+        self.state_out_h = states_out[1]
+        self.mdot_c = mdot[0]
+        self.mdot_h = mdot[1]
+        self.Q = None
+        self.HEOS_cold = CoolProp.AbstractState("HEOS", self.state_in_c.fluid)
+        self.HEOS_hot = CoolProp.AbstractState("HEOS", self.state_in_h.fluid)
+        self.Tpinch = None
+        self.name = name
+
+
+    """
+    This method returns a string representation of the HEX_Design object.
+    
+    """    
+    def __str__(self):
+        result = "\n=================================== {:<12} ===================================\n".format(self.name)
+
+        # Streams summary table with all information
+        stream_header = "+--------+-----------+----------+----------+------------+------------+-------------+"
+        stream_table = [
+            stream_header,
+            "|Stream  |Fluid      |Tin [K]   |Tout [K]  |pin [bar]   |pout [bar]  |mdot [kg/s]  |",
+            stream_header,
+            "| Hot    | {:<9} | {:8.2f} | {:8.2f} | {:10.2f} | {:10.2f} | {:11.3f} |".format(
+            self.state_in_h.fluid,
+            self.state_in_h.T, self.state_out_h.T,
+            self.state_in_h.p / 1e5, self.state_out_h.p / 1e5,
+            self.mdot_h
+            ),
+            "| Cold   | {:<9} | {:8.2f} | {:8.2f} | {:10.2f} | {:10.2f} | {:11.3f} |".format(
+            self.state_in_c.fluid,
+            self.state_in_c.T, self.state_out_c.T,
+            self.state_in_c.p / 1e5, self.state_out_c.p / 1e5,
+            self.mdot_c
+            ),
+            stream_header,
+        ]
+        result += "\n" + "\n".join(stream_table) + "\n"
+        # Summary of heat duty and pinch
+        result += f"\nHeat Flux: {self.Q/1000:.2f} kW\n"
+        result += f"ΔT at pinch point: {self.Tpinch:.2f} K\n"
+        result += "===================================================================================="
+
+        return result
+    
+
+    """
+    This method determines the unknown outlet state of the heat exchanger (either hot or cold stream) based
+    on an energy balance.
+        - Output : Q (heat transfer rate) [W]
+
+    """
+    def _determine_unknown_outlet_state(self):
+        if self.state_out_c == None :    # Cold outlet state is unknown
+            Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+            hout_c = self.state_in_c.h + Qh / self.mdot_c
+            self.state_out_c = State(h=hout_c, p=self.state_in_c.p, fluid=self.state_in_c.fluid)
+            self.Q = Qh 
+
+        elif self.state_out_h == None :  # Hot outlet state is unknown
+            Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+            hout_h = self.state_in_h.h - Qc / self.mdot_h
+            self.state_out_h = State(h=hout_h, p=self.state_in_h.p, fluid=self.state_in_h.fluid)
+            self.Q = Qc
+
+        else :                           # Both outlet states are known (not usual case)
+            Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+            Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+            if not np.isclose(Qc, Qh, atol=1e-3):
+                raise ValueError("Heat duty of both streams are not consistent.")
+            else :
+                self.Q = (Qc + Qh) / 2
+
+        return self.Q
+
+
+    """
+    This method divides the heat exchanger into cells based on potential phase changes in both streams.
+        - Output : EnthalpyVector_c, EnthalpyVector_h (enthalpy vectors of both streams)
+    
+    """
+    def _cell_division(self):
+
+        self.EnthalpyVector_h = np.array([self.state_out_h.h, self.state_in_h.h])
+        self.EnthalpyVector_c = np.array([self.state_in_c.h, self.state_out_c.h])
+
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
+        self.h_c_bub = self.HEOS_cold.hmass()
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
+        self.h_c_dew = self.HEOS_cold.hmass()
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
+        self.h_h_bub = self.HEOS_hot.hmass()
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 1)
+        self.h_h_dew = self.HEOS_hot.hmass()
+
+        self.N = 1 # Initial number of cells
+        
+
+        ## A. Insert phase transition enthalpies for the hot stream if applicable
+
+            # 1. Check for potential phase transition 2 phase to Liquid (bubble point) 
+        if (self.EnthalpyVector_h[0] < self.h_h_bub) and (self.EnthalpyVector_h[-1] > self.h_h_bub):
+            self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_bub)
+            self.EnthalpyVector_h.sort()
+            self.condensation_end = True
+            self.N += 1
+        else :
+            self.condensation_end = False
+
+            # 2. Check for potential phase transition Vapor to 2 phase (dew point)
+        if (self.EnthalpyVector_h[0] < self.h_h_dew) and (self.EnthalpyVector_h[-1] > self.h_h_dew):
+            self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_dew)
+            self.EnthalpyVector_h.sort()
+            self.condensation_start = True
+            self.N += 1
+        else :
+            self.condensation_start = False
+
+        
+        ## B. Insert phase transition enthalpies for the cold stream if applicable
+
+            # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
+        if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
+            self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
+            self.EnthalpyVector_c.sort()
+            self.evaporation_start = True
+            self.N += 1
+        else :
+            self.evaporation_start = False
+
+            # 2. Check for potential phase transition 2 phase to Vapor (dew point)
+        if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
+            self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
+            self.EnthalpyVector_c.sort()
+            self.evaporation_end = True
+            self.N += 1
+        else :
+            self.evaporation_end = False
+
+
+        ## C. Insert complementary phase transition enthalpies
+
+        for j in range(self.N - 1):
+            Qcell_h = self.mdot_h * (self.EnthalpyVector_h[j+1] - self.EnthalpyVector_h[j])
+            Qcell_c = self.mdot_c * (self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j])
+            
+            # We insert the complementary enthalpy in the enthalpy vector of the stream with the 
+            # highest heat transfer in the cell (indicating that we need to split this cell)
+
+            if Qcell_h > Qcell_c:   # In this case, h_h[j+1] is unknown -> we make an energy balance to find it
+                new_h = self.mdot_c/self.mdot_h * (self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j]) + self.EnthalpyVector_h[j]
+                self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, new_h)
+                self.EnthalpyVector_h.sort()
+
+            else :                  # In this case, h_c[j+1] is unknown -> we make an energy balance to find it
+                new_h = self.mdot_h/self.mdot_c * (self.EnthalpyVector_h[j+1] - self.EnthalpyVector_h[j]) + self.EnthalpyVector_c[j]
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, new_h)
+                self.EnthalpyVector_c.sort()
+
+
+        ## D. Verify that both vectors have the same length
+
+        if (len(self.EnthalpyVector_c) != len(self.EnthalpyVector_h)):
+            raise ValueError("Cell division algorithm failed: Enthalpy vectors have different lengths.")
+        
+        if (len(self.EnthalpyVector_h) != (self.N+1)):
+            raise ValueError("Size of enthalpy vectors does not match the expected number of cells.")
+
+        return self.EnthalpyVector_c, self.EnthalpyVector_h
+
+
+    """
+    This method computes the temperature difference at the pinch point of the heat exchanger.
+        - Output : Tpinch (temperature difference at the pinch point) [K]
+    
+    """
+    def Compute_Pinch(self):
+        self._determine_unknown_outlet_state()
+        self._cell_division()
+
+        self.TemperatureVector_c = np.zeros(len(self.EnthalpyVector_c))
+        self.TemperatureVector_h = np.zeros(len(self.EnthalpyVector_h))
+
+        Tpinch = np.inf
+        for i in range(len(self.EnthalpyVector_c)):
+            self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[i], self.state_in_c.p)
+            Tc = self.HEOS_cold.T()
+            self.TemperatureVector_c[i] = Tc
+            self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[i], self.state_in_h.p)
+            Th = self.HEOS_hot.T()
+            self.TemperatureVector_h[i] = Th
+            deltaT = Th - Tc
+            if deltaT < 0:
+                raise ValueError("Heat exchanger model error: temperature difference between hot and cold streams is negative at some point.")
+            Tpinch = min(Tpinch, deltaT)
+
+        self.Tpinch = Tpinch
+
+        return self.Tpinch
+    
+
+    """
+    This method returns the normalized enthalpy vectors of both streams for further analysis.
+        - Outputs :
+            - Normalized_EnthalpyVector_c : normalized enthalpy vector of the cold stream
+            - Normalized_EnthalpyVector_h : normalized enthalpy vector of the hot stream
+        
+        h_normalized = mdot * (h - h_min) / Q
+
+    """
+    def _get_Normalized_EnthalpyVectors(self):
+        hc_min = self.EnthalpyVector_c[0]
+        hh_min = self.EnthalpyVector_h[0]
+        self.Normalized_EnthalpyVector_c = self.mdot_c * (self.EnthalpyVector_c - hc_min) / self.Q
+        self.Normalized_EnthalpyVector_h = self.mdot_h * (self.EnthalpyVector_h - hh_min) / self.Q
+
+        return self.Normalized_EnthalpyVector_c, self.Normalized_EnthalpyVector_h
+    
+
+    """
+    This method plots the heat exchange on a T-h normalized diagram.
+    
+    """
+    def _plot(self):
+        self._get_Normalized_EnthalpyVectors()
+        
+        plt.figure()
+        plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c, marker='o', color="blue")
+        plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h, marker='o', color="red")
+        plt.xlabel(r"$\hat{h}[-]$")
+        plt.xlim(0,1)
+        plt.ylabel(r"$T[K]$")
+        plt.show()
+
+    
 
 
 # Examples of usage
@@ -566,37 +840,52 @@ if __name__=='__main__':
 
     from state import State
 
-    # Example 1 : Evaporator with R290 and water
-    state_in_c = State(T=275, p=5.5e5, fluid='R290')
-    state_in_h = State(T=290, p=1e5, fluid='Water')
-    Evaporator = HEX(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.04, 0.4], fluid=['R290', 'Water'], N=5)
-    Evaporator.Solve()
-    print(Evaporator)
-    Evaporator._plot()
+    Test_Variable = "Design"   # "Design" or "Simu" depending on the class to be tested
+
+    ## PART 1 : HEX_Simu examples
+
+    if Test_Variable == "Simu":
+
+        # Example 1 : Evaporator with R290 and water
+        state_in_c = State(T=275, p=5.5e5, fluid='R290')
+        state_in_h = State(T=290, p=1e5, fluid='Water')
+        Evaporator = HEX_Simu(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.04, 0.4], fluid=['R290', 'Water'], N=5)
+        Evaporator.Solve()
+        print(Evaporator)
+        Evaporator._plot()
 
     
-    # Example 2 : Condenser with R290 and water
-    state_in_c = State(T=320, p=1e5, fluid='Water') 
-    state_in_h = State(T=350, p=25e5, fluid='R290')
-    Condenser = HEX(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.3, 0.15], fluid=['Water', 'R290'], N=10)
-    Condenser.Solve()
-    print(Condenser)
-    Condenser._plot()
+        # Example 2 : Condenser with R290 and water
+        state_in_c = State(T=320, p=1e5, fluid='Water') 
+        state_in_h = State(T=350, p=25e5, fluid='R290')
+        Condenser = HEX_Simu(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.3, 0.15], fluid=['Water', 'R290'], N=10)
+        Condenser.Solve()
+        print(Condenser)
+        Condenser._plot()
+
+    ## PART 2 : HEX_Design examples
+
+    elif Test_Variable == "Design":
+
+        # Example 1 : Evaporator with R290 and water
+        Tsup = 3 # Superheat at the evaporator outlet [K]
+        state_in_c = State(T=275, p=5.5e5, fluid='R290')
+        state_out_c = State(T=PropsSI('T', 'P', 5.5e5, 'Q', 1, 'R290') + Tsup, p=5.5e5, fluid='R290')
+        state_in_h = State(T=290, p=1e5, fluid='Water')
+        state_out_h = None
+        Evaporator = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.04, 0.4], name="Evaporator")
+        Evaporator.Compute_Pinch()
+        print(Evaporator)
+        Evaporator._plot()
 
 
-    
-
-"""  
-
-    Questions to be answered :
-        - We assume no wall resistance at the moment (Rcond = t (wall thickness) /k (conductive heat transfer coeff)) -> is this valid?
-        - How to handle supercritical operation ?
-        - We assume no pressure drop at the moment -> is this valid -> if it has to be accounted for see p.89 of Rémi ?
-        - We assume no fouling resistance at the moment
-        - Impact of lubricant in the refrigerant is neglected
-
-    Possible refinements :
-        - Adding the possibility to increase the number of cells (divide each cell in 2 or more) to increase accuracy
-
-
-"""
+        # Example 2 : Condenser with R290 and water
+        Tsub = 3 # Subcooling at the condenser outlet [K]
+        state_in_c = State(T=320, p=1e5, fluid='Water')
+        state_out_c = None
+        state_in_h = State(T=350, p=25e5, fluid='R290')
+        state_out_h = State(T=PropsSI('T', 'P', 25e5, 'Q', 0, 'R290') - Tsub, p=25e5, fluid='R290')
+        Condenser = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.5, 0.15], name="Condenser")
+        Condenser.Compute_Pinch()
+        print(Condenser)
+        Condenser._plot()
