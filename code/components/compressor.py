@@ -1,7 +1,7 @@
 import CoolProp
 from CoolProp.CoolProp import PropsSI
-from components.state_2 import State
 from components.transform import Transform
+from components.state import State
 import numpy as np
 
 class Compressor_3():

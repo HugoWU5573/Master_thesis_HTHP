@@ -11,10 +11,11 @@ code_dir = Path(__file__).parent.parent
 if str(code_dir) not in sys.path:
     sys.path.insert(0, str(code_dir))
 
+from components.transform import Transform
 from components.state import State
-from components.compressor import Compressor
+from components.compressor import Compressor_2_param
 from components.HEX import HEX_Design
-from components.cycle_hugo import Cycle
+from components.cycle import Cycle
 from CoolProp.CoolProp import PropsSI
 import CoolProp
 from matplotlib import pyplot as plt
@@ -30,7 +31,6 @@ from scipy.optimize import fsolve
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
 T_sup = 3                       # Superheating at the compressor inlet [K]
 T_sub = 3                       # Subcooling at the condenser outlet [K]
-BVR = 1/2.1260                  # Built-in Volume Ratio
 eta_v = 0.8                     # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
@@ -63,13 +63,13 @@ HEOS_working_fluid = CoolProp.AbstractState("HEOS", working_fluid)
 
 # Cycle with its fixed states and mass flow rates
 SC1 = Cycle("SC1")
-SC1.state_1_prime = State(T=T1_prime, p=p1_prime, fluid=external_fluid_LT)
-SC1.state_4_prime = State(T=T4_prime, p=p4_prime, fluid=external_fluid_MT)
+SC1.state_1_prime = State(HEOS_external_fluid_LT, T=T1_prime, p=p1_prime)
+SC1.state_4_prime = State(HEOS_external_fluid_MT, T=T4_prime, p=p4_prime)
 SC1.mdot_LT = mdot_LT
 SC1.mdot_MT = mdot_MT
 
 # Compressor
-SC1.Compressor = Compressor(BVR=BVR, eta_v=eta_v, eta_is_max=eta_is_max, eta_elme=eta_elme)
+SC1.Compressor = Compressor_2_param(cycle=SC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
 ############################################################
@@ -84,20 +84,20 @@ def iterative_process(p_gess) :
         # Compute guessed state 1
     HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p1_guess, 0.0)
     Tsat_1 = HEOS_working_fluid.T()
-    SC1.state_1 = State(T=Tsat_1 + T_sup, p=p1_guess, fluid=working_fluid)
+    SC1.state_1 = State(HEOS_working_fluid, T=Tsat_1 + T_sup, p=p1_guess)
 
         # Compute guessed state 3
-    SC1.mdot_wf, T3 = SC1.Compressor.modelCompressor2(P_el=P_comp, p_ex=p3_guess, state_in=SC1.state_1, fluid=working_fluid)
-    SC1.state_3 = State(p=p3_guess, T=T3, fluid=working_fluid)
+    SC1.mdot_wf, T_3 = SC1.Compressor.Solve(P_el=P_comp, p_ex=p3_guess, state_in=SC1.state_1)
+    SC1.state_3 = State(HEOS_working_fluid, T=T_3, p=p3_guess)
 
         # Compute guessed state 9
     HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p3_guess, 0.0)
     Tsat_9 = HEOS_working_fluid.T()
-    SC1.state_9 = State(T=Tsat_9 - T_sub, p=p3_guess, fluid=working_fluid)
+    SC1.state_9 = State(HEOS_working_fluid, T=Tsat_9 - T_sub, p=p3_guess)
 
         # Compute guessed state 10
     h10 = SC1.state_9.h
-    SC1.state_10 = State(h=h10, p=p1_guess, fluid=working_fluid)
+    SC1.state_10 = State(HEOS_working_fluid, h=h10, p=p1_guess)
 
 
     # STEP 2 : Compute the residual for the evaporator
@@ -127,17 +127,20 @@ p_guess = np.array([p1_guess, p3_guess])
 # Compute the solution
 fsolve(iterative_process, p_guess)
 
-
+'''
 print(SC1)
 print(SC1.Evaporator)
 print(SC1.Condenser)
 SC1.Evaporator._plot()
 SC1.Condenser._plot()
-
+'''
+# Define the transforms 
+SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator), 
+                  Transform('adex', '9', '10', None), Transform('hex', '3', '9', SC1.Condenser)]
 
 
 # Plot T-s diagram with saturation curve
-
+'''
 # Generate saturation curve for working fluid
 T_min = PropsSI('Tmin', working_fluid) + 1
 T_crit = PropsSI('Tcrit', working_fluid) - 1
@@ -173,3 +176,6 @@ plt.title('Two-Stage Cycle in T-s Diagram')
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+'''
+
+SC1.Ts_diagram(n=100)

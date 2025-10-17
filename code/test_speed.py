@@ -3,7 +3,7 @@ from CoolProp.CoolProp import PropsSI
 import time
 
 import components.state as state_1
-import components.state_2 as state_2
+import code.components.state as state
 
 p = 1e5 
 h = 200e3
@@ -18,7 +18,7 @@ propssi_time = end_propssi - start_propssi
 start_abstract = time.time()
 HEOS = CoolProp.AbstractState("HEOS", 'water')
 for _ in range(1000):
-    state_2.State(HEOS, p=p, h = h)
+    state.State(HEOS, p=p, h = h)
 end_abstract = time.time()
 abstract_time = end_abstract - start_abstract
 

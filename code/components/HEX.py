@@ -1,5 +1,5 @@
 from CoolProp.CoolProp import PropsSI 
-from components.state_2 import State
+from components.state import State
 import CoolProp
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
