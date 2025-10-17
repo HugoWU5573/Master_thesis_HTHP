@@ -1,5 +1,7 @@
-#from state import State
-from CoolProp.CoolProp import PropsSI
+import CoolProp
+from matplotlib import pyplot as plt
+import numpy as np
+
 class Cycle(): 
 
     def __init__(self, name):
@@ -28,6 +30,9 @@ class Cycle():
         self.mdot_LT = None  # Low temperature heat source mass flow rate [kg/s
         self.mdot_MT = None  # Medium temperature heat source mass flow rate [kg/s]
         self.mdot_HT = None  # High temperature heat source mass flow rate [kg/s]
+
+        # List of transforms
+        self.transforms = []
 
         
 
@@ -141,6 +146,80 @@ class Cycle():
             f"\n{'=' * 118}\n",
         ]
         return "".join(output)
+    
+    def Ts_diagram(self, n=100) : 
+        # Generate saturation curve for working fluid
+
+        T_points = np.zeros((len(self.transforms), n))
+        s_points = np.zeros((len(self.transforms), n))
+        states = {}
+        labels_transorm = []
+        
+        for i, transform in enumerate(self.transforms):
+            states[transform.label_in] = getattr(self, f"state_{transform.label_in}")
+            states[transform.label_out] = getattr(self, f"state_{transform.label_out}")
+            T_points[i, :], s_points[i, :] = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)
+            labels_transorm.append(transform.type)
+        
+        print(list(states.values())[0])
+        heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
+        
+        T_min = T_min = heos.Tmin()
+        T_crit = heos.T_critical() - 1
+        T_sat = np.linspace(T_min, T_crit, 500)
+        s_liq = np.zeros(500)
+        s_vap = np.zeros(500)
+        for i, T in enumerate(T_sat):
+            heos.update(CoolProp.QT_INPUTS, 0, T)
+            s_liq[i] = heos.smass()
+            heos.update(CoolProp.QT_INPUTS, 1,T)
+            s_vap[i] = heos.smass()
+
+        plt.figure(figsize=(8,6))
+        plt.plot(s_liq, T_sat, 'black')
+        plt.plot(s_vap, T_sat, 'black')
+        heos.update(CoolProp.QT_INPUTS, 0.5, T_crit)
+        s_crit = heos.smass()
+        plt.scatter(s_crit, T_crit, color='black', s=10)  # Triple point
+
+        for label, state in states.items():
+            plt.scatter(state.s, state.T, color='red')
+            plt.text(state.s, state.T, f"{label}", fontsize=9, ha='right', va='bottom')
+
+        plt.plot(s_points.T, T_points.T, '-', label=labels_transorm)
+
+        plt.xlabel('Entropy [J/kg-K]')
+        plt.legend(frameon=False)
+
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major')
+        ax.set_title('Temperature [°C]', loc='left')
+
+        # Hide top and right spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # Move bottom and left spines away
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+
+        '''
+        plt.xlim(cycle.state_9.s * 0.95, cycle.state_3.s * 1.05)
+        plt.ylim(273.15, T_crit)
+        '''
+
+        plt.tight_layout()
+        plt.show()
+
+        
+
+
+
+
+
+
 '''
 cycle = Cycle("TwoStage_R290")
 

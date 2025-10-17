@@ -1,5 +1,5 @@
 from CoolProp.CoolProp import PropsSI 
-from components.state import State
+from components.state_2 import State
 import CoolProp
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
@@ -602,8 +602,8 @@ class HEX_Design():
         self.mdot_c = mdot[0]
         self.mdot_h = mdot[1]
         self.Q = None
-        self.HEOS_cold = CoolProp.AbstractState("HEOS", self.state_in_c.fluid)
-        self.HEOS_hot = CoolProp.AbstractState("HEOS", self.state_in_h.fluid)
+        self.HEOS_cold = self.state_in_c.heos 
+        self.HEOS_hot = self.state_in_h.heos
         self.Tpinch = None
         self.name = name
 
@@ -654,13 +654,13 @@ class HEX_Design():
         if self.state_out_c == None :    # Cold outlet state is unknown
             Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
             hout_c = self.state_in_c.h + Qh / self.mdot_c
-            self.state_out_c = State(h=hout_c, p=self.state_in_c.p, fluid=self.state_in_c.fluid)
+            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
             self.Q = Qh 
 
         elif self.state_out_h == None :  # Hot outlet state is unknown
             Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
             hout_h = self.state_in_h.h - Qc / self.mdot_h
-            self.state_out_h = State(h=hout_h, p=self.state_in_h.p, fluid=self.state_in_h.fluid)
+            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
             self.Q = Qc
 
         else :                           # Both outlet states are known (not usual case)
