@@ -1,3 +1,8 @@
+
+############################################################
+# Import libraries and modules
+############################################################
+
 import sys
 from pathlib import Path
 
@@ -6,187 +11,134 @@ code_dir = Path(__file__).parent.parent
 if str(code_dir) not in sys.path:
     sys.path.insert(0, str(code_dir))
 
+from components.transform import Transform
 from components.state import State
-from components.compressor import Compressor
-from components.HEX import HEX
-from components.cycle_hugo import Cycle
+from components.compressor import Compressor_2_param
+from components.HEX import HEX_Design
+from components.cycle import Cycle
 from CoolProp.CoolProp import PropsSI
+import CoolProp
 from matplotlib import pyplot as plt
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import fsolve
+
 
 ############################################################
 # Parameters
 ############################################################
 
-# Cycle parameters
-working_fluid = 'R290'          # Working fluid
-dT_1 = 3                        # Superheating at the compressor inlet [K] 
-p_1 = 10e5
-p_3 = 2.2247 * p_1              # Compressor outlet pressure [Pa] 
-P_comp = 10e3                    # Compressor power [W] 
-dT_9 = 3                        # Subcooling at the condenser outlet [K]      
-
-# Heat source parameters
-mdot_LT = 4                   # Mass flow rate [kg/s]
-dT_in_LT = 10                   # Inlet temperature difference [K]
-p_in_LT = 1e5                   # Inlet pressure [Pa]    
-N_LT = 5                      # Heat exchanger area [m²]
-
-# Heat sink parameters
-mdot_MT = 5                  # Mass flow rate [kg/s]
-dT_in_MT = 20                   # Inlet temperature difference [K]
-p_in_MT = 1e5                   # Inlet pressure [Pa]
-N_MT = 30                      # Heat exchanger area [m²]
-
-# Compressor parameters
-BVR = 1/2.1260                  # Built-in Volume Ratio
+# Technological parameters
+T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
+T_sup = 3                       # Superheating at the compressor inlet [K]
+T_sub = 3                       # Subcooling at the condenser outlet [K]
 eta_v = 0.8                     # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
 
+# Cycle parameters
+working_fluid = 'R290'          # Working fluid
+P_comp = 2.5e3                  # Compressor power [W]
+
+# Heat source parameters
+external_fluid_LT = 'Water'     # External fluid in the heat source
+mdot_LT = 0.4                   # Mass flow rate of external fluid the heat source [kg/s]
+T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
+p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
+
+# Heat sink parameters
+external_fluid_MT = 'Water'     # External fluid in the heat sink
+mdot_MT = 0.5                   # Mass flow rate of external fluid the heat sink [kg/s]
+T4_prime = 35 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+p4_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+
 
 ############################################################
-# Simulation
+# Instantiate objects
 ############################################################
 
-cycle = Cycle("TwoStage_R290")
+# CoolProp low-level interface for all the fluids
+HEOS_external_fluid_LT = CoolProp.AbstractState("HEOS", external_fluid_LT)
+HEOS_external_fluid_MT = CoolProp.AbstractState("HEOS", external_fluid_MT)
+HEOS_working_fluid = CoolProp.AbstractState("HEOS", working_fluid)
 
-# Mass flow rates of heat source and sink
-cycle.mdot_LT = mdot_LT
-cycle.mdot_MT = mdot_MT
+# Cycle with its fixed states and mass flow rates
+SC1 = Cycle("SC1")
+SC1.state_1_prime = State(HEOS_external_fluid_LT, T=T1_prime, p=p1_prime)
+SC1.state_4_prime = State(HEOS_external_fluid_MT, T=T4_prime, p=p4_prime)
+SC1.mdot_LT = mdot_LT
+SC1.mdot_MT = mdot_MT
 
-# State 1 
-T_sat_1 = PropsSI('T', 'P', p_1, 'Q', 1, working_fluid)
-cycle.state_1 = State(T=T_sat_1 + dT_1, p=p_1, fluid=working_fluid)
+# Compressor
+SC1.Compressor = Compressor_2_param(cycle=SC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
-# State 3
-compressor = Compressor(BVR=BVR, eta_v=eta_v, eta_is_max=eta_is_max, eta_elme=eta_elme)
-cycle.mdot_wf, T_ex = compressor.modelCompressor2(P_el=P_comp, p_ex=p_3, state_in=cycle.state_1, fluid=working_fluid)
-cycle.state_3 = State(p=p_3, T=T_ex, fluid=working_fluid)
+
+############################################################
+# Solve the cycle to determine the unknown states
+############################################################
+
+def iterative_process(p_gess) :
+    p1_guess = p_gess[0] ; p3_guess = p_gess[1]
+
+    # STEP 1 : Compute the states based on the guesses values
+
+        # Compute guessed state 1
+    HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p1_guess, 0.0)
+    Tsat_1 = HEOS_working_fluid.T()
+    SC1.state_1 = State(HEOS_working_fluid, T=Tsat_1 + T_sup, p=p1_guess)
+
+        # Compute guessed state 3
+    SC1.mdot_wf, T_3 = SC1.Compressor.Solve(P_el=P_comp, p_ex=p3_guess, state_in=SC1.state_1)
+    SC1.state_3 = State(HEOS_working_fluid, T=T_3, p=p3_guess)
+
+        # Compute guessed state 9
+    HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p3_guess, 0.0)
+    Tsat_9 = HEOS_working_fluid.T()
+    SC1.state_9 = State(HEOS_working_fluid, T=Tsat_9 - T_sub, p=p3_guess)
+
+        # Compute guessed state 10
+    h10 = SC1.state_9.h
+    SC1.state_10 = State(HEOS_working_fluid, h=h10, p=p1_guess)
+
+
+    # STEP 2 : Compute the residual for the evaporator
+
+    SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, None], mdot=[SC1.mdot_wf, SC1.mdot_LT], name="Evaporator")
+    Tpinch_real = SC1.Evaporator.Compute_Pinch()
+    SC1.state_2_prime = SC1.Evaporator.state_out_h
+    res_evap = Tpinch_real - T_pinch
+
+    # STEP 3 : Compute the residual for the condenser
+
+    SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[None, SC1.state_9], mdot=[SC1.mdot_MT, SC1.mdot_wf], name="Condenser")
+    Tpinch_real = SC1.Condenser.Compute_Pinch()
+    SC1.state_3_prime = SC1.Condenser.state_out_c
+    res_cond = Tpinch_real - T_pinch
+
+    # STEP 4 : Assemble the residuals
+
+    residuals = np.array([res_evap, res_cond])
+    return residuals
+
+
+# Initial guesses
+p1_guess = 5e5 ; p3_guess = 20e5
+p_guess = np.array([p1_guess, p3_guess])
+
+# Compute the solution
+fsolve(iterative_process, p_guess)
 
 '''
-def iteration(x):
-    N_LT, N_MT = x
-    print(f"N_LT: {N_LT}, N_MT: {N_MT}")
-    #
-    # State 9
-    cycle.state_4_prime = State(T = cycle.state_3.T - dT_in_MT, p = p_in_MT, fluid='Water')
-    HEX_MT = HEX(cycle.state_4_prime, cycle.state_3, [cycle.mdot_MT, cycle.mdot_wf], fluid = ['Water', working_fluid], N = N_MT)
-    T_3_prime, T_9, h_3_prime, h_9 = HEX_MT.Solve()[:4]
-    cycle.state_9 = State(h = h_9, p=cycle.state_3.p, fluid=working_fluid)
-    cycle.state_3_prime = State(h = h_3_prime, p=p_in_MT, fluid='Water')
-
-    # State 10
-    cycle.state_10 = State(p = cycle.state_1.p, h = cycle.state_9.h, fluid=working_fluid)
-
-    # State 1_comp 
-    cycle.state_1_prime = State(T = cycle.state_10.T + dT_in_LT, p = p_in_LT, fluid='Water')
-    HEX_LT = HEX(cycle.state_10, cycle.state_1_prime, [cycle.mdot_wf, cycle.mdot_LT], fluid = [working_fluid, 'Water'], N = N_LT)
-    T_1_comp, T_2_prime, h_1_comp, h_2_prime = HEX_LT.Solve()[:4]
-    cycle.state_2_prime = State(h = h_2_prime, p=p_in_LT, fluid='Water')
-    state_1_comp = State(h = h_1_comp, p=cycle.state_10.p, fluid=working_fluid)
-    print(state_1_comp.T, cycle.state_1.T)
-
-    return abs(state_1_comp.T - cycle.state_1.T)
-
-#N_LT, N_MT = minimize(iteration, x0=(N_LT, N_MT), bounds=((0, 50), (0, 50))).x
+print(SC1)
+print(SC1.Evaporator)
+print(SC1.Condenser)
+SC1.Evaporator._plot()
+SC1.Condenser._plot()
 '''
-T_9_true = PropsSI('T', 'P', cycle.state_3.p, 'Q', 0, working_fluid) - dT_9
-h_9_true = PropsSI('H', 'P', cycle.state_3.p, 'T', T_9_true, working_fluid)
 
-def get_N_MT(N_MT) : 
-    # State 9
-    cycle.state_4_prime = State(T = cycle.state_3.T - dT_in_MT, p = p_in_MT, fluid='Water')
-    HEX_MT = HEX(cycle.state_4_prime, cycle.state_3, [cycle.mdot_MT, cycle.mdot_wf], fluid = ['Water', working_fluid], N = N_MT)
-    T_3_prime, T_9, h_3_prime, h_9 = HEX_MT.Solve()[:4]
-    cycle.state_9 = State(h = h_9, p=cycle.state_3.p, fluid=working_fluid)
-    cycle.state_3_prime = State(h = h_3_prime, p=p_in_MT, fluid='Water')
+# Define the transforms 
+SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator), 
+                  Transform('adex', '9', '10', None), Transform('hex', '3', '9', SC1.Condenser)]
 
-    print(f"N_MT: {N_MT}, {abs(cycle.state_9.T - T_9_true)}")
-    return abs(cycle.state_9.h - h_9_true)
-
-N_MT = minimize(get_N_MT, x0=(N_MT), bounds=((3, 50),),method='L-BFGS-B', tol = 1e-1).x[0]
-
-# State 10
-cycle.state_10 = State(p = cycle.state_1.p, h = cycle.state_9.h, fluid=working_fluid)
-cycle.state_1_prime = State(T = cycle.state_10.T + dT_in_LT, p = p_in_LT, fluid='Water')
-
-def get_N_LT(N_LT) : 
-    # State 1_comp 
-    HEX_LT = HEX(cycle.state_10, cycle.state_1_prime, [cycle.mdot_wf, cycle.mdot_LT], fluid = [working_fluid, 'Water'], N = N_LT)
-    T_1_comp, T_2_prime, h_1_comp, h_2_prime = HEX_LT.Solve()[:4]
-    cycle.state_2_prime = State(h = h_2_prime, p=p_in_LT, fluid='Water')
-    state_1_comp = State(h = h_1_comp, p=cycle.state_10.p, fluid=working_fluid)
-
-    print(f"N_LT: {N_LT}, {abs(cycle.state_1.T - state_1_comp.T)}")
-    print(abs(state_1_comp.h - cycle.state_1.h))
-    return abs(state_1_comp.h - cycle.state_1.h)
-
-N_LT = minimize(get_N_LT, x0=(N_LT), bounds=((3, 50),), tol = 1e-1).x[0]
-
-    
-
-
-
-#A_LT, A_MT = minimize(iteration, x0=(A_LT_0, A_MT_0), bounds=((0, 20), (0, 20))).x
-#print(f"Optimized Heat Exchanger Areas: A_LT = {A_LT:.2f} m², A_MT = {A_MT:.2f} m²")
 
 # Plot T-s diagram with saturation curve
-
-# Generate saturation curve for working fluid
-T_min = PropsSI('Tmin', working_fluid) + 1
-T_crit = PropsSI('Tcrit', working_fluid) - 1
-T_sat = np.linspace(T_min, T_crit, 500)
-s_liq = [PropsSI('S', 'T', T, 'Q', 0, working_fluid) for T in T_sat]
-s_vap = [PropsSI('S', 'T', T, 'Q', 1, working_fluid) for T in T_sat]
-
-
-# Extract states for plotting
-states = [
-    cycle.state_1,
-    cycle.state_3,
-    cycle.state_9,
-    cycle.state_10,
-    #state_1_comp,
-]
-state_labels = ['1', '3', '9', '10', "1_comp"]
-
-T_points = [s.T for s in states]
-s_points = [s.s for s in states]
-
-
-plt.figure(figsize=(8,6))
-plt.plot(s_liq, T_sat, 'black')
-plt.plot(s_vap, T_sat, 'black')
-plt.scatter(PropsSI('S', 'T', T_crit, 'Q', 0.5, 'R290'), T_crit, color='black', s=10)  # Triple point
-plt.plot(s_points, T_points, 'ko-', label='Cycle')
-# Add labels to each state point
-for i, (s_val, T_val, label) in enumerate(zip(s_points, T_points, state_labels)):
-    plt.text(s_val, T_val, f' {label}', fontsize=10, verticalalignment='bottom', horizontalalignment='left')
-
-
-plt.xlabel('Entropy [J/kg-K]')
-plt.legend(frameon=False)
-
-
-# Add some text for labels, title and custom x-axis tick labels, etc.
-ax = plt.gca()
-ax.tick_params(axis='both', which='major')
-ax.set_title('Temperature [°C]', loc='left')
-
-# Hide top and right spines
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-# Move bottom and left spines away
-ax.spines['bottom'].set_position(('outward', 10))
-ax.spines['left'].set_position(('outward', 10))
-
-'''
-plt.xlim(cycle.state_9.s * 0.95, cycle.state_3.s * 1.05)
-plt.ylim(273.15, T_crit)
-'''
-
-plt.tight_layout()
-plt.show()
+SC1.Ts_diagram(n=100)
