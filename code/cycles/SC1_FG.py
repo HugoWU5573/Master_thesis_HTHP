@@ -134,48 +134,11 @@ print(SC1.Condenser)
 SC1.Evaporator._plot()
 SC1.Condenser._plot()
 '''
+
 # Define the transforms 
 SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator), 
                   Transform('adex', '9', '10', None), Transform('hex', '3', '9', SC1.Condenser)]
 
 
 # Plot T-s diagram with saturation curve
-'''
-# Generate saturation curve for working fluid
-T_min = PropsSI('Tmin', working_fluid) + 1
-T_crit = PropsSI('Tcrit', working_fluid) - 1
-T_sat = np.linspace(T_min, T_crit, 500)
-s_liq = [PropsSI('S', 'T', T, 'Q', 0, working_fluid) for T in T_sat]
-s_vap = [PropsSI('S', 'T', T, 'Q', 1, working_fluid) for T in T_sat]
-
-plt.figure(figsize=(8,6))
-plt.plot(s_liq, T_sat, 'b-', label='Saturated Liquid')
-plt.plot(s_vap, T_sat, 'r-', label='Saturated Vapor')
-
-# Extract states for plotting
-states = [
-    SC1.state_1,
-    SC1.state_3,
-    SC1.state_9,
-    SC1.state_10,
-]
-state_labels = ['1', '3', '9', '10']
-
-T_points = [s.T for s in states]
-s_points = [s.s for s in states]
-
-plt.plot(s_points, T_points, 'ko')
-
-# Add labels to each state point
-for i, (s_val, T_val, label) in enumerate(zip(s_points, T_points, state_labels)):
-    plt.text(s_val, T_val, f' {label}', fontsize=10, verticalalignment='bottom', horizontalalignment='left')
-
-plt.xlabel('Entropy [J/kg-K]')
-plt.ylabel('Temperature [K]')
-plt.title('Two-Stage Cycle in T-s Diagram')
-plt.grid(True)
-plt.tight_layout()
-plt.show()
-'''
-
 SC1.Ts_diagram(n=100)
