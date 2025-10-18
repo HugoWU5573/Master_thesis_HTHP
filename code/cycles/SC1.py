@@ -16,9 +16,7 @@ from components.state import State
 from components.compressor import Compressor_2_param
 from components.HEX import HEX_Design
 from components.cycle import Cycle
-from CoolProp.CoolProp import PropsSI
 import CoolProp
-from matplotlib import pyplot as plt
 import numpy as np
 from scipy.optimize import fsolve
 
@@ -99,7 +97,6 @@ def iterative_process(p_gess) :
     h10 = SC1.state_9.h
     SC1.state_10 = State(HEOS_working_fluid, h=h10, p=p1_guess)
 
-
     # STEP 2 : Compute the residual for the evaporator
 
     SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, None], mdot=[SC1.mdot_wf, SC1.mdot_LT], name="Evaporator")
@@ -126,14 +123,15 @@ p_guess = np.array([p1_guess, p3_guess])
 
 # Compute the solution
 fsolve(iterative_process, p_guess)
+SC1.COP = SC1.Condenser.Q / P_comp
 
-'''
 print(SC1)
+"""
 print(SC1.Evaporator)
 print(SC1.Condenser)
 SC1.Evaporator._plot()
 SC1.Condenser._plot()
-'''
+"""
 
 # Define the transforms 
 SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator), 

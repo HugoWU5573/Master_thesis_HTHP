@@ -34,6 +34,9 @@ class Cycle():
         # List of transforms
         self.transforms = []
 
+        # COP
+        self.COP = None
+
         
 
     def __str__(self):
@@ -135,7 +138,18 @@ class Cycle():
         state_table_str = "\n".join(header_rows + rows)
 
         # ──────────────────────────────────────────────
-        # 5️⃣ Build final output string
+        # 5️⃣ COP / Performance
+        # ──────────────────────────────────────────────
+        cop_val = self.COP
+        if cop_val is None:
+            cop_str = "(No COP defined)"
+        else:
+            cop_str = fmt(cop_val, unit_fmt="{:.3f}")
+
+        performance_str = f"+----------------+-------+\n| Performance    | Value |\n+----------------+-------+\n| COP            | {cop_str:<5} |\n+----------------+-------+"
+
+        # ──────────────────────────────────────────────
+        # 6️⃣ Build final output string
         # ──────────────────────────────────────────────
         output = [
             title,
@@ -143,6 +157,8 @@ class Cycle():
             state_table_str,
             "\n\nMass Flow Rates:\n",
             mass_flow_str,
+            "\n\nPerformance:\n",
+            performance_str,
             f"\n{'=' * 118}\n",
         ]
         return "".join(output)
