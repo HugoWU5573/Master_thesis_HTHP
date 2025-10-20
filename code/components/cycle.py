@@ -415,9 +415,9 @@ class Cycle():
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
                     if exergies['P_{wf}'] > exergies['P_{secondary}'] :
-                        dict_delivered[r'$\dot E_{LT, water}$'] = exergies['P_{secondary}']
+                        dict_delivered[r'$\dot{ \Delta E}_{LT, water}$'] = exergies['P_{secondary}']
                     else : 
-                        dict_received[r'$\dot E_{LT, wf}$'] = exergies['P_{secondary}']
+                        dict_received[r'$\dot{ \DeltaE}_{LT, wf}$'] = exergies['P_{secondary}']
 
                     dict_delivered[r'$P_{irr,LT}$'] = exergies['P_{irr}']
 
@@ -428,9 +428,9 @@ class Cycle():
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
 
                     if exergies['P_{wf}'] > exergies['P_{secondary}'] :
-                        dict_delivered[r'$\dot E_{MT, water}$'] = exergies['P_{secondary}']
+                        dict_delivered[r'$\dot{ \Delta E}_{MT, water}$'] = exergies['P_{secondary}']
                     else :
-                        dict_received[r'$\dot E_{MT, wf}$'] = exergies['P_{secondary}']
+                        dict_received[r'$\dot{ \Delta E}_{MT, wf}$'] = exergies['P_{secondary}']
                     dict_delivered[r'$P_{irr,MT}$'] = exergies['P_{irr}']
 
                 elif transform.label_in_secondary in ['5_prime', '6_prime'] :
@@ -439,9 +439,9 @@ class Cycle():
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
                     if exergies['P_{wf}'] > exergies['P_{secondary}'] :
-                        dict_delivered[r'$\dot E_{HT, water}$'] = exergies['P_{secondary}']
+                        dict_delivered[r'$\dot{ \Delta E}_{HT, water}$'] = exergies['P_{secondary}']
                     else :
-                        dict_received[r'$\dot E_{HT, wf}$'] = exergies['P_{secondary}']
+                        dict_received[r'$\dot{ \Delta E}_{HT, wf}$'] = exergies['P_{secondary}']
                     dict_delivered[r'$P_{irr,HT}$'] = exergies['P_{irr}']
                 else : 
                     raise ValueError("Unknown secondary mass flow rate for energy analysis.")
