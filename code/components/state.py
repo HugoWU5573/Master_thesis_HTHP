@@ -99,19 +99,19 @@ class State() :
             raise ValueError("Invalid or insufficient property combination")
         
         
-        def exergy(self, T0=298.15, p0=101325):
-            """
-            Calculate the specific exergy of the state.
+    def exergy(self, T0=298.15, p0=101325):
+        """
+        Calculate the specific exergy of the state.
 
-            Parameters:
-            T0 (float): Reference temperature in Kelvin.
-            p0 (float): Reference pressure in Pascal.
+        Parameters:
+        T0 (float): Reference temperature in Kelvin.
+        p0 (float): Reference pressure in Pascal.
 
-            Returns:
-            float: Specific exergy in J/kg.
-            """
-            self.heos.update(CoolProp.PT_INPUTS, p0, T0)
-            h0 = self.heos.hmass()
-            s0 = self.heos.smass()
-            self.e = (self.h - h0) - T0 * (self.s - s0)
-            return self.e
+        Returns:
+        float: Specific exergy in J/kg.
+        """
+        self.heos.update(CoolProp.PT_INPUTS, p0, T0)
+        h0 = self.heos.hmass()
+        s0 = self.heos.smass()
+        self.e = (self.h - h0) - T0 * (self.s - s0)
+        return self.e

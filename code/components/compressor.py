@@ -78,9 +78,12 @@ class Compressor_2_param():
         h_ex = (h_ex_s - state_in.h)/self.eta_is_max + state_in.h
         heos.update(CoolProp.HmassP_INPUTS, h_ex, p_ex)
         T_ex = heos.T()
-
         w_tot = h_ex - state_in.h
         mdot_wf = P_el * self.eta_elme / (w_tot * self.eta_v)
+
+        w_real = w_tot * self.eta_v
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_real, p_ex)
+        T_ex = heos.T()
 
 
         #self.cycle.transforms.append(Transform(label_in='Compressor Inlet', label_out='Compressor Outlet', type='comp'))                                               
@@ -99,7 +102,35 @@ class Compressor_2_param():
             heos.update(CoolProp.PT_INPUTS, p_val, T[i])
             s[i] = heos.smass()
         return T, s
-        
+    
+    def energy_analysis(self, P_el, state_in, state_out, mdot_wf) : 
+        """
+        Placeholder for energy analysis of the compressor.
+        """
+        P_mec = P_el * self.eta_elme
+
+        dict_energy = {
+            'P_{el}': P_el,
+            'P_{loss}': P_el - P_mec
+        }
+
+        return dict_energy
+    
+    def exergy_analysis(self, T0, P0, P_el, state_in, state_out, mdot_wf) :
+
+        """
+        Placeholder for exergy analysis of the compressor.
+        """
+        P_mec = P_el * self.eta_elme
+        P_irr = P_mec - mdot_wf * (state_out.exergy(T0, P0) - state_in.exergy(T0, P0))  
+
+        dict_exergy = {
+            'P_{el}': P_el,
+            'P_{loss}': P_el - P_mec,
+            'P_{irr}': P_irr
+        }
+
+        return dict_exergy
 
 
 if __name__ == "__main__" :
