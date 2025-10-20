@@ -31,6 +31,9 @@ class Cycle():
         self.mdot_MT = None  # Medium temperature heat source mass flow rate [kg/s]
         self.mdot_HT = None  # High temperature heat source mass flow rate [kg/s]
 
+        # Power of the compressor
+        self.P_comp = None   # Compressor power [W]
+
         # List of transforms
         self.transforms = []
 
@@ -147,7 +150,7 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, n=100) : 
+    def Ts_diagram(self, plot = True, n=50) : 
         # Generate saturation curve for working fluid
 
         T_points = np.zeros((len(self.transforms), n))
@@ -258,7 +261,229 @@ class Cycle():
         plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
 
         #plt.tight_layout()
-        plt.show()
+        plt.savefig('code/Figures/' + self.name + '_Ts_diagram.png', dpi=300)
+        if plot == True : plt.show()
+        return
+
+
+    def energy_chart(self, plot=True) :
+
+        dict_received = {}
+        dict_delivered = {}
+        
+        for transform in self.transforms :
+            state_in = getattr(self, f"state_{transform.label_in}")
+            state_out = getattr(self, f"state_{transform.label_out}")
+            if transform.type == 'comp' :
+                args = {'P_el' : self.P_comp, 'mdot_wf' : self.mdot_wf}
+                energies = transform.energy_analysis(state_in, state_out, args)
+                dict_received[r'$P_{el}$'] = energies['P_{el}']
+                dict_delivered[r'$P_{L,comp}$'] = energies['P_{loss}']
+
+            elif transform.type == 'evap' or transform.type == 'cond' :
+                state_in_secondary = getattr(self, f"state_{transform.label_in_secondary}")
+                state_out_secondary = getattr(self, f"state_{transform.label_out_secondary}")
+                
+                if transform.label_in_secondary in ['1_prime', '2_prime'] : 
+                    mdot_secondary = self.mdot_LT
+                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    dict_received[r'$\dot Q_{LT}$'] = energies['P_{wf}']
+                    dict_delivered[r'$P_{L,LT}$'] = energies['P_{loss}']
+
+                elif transform.label_in_secondary in ['4_prime', '3_prime'] : 
+                    mdot_secondary = self.mdot_MT
+                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    if transform.type == 'cond' :
+                        dict_delivered[r'$\dot Q_{MT}$'] = energies['P_{secondary}']
+                        dict_delivered[r'$P_{L,MT}$'] = energies['P_{loss}']
+                    else :
+                        dict_received[r'$\dot Q_{MT}$'] = energies['P_{wf}']
+                        dict_delivered[r'$P_{L,MT}$'] = energies['P_{loss}']
+
+                elif transform.label_in_secondary in ['5_prime', '6_prime'] :
+                    mdot_secondary = self.mdot_HT
+                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    dict_delivered[r'$\dot Q_{HT}$'] = energies['P_{secondary}']
+                    dict_delivered[r'$P_{L,HT}$'] = energies['P_{loss}']
+                else : 
+                    raise ValueError("Unknown secondary mass flow rate for energy analysis.")
+
+        # Plot the energy chart
+
+        plt.figure(figsize=(8,6))
+        y_pos = np.arange(2)
+        for dic, i in zip([dict_received, dict_delivered], y_pos):
+            x_tot = 0
+            # sort items by decreasing value (original units)
+            for key, value in sorted(dic.items(), key=lambda kv: kv[1], reverse=True):
+                label = key
+                value = value / 1e3  # Convert to kW
+                if value > 1e-3:
+                    plt.barh(y_pos[i], value, label=label, left=x_tot)
+                    x_tot += value
+                else :
+                    del dic[key]
+
+
+        plt.xlabel('Power [kW]', fontsize = 12)
+
+        length = len(dict_received) + len(dict_delivered)
+        n_cols = length // 2 if length % 2 == 0 else (length // 2) + 1
+        
+        plt.legend(frameon=False,
+           loc='lower center',
+           bbox_to_anchor=(0.5, 1),
+           ncol=n_cols)  # Adjust ncol based on number of legend items
+
+
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major', direction='in', labelsize=11)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(['Energy \n Inputs', 'Energy \n Outputs'])
+        # hide tick marks (the small lines)
+        ax.tick_params(axis='y', which='both', length=0)
+        ax.invert_yaxis()  # labels read top-to-bottom
+
+        # Hide top and right spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+        # Move bottom and left spines away
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+
+        #plt.tight_layout()
+        plt.xlim((0, sum(dict_received.values())/1e3))
+        plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
+        plt.savefig('code/Figures/' + self.name + '_energy_chart.png', dpi=300)
+        if plot == True : plt.show()
+
+        return 
+    
+    def exergy_chart(self, T0, p0, plot = True) :
+        dict_received = {}
+        dict_delivered = {}
+        for transform in self.transforms :
+            state_in = getattr(self, f"state_{transform.label_in}")
+            state_out = getattr(self, f"state_{transform.label_out}")
+            if transform.type == 'comp' :
+                args = {'P_el' : self.P_comp, 'mdot_wf' : self.mdot_wf}
+                exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                dict_received[r'$P_{el}$'] = exergies['P_{el}']
+                dict_delivered[r'$P_{mec,comp}$'] = exergies['P_{loss}']
+                dict_delivered[r'$P_{irr,comp}$'] = exergies['P_{irr}']
+
+
+            elif transform.type == 'adex' :
+                mdot_wf = self.mdot_wf
+                args = {'mdot_wf' : mdot_wf}
+                exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                dict_delivered[r'$P_{irr,adex}$'] = exergies['P_{irr}']
+
+            elif transform.type == 'evap' or transform.type == 'cond' :
+                state_in_secondary = getattr(self, f"state_{transform.label_in_secondary}")
+                state_out_secondary = getattr(self, f"state_{transform.label_out_secondary}")
+                
+                if transform.label_in_secondary in ['1_prime', '2_prime'] : 
+                    mdot_secondary = self.mdot_LT
+                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    if exergies['P_{wf}'] > exergies['P_{secondary}'] :
+                        dict_delivered[r'$\dot E_{LT, water}$'] = exergies['P_{secondary}']
+                    else : 
+                        dict_received[r'$\dot E_{LT, wf}$'] = exergies['P_{secondary}']
+
+                    dict_delivered[r'$P_{irr,LT}$'] = exergies['P_{irr}']
+
+                elif transform.label_in_secondary in ['4_prime', '3_prime'] : 
+                    mdot_secondary = self.mdot_MT
+                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+
+                    if exergies['P_{wf}'] > exergies['P_{secondary}'] :
+                        dict_delivered[r'$\dot E_{MT, water}$'] = exergies['P_{secondary}']
+                    else :
+                        dict_received[r'$\dot E_{MT, wf}$'] = exergies['P_{secondary}']
+                    dict_delivered[r'$P_{irr,MT}$'] = exergies['P_{irr}']
+
+                elif transform.label_in_secondary in ['5_prime', '6_prime'] :
+                    mdot_secondary = self.mdot_HT
+                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    if exergies['P_{wf}'] > exergies['P_{secondary}'] :
+                        dict_delivered[r'$\dot E_{HT, water}$'] = exergies['P_{secondary}']
+                    else :
+                        dict_received[r'$\dot E_{HT, wf}$'] = exergies['P_{secondary}']
+                    dict_delivered[r'$P_{irr,HT}$'] = exergies['P_{irr}']
+                else : 
+                    raise ValueError("Unknown secondary mass flow rate for energy analysis.")
+        
+
+        # Plot the energy chart
+
+        plt.figure(figsize=(8,6))
+        y_pos = np.arange(2)
+        for dic, i in zip([dict_received, dict_delivered], y_pos):
+            x_tot = 0
+            # sort items by decreasing value (original units)
+            for key, value in sorted(dic.items(), key=lambda kv: kv[1], reverse=True):
+                label = key
+                value = value / 1e3  # Convert to kW
+                if value > 1e-3:
+                    plt.barh(y_pos[i], value, label=label, left=x_tot)
+                    x_tot += value
+
+
+        plt.xlabel('Power [kW]', fontsize = 12)
+        #plt.legend(frameon=False, loc = 'lower right')
+
+        length = len(dict_received) + len(dict_delivered)
+        n_cols = length // 2 if length % 2 == 0 else (length // 2) + 1
+
+        plt.legend(frameon=False,
+           loc='lower center',
+           bbox_to_anchor=(0.5, 1),
+           ncol=n_cols)  # Adjust ncol based on number of legend items
+
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major', direction='in', labelsize=11)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(['Exergy \n Inputs', 'Exergy \n Outputs'])
+        # hide tick marks (the small lines)
+        ax.tick_params(axis='y', which='both', length=0)
+        ax.invert_yaxis()  # labels read top-to-bottom
+
+        # Hide top and right spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+        # Move bottom and left spines away
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+
+        #plt.tight_layout()
+        plt.xlim((0, sum(dict_received.values())/1e3))
+        plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
+        plt.savefig('code/Figures/' + self.name + '_exergy_chart.png', dpi=300)
+        if plot == True : plt.show()
+
+        return 
+            
 
         
 

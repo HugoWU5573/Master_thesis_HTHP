@@ -3,11 +3,13 @@ import numpy as np
 import CoolProp
 
 class Transform:
-    def __init__(self, type,label_in, label_out, component) :
+    def __init__(self, type,label_in, label_out, component, label_in_secondary=None, label_out_secondary=None) :
         self.type = type
         self.label_in = label_in
         self.label_out = label_out
         self.component = component
+        self.label_in_secondary = label_in_secondary
+        self.label_out_secondary = label_out_secondary
 
     def get_points_between(self, state_in, state_out, n_points=100):
         """
@@ -40,7 +42,7 @@ class Transform:
                 T[i] = heos.T()
                 s[i] = heos.smass()
 
-        elif self.type == 'hex' : 
+        elif self.type == 'evap' or self.type == 'cond' : 
             p = state_in.p
             s_max = state_in.s
             s_min = state_out.s
@@ -52,3 +54,50 @@ class Transform:
         elif self.type == 'comp' :
             T, s = self.component.get_points_between(state_in, state_out, n_points)
         return T, s
+    
+    def energy_analysis(self, state_in, state_out, args) : 
+        """
+        Placeholder for energy analysis of the transform.
+        """
+        if self.type == 'None' :
+            raise ValueError("Transform type must be defined to perform energy analysis.")
+        
+        if self.type == 'adex' :
+            return None 
+        
+        elif self.type == 'comp' :
+            P_el = args['P_el']
+            mdot_wf = args['mdot_wf']
+            return self.component.energy_analysis(P_el, state_in, state_out, mdot_wf)
+        
+        elif self.type == 'evap' or self.type == 'cond' :
+            mdot_wf = args['mdot_wf']
+            mdot_secondary = args['mdot_secondary']
+            state_in_secondary = args['state_in_secondary']
+            state_out_secondary = args['state_out_secondary']
+            return self.component.energy_analysis(state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary)
+    
+    def exergy_analysis(self, T0, P0, state_in, state_out, args) : 
+        """
+        Placeholder for exergy analysis of the transform.
+        """
+        if self.type == 'None' :
+            raise ValueError("Transform type must be defined to perform exergy analysis.")
+        
+        if self.type == 'adex' :
+            mdot_wf = args['mdot_wf']
+            exergy_losses = (state_in.exergy(T0, P0) - state_out.exergy(T0, P0)) * mdot_wf
+            dict_exergy = {'P_{irr}' : exergy_losses}
+            return dict_exergy
+
+        elif self.type == 'comp' :
+            P_el = args['P_el']
+            mdot_wf = args['mdot_wf']
+            return self.component.exergy_analysis(T0, P0, P_el, state_in, state_out, mdot_wf)
+        
+        elif self.type == 'evap' or self.type == 'cond' :
+            mdot_wf = args['mdot_wf']
+            mdot_secondary = args['mdot_secondary']
+            state_in_secondary = args['state_in_secondary']
+            state_out_secondary = args['state_out_secondary']
+            return self.component.exergy_analysis(T0, P0, state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary)
