@@ -166,7 +166,7 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, plot = True, n=50) : 
+    def Ts_diagram(self, plot = True, n=100) : 
         # Generate saturation curve for working fluid
 
         T_points = np.zeros((len(self.transforms), n))

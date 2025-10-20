@@ -67,6 +67,7 @@ SC1.mdot_LT = mdot_LT
 SC1.mdot_MT = mdot_MT
 
 # Compressor
+SC1.P_comp = P_comp
 SC1.Compressor = Compressor_2_param(cycle=SC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -125,7 +126,7 @@ p_guess = np.array([p1_guess, p3_guess])
 fsolve(iterative_process, p_guess)
 SC1.COP = SC1.Condenser.Q / P_comp
 
-print(SC1)
+#print(SC1)
 """
 print(SC1.Evaporator)
 print(SC1.Condenser)
@@ -134,9 +135,14 @@ SC1.Condenser._plot()
 """
 
 # Define the transforms 
-SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator), 
-                  Transform('adex', '9', '10', None), Transform('hex', '3', '9', SC1.Condenser)]
+SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('evap', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
+                  Transform('adex', '9', '10', None), Transform('cond', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
 
+############################################################
+# Plots
+############################################################
 
 # Plot T-s diagram with saturation curve
-SC1.Ts_diagram(n=100)
+SC1.Ts_diagram()
+SC1.energy_chart()
+SC1.exergy_chart(T0=293.15, p0 = 1e5)
