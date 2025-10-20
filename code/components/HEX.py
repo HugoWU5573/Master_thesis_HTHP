@@ -1,10 +1,11 @@
 from CoolProp.CoolProp import PropsSI 
-from components.state import State
 import CoolProp
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
-import pandas as pd
+
+if not __name__ == '__main__':
+    from components.state import State
 
 
 """  
@@ -582,6 +583,7 @@ class HEX_Simu():
 
         return h
     
+
 class HEX_Design():
 
     """
@@ -606,6 +608,7 @@ class HEX_Design():
         self.HEOS_hot = self.state_in_h.heos
         self.Tpinch = None
         self.name = name
+        self.supercritical_hot_stream = False
 
 
     """
@@ -637,7 +640,7 @@ class HEX_Design():
         ]
         result += "\n" + "\n".join(stream_table) + "\n"
         # Summary of heat duty and pinch
-        result += f"\nHeat Flux: {self.Q/1000:.2f} kW\n"
+        result += f"\nHeat transfer rate: {self.Q/1000:.2f} kW,th\n"
         result += f"ΔT at pinch point: {self.Tpinch:.2f} K\n"
         result += "===================================================================================="
 
@@ -676,48 +679,52 @@ class HEX_Design():
 
     """
     This method divides the heat exchanger into cells based on potential phase changes in both streams.
+        - Input : extra_cells (boolean to indicate if we want to add extra cells for better accuracy, especially useful for supercritical operation)
         - Output : EnthalpyVector_c, EnthalpyVector_h (enthalpy vectors of both streams)
     
     """
-    def _cell_division(self):
+    def _cell_division(self, extra_cells):
 
         self.EnthalpyVector_h = np.array([self.state_out_h.h, self.state_in_h.h])
         self.EnthalpyVector_c = np.array([self.state_in_c.h, self.state_out_c.h])
-
-        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
-        self.h_c_bub = self.HEOS_cold.hmass()
-        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
-        self.h_c_dew = self.HEOS_cold.hmass()
-        self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
-        self.h_h_bub = self.HEOS_hot.hmass()
-        self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 1)
-        self.h_h_dew = self.HEOS_hot.hmass()
 
         self.N = 1 # Initial number of cells
         
 
         ## A. Insert phase transition enthalpies for the hot stream if applicable
 
-            # 1. Check for potential phase transition 2 phase to Liquid (bubble point) 
-        if (self.EnthalpyVector_h[0] < self.h_h_bub) and (self.EnthalpyVector_h[-1] > self.h_h_bub):
-            self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_bub)
-            self.EnthalpyVector_h.sort()
-            self.condensation_end = True
-            self.N += 1
-        else :
-            self.condensation_end = False
+        if not self.supercritical_hot_stream:  # If the hot stream is supercritical, no phase change can occur in it
 
-            # 2. Check for potential phase transition Vapor to 2 phase (dew point)
-        if (self.EnthalpyVector_h[0] < self.h_h_dew) and (self.EnthalpyVector_h[-1] > self.h_h_dew):
-            self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_dew)
-            self.EnthalpyVector_h.sort()
-            self.condensation_start = True
-            self.N += 1
-        else :
-            self.condensation_start = False
+            self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
+            self.h_h_bub = self.HEOS_hot.hmass()
+            self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 1)
+            self.h_h_dew = self.HEOS_hot.hmass()
+
+                # 1. Check for potential phase transition 2 phase to Liquid (bubble point) 
+            if (self.EnthalpyVector_h[0] < self.h_h_bub) and (self.EnthalpyVector_h[-1] > self.h_h_bub):
+                self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_bub)
+                self.EnthalpyVector_h.sort()
+                self.condensation_end = True
+                self.N += 1
+            else :
+                self.condensation_end = False
+
+                # 2. Check for potential phase transition Vapor to 2 phase (dew point)
+            if (self.EnthalpyVector_h[0] < self.h_h_dew) and (self.EnthalpyVector_h[-1] > self.h_h_dew):
+                self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_dew)
+                self.EnthalpyVector_h.sort()
+                self.condensation_start = True
+                self.N += 1
+            else :
+                self.condensation_start = False
 
         
         ## B. Insert phase transition enthalpies for the cold stream if applicable
+
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
+        self.h_c_bub = self.HEOS_cold.hmass()
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
+        self.h_c_dew = self.HEOS_cold.hmass()
 
             # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
         if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
@@ -758,7 +765,44 @@ class HEX_Design():
                 self.EnthalpyVector_c.sort()
 
 
-        ## D. Verify that both vectors have the same length
+        ## D. Add extra cells if required (e.g. for supercritical operation)
+        if extra_cells:
+
+            final_nb_cells = 50
+            total_delta_h = self.EnthalpyVector_c[-1] - self.EnthalpyVector_c[0]
+
+            # Ensure that each cell will correspond to a similar enthalpy difference
+            nb_cells_per_cell = np.zeros(self.N)
+            for j in range(self.N):
+                delta_h_cell_j = self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j]
+                proportion_j = delta_h_cell_j / total_delta_h
+                nb_cells_per_cell[j] = max(1, round(proportion_j * final_nb_cells))
+            
+            # Create new enthalpy vectors with the extra cells
+            EnthalpyVector_c_new = []
+            EnthalpyVector_h_new = []
+            for j in range(self.N):
+                h_c_start = self.EnthalpyVector_c[j]
+                h_c_end = self.EnthalpyVector_c[j+1]
+                h_h_start = self.EnthalpyVector_h[j]
+                h_h_end = self.EnthalpyVector_h[j+1]
+
+                n_cells_j = int(nb_cells_per_cell[j])
+                for k in range(n_cells_j):
+                    h_c_new = h_c_start + k * (h_c_end - h_c_start) / n_cells_j
+                    h_h_new = h_h_start + k * (h_h_end - h_h_start) / n_cells_j
+                    EnthalpyVector_c_new.append(h_c_new)
+                    EnthalpyVector_h_new.append(h_h_new)
+
+            EnthalpyVector_c_new.append(self.EnthalpyVector_c[-1])
+            EnthalpyVector_h_new.append(self.EnthalpyVector_h[-1])
+
+            self.EnthalpyVector_c = np.array(EnthalpyVector_c_new)
+            self.EnthalpyVector_h = np.array(EnthalpyVector_h_new)
+            self.N = len(self.EnthalpyVector_c) - 1
+
+
+        ## E. Verify that both vectors have the same length
 
         if (len(self.EnthalpyVector_c) != len(self.EnthalpyVector_h)):
             raise ValueError("Cell division algorithm failed: Enthalpy vectors have different lengths.")
@@ -776,7 +820,14 @@ class HEX_Design():
     """
     def Compute_Pinch(self):
         self._determine_unknown_outlet_state()
-        self._cell_division()
+
+        # Check if the hot stream is supercritical or not
+        Tcrit_h = self.HEOS_hot.T_critical()
+        pcrit_h = self.HEOS_hot.p_critical()
+        if (self.state_in_h.p > pcrit_h) or (self.state_in_h.T > Tcrit_h):
+            self.supercritical_hot_stream = True
+            
+        self._cell_division(extra_cells=self.supercritical_hot_stream)
 
         self.TemperatureVector_c = np.zeros(len(self.EnthalpyVector_c))
         self.TemperatureVector_h = np.zeros(len(self.EnthalpyVector_h))
@@ -870,14 +921,16 @@ if __name__=='__main__':
     from state import State
 
     Test_Variable = "Design"   # "Design" or "Simu" depending on the class to be tested
+    HEOS_Water = CoolProp.AbstractState("HEOS", "Water")
+    HEOS_R290 = CoolProp.AbstractState("HEOS", "R290")
 
     ## PART 1 : HEX_Simu examples
 
     if Test_Variable == "Simu":
 
         # Example 1 : Evaporator with R290 and water
-        state_in_c = State(T=275, p=5.5e5, fluid='R290')
-        state_in_h = State(T=290, p=1e5, fluid='Water')
+        state_in_c = State(heos=HEOS_R290, T=275, p=5.5e5)
+        state_in_h = State(heos=HEOS_Water, T=290, p=1e5)
         Evaporator = HEX_Simu(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.04, 0.4], fluid=['R290', 'Water'], N=5)
         Evaporator.Solve()
         print(Evaporator)
@@ -885,8 +938,8 @@ if __name__=='__main__':
 
     
         # Example 2 : Condenser with R290 and water
-        state_in_c = State(T=320, p=1e5, fluid='Water') 
-        state_in_h = State(T=350, p=25e5, fluid='R290')
+        state_in_c = State(heos=HEOS_Water, T=320, p=1e5) 
+        state_in_h = State(heos=HEOS_R290, T=350, p=25e5)
         Condenser = HEX_Simu(state_in_c=state_in_c, state_in_h=state_in_h, mdot=[0.3, 0.15], fluid=['Water', 'R290'], N=10)
         Condenser.Solve()
         print(Condenser)
@@ -896,11 +949,12 @@ if __name__=='__main__':
 
     elif Test_Variable == "Design":
 
+        
         # Example 1 : Evaporator with R290 and water
         Tsup = 3 # Superheat at the evaporator outlet [K]
-        state_in_c = State(T=275, p=5.5e5, fluid='R290')
-        state_out_c = State(T=PropsSI('T', 'P', 5.5e5, 'Q', 1, 'R290') + Tsup, p=5.5e5, fluid='R290')
-        state_in_h = State(T=290, p=1e5, fluid='Water')
+        state_in_c = State(heos=HEOS_R290,T=275, p=5.5e5)
+        state_out_c = State(heos=HEOS_R290,T=PropsSI('T', 'P', 5.5e5, 'Q', 1, 'R290') + Tsup, p=5.5e5)
+        state_in_h = State(heos=HEOS_Water,T=290, p=1e5)
         state_out_h = None
         Evaporator = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.04, 0.4], name="Evaporator")
         Evaporator.Compute_Pinch()
@@ -910,11 +964,32 @@ if __name__=='__main__':
 
         # Example 2 : Condenser with R290 and water
         Tsub = 3 # Subcooling at the condenser outlet [K]
-        state_in_c = State(T=320, p=1e5, fluid='Water')
+        state_in_c = State(heos=HEOS_Water, T=320, p=1e5)
         state_out_c = None
-        state_in_h = State(T=350, p=25e5, fluid='R290')
-        state_out_h = State(T=PropsSI('T', 'P', 25e5, 'Q', 0, 'R290') - Tsub, p=25e5, fluid='R290')
+        state_in_h = State(heos=HEOS_R290, T=350, p=25e5)
+        state_out_h = State(heos=HEOS_R290, T=PropsSI('T', 'P', 25e5, 'Q', 0, 'R290') - Tsub, p=25e5)
         Condenser = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.5, 0.15], name="Condenser")
         Condenser.Compute_Pinch()
         print(Condenser)
         Condenser._plot()
+        
+
+        # Example 3 : Gas cooler with supercritical R290 and water
+        state_in_c = State(heos=HEOS_Water, T=330, p=2e5)
+        state_out_c = State(heos=HEOS_Water, T=390, p=2e5)
+        state_in_h = State(heos=HEOS_R290, T=400, p=50e5)
+        state_out_h = None
+        GasCooler = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.19, 0.15], name="Gas Cooler")
+        GasCooler.Compute_Pinch()
+        print(GasCooler)
+        GasCooler._plot()
+
+
+
+
+
+"""
+    WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
+        - Add a calculation of the required heat exchanger area
+
+"""
