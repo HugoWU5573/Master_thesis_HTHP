@@ -27,10 +27,12 @@ class Cycle():
         self.state_6_prime = None
 
         # Mass flow rates
-        self.mdot_wf = None  # Working fluid mass flow rate [kg/s]
-        self.mdot_LT = None  # Low temperature heat source mass flow rate [kg/s
-        self.mdot_MT = None  # Medium temperature heat source mass flow rate [kg/s]
-        self.mdot_HT = None  # High temperature heat source mass flow rate [kg/s]
+        self.mdot_wf = None         # Working fluid mass flow rate [kg/s]
+        self.mdot_wf_bottom = None  # Working fluid mass flow rate in bottom cycle [kg/s] (useful for dual-evaporator cycles)
+        self.mdot_wf_top = None     # Working fluid mass flow rate in top cycle [kg/s] (useful for dual-evaporator cycles)
+        self.mdot_LT = None         # Low temperature heat source mass flow rate [kg/s
+        self.mdot_MT = None         # Medium temperature heat source mass flow rate [kg/s]
+        self.mdot_HT = None         # High temperature heat source mass flow rate [kg/s]
 
         # Power of the compressor
         self.P_comp = None   # Compressor power [W]
@@ -57,18 +59,20 @@ class Cycle():
             ("mdot_LT", self.mdot_LT),
             ("mdot_MT", self.mdot_MT),
             ("mdot_HT", self.mdot_HT),
+            ("mdot_wf_bottom", self.mdot_wf_bottom),
+            ("mdot_wf_top", self.mdot_wf_top),
         ]
         mass_flow_filtered = [(n, v) for n, v in mass_flow_items if v is not None]
 
         if mass_flow_filtered:
             lines = [
-                "+----------------+--------------+",
-                "| Mass Flow Rate | Value [kg/s] |",
-                "+----------------+--------------+",
+                "+--------------------+--------------+",
+                "| Mass Flow Rate     | Value [kg/s] |",
+                "+--------------------+--------------+",
             ]
             for name, val in mass_flow_filtered:
-                lines.append(f"| {name:<14} | {val:<12.4f} |")
-            lines.append("+----------------+--------------+")
+                lines.append(f"| {name:<18} | {val:<12.4f} |")
+            lines.append("+--------------------+--------------+")
             mass_flow_str = "\n".join(lines)
         else:
             mass_flow_str = "(No mass flow rates defined)"
@@ -94,7 +98,7 @@ class Cycle():
         header_rows = [
             state_header,
             "| State  | Temperature  | Pressure     | Enthalpy          | Entropy             | Exergy         | Quality     |",
-            "|        | [K]          | [bar]        | [kJ/kg]           | [J/kg/K]            | [J/kg]         | [-]         |",
+            "|        | [K]          | [bar]        | [kJ/kg]           | [J/kg/K]            | [kJ/kg]        | [-]         |",
             state_header,
         ]
 
@@ -121,7 +125,7 @@ class Cycle():
                 fmt(p, scale=1e5),      # Convert Pa → bar
                 fmt(h, scale=1000),     # Convert J/kg → kJ/kg
                 fmt(s),
-                fmt(e),
+                fmt(e, scale=1000),     # Convert J/kg → kJ/kg
                 fmt(Q, unit_fmt="{:.4f}") if Q is not None else "",
             ]
             rows.append(

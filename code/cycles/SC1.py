@@ -128,29 +128,10 @@ SC1.COP = SC1.Condenser.Q / P_comp
 
 
 ############################################################
-# Print the results
+# Plot the results
 ############################################################
 
 full_details = False
-
-print(SC1)
-
-if full_details :
-    print(SC1.Evaporator)
-    print(SC1.Condenser)
-
-    # Save prints to a text file
-    output_file = Path(__file__).parent.parent / "Figures" / SC1.name / f"{SC1.name}_results.txt"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_file, 'w') as f:
-        f.write(str(SC1) + '\n')
-        f.write('\n' + str(SC1.Evaporator) + '\n')
-        f.write('\n' + str(SC1.Condenser) + '\n')
-
-
-############################################################
-# Plot the results
-############################################################
 
 # Define the transforms 
 SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('evap', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
@@ -168,3 +149,22 @@ if full_details :
     # Plot heat exchangers diagrams
     SC1.Evaporator._plot(save=True, name_cycle=SC1.name, plot=True)
     SC1.Condenser._plot(save=True, name_cycle=SC1.name, plot=True)
+
+
+############################################################
+# Print the results
+############################################################
+
+print(SC1)
+
+if full_details :
+    print(SC1.Evaporator)
+    print(SC1.Condenser)
+
+    # Save prints to a text file
+    output_file = Path(__file__).parent.parent / "Figures" / SC1.name / f"{SC1.name}_results.txt"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_file, 'w') as f:
+        f.write(str(SC1) + '\n')
+        f.write('\n' + str(SC1.Evaporator) + '\n')
+        f.write('\n' + str(SC1.Condenser) + '\n')

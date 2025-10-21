@@ -59,6 +59,16 @@ class Transform:
         
         elif self.type == 'comp' :
             T, s = self.component.get_points_between(state_in, state_out, n_points)
+
+        elif self.type == 'isobaric_mixing' :
+            p = state_in.p
+            s_max = state_in.s
+            s_min = state_out.s
+            s = np.linspace(s_max, s_min, n_points)
+            for i, s_val in enumerate(s):
+                heos.update(CoolProp.PSmass_INPUTS, p, s_val)
+                T[i] = heos.T()
+
         return T, s
     
     def energy_analysis(self, state_in, state_out, args) : 

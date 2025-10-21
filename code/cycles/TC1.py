@@ -132,29 +132,10 @@ TC1.COP = TC1.GasCooler.Q / P_comp
 
 
 ############################################################
-# Print the results
+# Plot the results
 ############################################################
 
 full_details = False
-
-print(TC1)
-
-if full_details :
-    print(TC1.Evaporator)
-    print(TC1.GasCooler)
-
-    # Save prints to a text file
-    output_file = Path(__file__).parent.parent / "Figures" / TC1.name / f"{TC1.name}_results.txt"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_file, 'w') as f:
-        f.write(str(TC1) + '\n')
-        f.write('\n' + str(TC1.Evaporator) + '\n')
-        f.write('\n' + str(TC1.GasCooler) + '\n')
-
-
-############################################################
-# Plot the results
-############################################################
 
 # Define the transforms 
 TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), Transform('cond', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
@@ -172,3 +153,22 @@ if full_details :
     # Plot heat exchangers diagrams
     TC1.Evaporator._plot(save=True, name_cycle=TC1.name, plot=True)
     TC1.GasCooler._plot(save=True, name_cycle=TC1.name, plot=True)
+
+
+############################################################
+# Print the results
+############################################################
+
+print(TC1)
+
+if full_details :
+    print(TC1.Evaporator)
+    print(TC1.GasCooler)
+
+    # Save prints to a text file
+    output_file = Path(__file__).parent.parent / "Figures" / TC1.name / f"{TC1.name}_results.txt"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_file, 'w') as f:
+        f.write(str(TC1) + '\n')
+        f.write('\n' + str(TC1.Evaporator) + '\n')
+        f.write('\n' + str(TC1.GasCooler) + '\n')

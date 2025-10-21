@@ -83,7 +83,7 @@ def iterative_process(p_gess) :
 
     # STEP 1 : Compute the states based on the guesses values
 
-        # Compute guessed state 3
+        # Compute guessed state 3 (saturated vapor)
     HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p3_guess, 0.0)
     Tsat_3 = HEOS_working_fluid.T()
     TC1R.state_3 = State(HEOS_working_fluid, T=Tsat_3, Q = 1)
@@ -139,10 +139,36 @@ TC1R.COP = TC1R.GasCooler.Q / P_comp
 
 
 ############################################################
-# Print the results
+# Plot the results
 ############################################################
 
 full_details = False
+
+# Define the transforms 
+TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor), 
+                   Transform('cond', '5', '6',TC1R.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
+                   Transform('adex', '7', '8', None), 
+                   Transform('evap', '8', '3', TC1R.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
+
+# Plot T-s diagram with saturation curve
+TC1R.Ts_diagram(n=100, plot=True)
+
+
+if full_details :
+
+    # Plot energy and exergy charts
+    TC1R.energy_chart(plot=True)
+    TC1R.exergy_chart(T0 = 293.15, p0 = 1e5, plot=True)
+
+    # Plot heat exchangers diagrams
+    TC1R.Evaporator._plot(save=True, name_cycle=TC1R.name, plot=True)
+    TC1R.GasCooler._plot(save=True, name_cycle=TC1R.name, plot=True)
+    TC1R.Recuperator._plot(save=True, name_cycle=TC1R.name, plot=True)
+
+
+############################################################
+# Print the results
+############################################################
 
 print(TC1R)
 
@@ -161,33 +187,10 @@ if full_details:
         f.write('\n' + str(TC1R.Recuperator) + '\n')
 
 
-############################################################
-# Plot the results
-############################################################
-
-# Define the transforms 
-TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor), Transform('cond', '5', '6',TC1R.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
-                  Transform('adex', '7', '8', None), Transform('evap', '8', '3', TC1R.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
-
-# Plot T-s diagram with saturation curve
-TC1R.Ts_diagram(n=100, plot=True)
-
-
-if full_details :
-
-    # Plot energy and exergy charts
-    TC1R.energy_chart(plot=True)
-    TC1R.exergy_chart(T0 = 293.15, p0 = 1e5, plot=True)
-
-    # Plot heat exchangers diagrams
-    TC1R.Evaporator._plot(save=True, name_cycle=TC1R.name, plot=True)
-    TC1R.GasCooler._plot(save=True, name_cycle=TC1R.name, plot=True)
-    TC1R.Recuperator._plot(save=True, name_cycle=TC1R.name, plot=True)
-
-
 """
 
 WHAT REMAINS TO BE DONE :
-    - Complete the Transformations part
+    - Complete the Transformations part with the recuperator (both sides)
+    - Verify the exergy analysis of the cycle (energy analysis seems fine since it is an internal heat exchanger)
 
 """
