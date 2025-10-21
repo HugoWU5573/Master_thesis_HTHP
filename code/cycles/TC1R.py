@@ -102,7 +102,7 @@ def iterative_process(p_gess) :
     TC1R.state_6 = TC1R.GasCooler.state_out_h
     res_gas_cooler = Tpinch_real - T_pinch
 
-    # STEP 3 : Compute states 7 and 8
+    # STEP 3 : Compute states 7 and 8 through the recuperator model
 
     TC1R.Recuperator = HEX_Design(states_in=[TC1R.state_3, TC1R.state_6], states_out=[TC1R.state_4, None], mdot=[TC1R.mdot_wf, TC1R.mdot_wf], name="Recuperator")
     TC1R.Recuperator.Compute_Pinch()

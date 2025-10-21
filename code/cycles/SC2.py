@@ -168,31 +168,10 @@ SC2.COP = SC2.Condenser.Q / SC2.P_comp
 
 
 ############################################################
-# Print the results
+# Plot the results
 ############################################################
 
 full_details = False
-
-print(SC2)
-
-if full_details :
-    print(SC2.Evaporator_LT)
-    print(SC2.Evaporator_MT)
-    print(SC2.Condenser)
-
-    # Save prints to a text file
-    output_file = Path(__file__).parent.parent / "Figures" / SC2.name / f"{SC2.name}_results.txt"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_file, 'w') as f:
-        f.write(str(SC2) + '\n')
-        f.write('\n' + str(SC2.Evaporator_LT) + '\n')
-        f.write('\n' + str(SC2.Evaporator_MT) + '\n')
-        f.write('\n' + str(SC2.Condenser) + '\n')
-
-
-############################################################
-# Plot the results
-############################################################
 
 # Define the transforms 
 SC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
@@ -220,6 +199,27 @@ if full_details :
     SC2.Evaporator_LT._plot(save=True, name_cycle=SC2.name, plot=True)
     SC2.Evaporator_MT._plot(save=True, name_cycle=SC2.name, plot=True)
     SC2.Condenser._plot(save=True, name_cycle=SC2.name, plot=True)
+
+
+############################################################
+# Print the results
+############################################################
+
+print(SC2)
+
+if full_details :
+    print(SC2.Evaporator_LT)
+    print(SC2.Evaporator_MT)
+    print(SC2.Condenser)
+
+    # Save prints to a text file
+    output_file = Path(__file__).parent.parent / "Figures" / SC2.name / f"{SC2.name}_results.txt"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_file, 'w') as f:
+        f.write(str(SC2) + '\n')
+        f.write('\n' + str(SC2.Evaporator_LT) + '\n')
+        f.write('\n' + str(SC2.Evaporator_MT) + '\n')
+        f.write('\n' + str(SC2.Condenser) + '\n')
 
 
 
