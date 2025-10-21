@@ -642,7 +642,7 @@ class HEX_Design():
         result += "\n" + "\n".join(stream_table) + "\n"
         # Summary of heat duty and pinch
         result += f"\nHeat transfer rate: {self.Q/1000:.2f} kW,th\n"
-        result += f"ΔT at pinch point: {self.Tpinch:.2f} K\n"
+        result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
         result += "===================================================================================="
 
         return result

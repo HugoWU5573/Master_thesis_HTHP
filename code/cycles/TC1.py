@@ -143,6 +143,14 @@ if full_details :
     print(TC1.Evaporator)
     print(TC1.GasCooler)
 
+    # Save prints to a text file
+    output_file = Path(__file__).parent.parent / "Figures" / TC1.name / f"{TC1.name}_results.txt"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_file, 'w') as f:
+        f.write(str(TC1) + '\n')
+        f.write('\n' + str(TC1.Evaporator) + '\n')
+        f.write('\n' + str(TC1.GasCooler) + '\n')
+
 
 ############################################################
 # Plot the results

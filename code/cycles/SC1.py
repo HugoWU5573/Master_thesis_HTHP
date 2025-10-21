@@ -139,6 +139,14 @@ if full_details :
     print(SC1.Evaporator)
     print(SC1.Condenser)
 
+    # Save prints to a text file
+    output_file = Path(__file__).parent.parent / "Figures" / SC1.name / f"{SC1.name}_results.txt"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_file, 'w') as f:
+        f.write(str(SC1) + '\n')
+        f.write('\n' + str(SC1.Evaporator) + '\n')
+        f.write('\n' + str(SC1.Condenser) + '\n')
+
 
 ############################################################
 # Plot the results
