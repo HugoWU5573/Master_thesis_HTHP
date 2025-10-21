@@ -126,7 +126,7 @@ p_guess = np.array([p1_guess, p3_guess])
 fsolve(iterative_process, p_guess)
 SC1.COP = SC1.Condenser.Q / P_comp
 
-#print(SC1)
+print(SC1)
 """
 print(SC1.Evaporator)
 print(SC1.Condenser)

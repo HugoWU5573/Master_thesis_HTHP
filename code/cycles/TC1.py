@@ -27,6 +27,7 @@ from scipy.optimize import fsolve
 
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
+glide = 60                      # Temperature glide in the gas cooler [K]
 T_sup = 3                       # Superheating at the compressor inlet [K]
 eta_v = 0.8                     # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
@@ -46,7 +47,7 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 external_fluid_HT = 'Water'     # External fluid in the heat sink
 mdot_HT = 0.1                   # Mass flow rate of external fluid the heat sink [kg/s]
 T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
-T6_prime = 120 + 273.15         # Outlet temperature of the external fluid in the heat sink [K]
+T6_prime = T5_prime + glide     # Outlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 p6_prime = p5_prime             # Outlet pressure of the external fluid in the heat sink [Pa]
 
@@ -142,3 +143,6 @@ TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), Transform('cond',
 TC1.Ts_diagram(n=100)
 TC1.energy_chart()
 TC1.exergy_chart(T0 = 293.15, p0 = 1e5)
+
+
+"""  LIMIT PRESSURE TO 50 BARS FOR R290 """
