@@ -3,6 +3,7 @@ import CoolProp
 import numpy as np
 from scipy.optimize import brentq  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
+import os
 
 if not __name__ == '__main__':
     from components.state import State
@@ -870,18 +871,55 @@ class HEX_Design():
 
     """
     This method plots the heat exchange on a T-h normalized diagram.
+        - Inputs : 
+            - save (boolean) : to indicate if the plot should be saved as a PNG file
+            - name_cycle (str) : name of the cycle in which the HEX is integrated (used for saving the plot in the right folder)
+            - plot (boolean) : to indicate if the plot should be displayed or not
     
     """
-    def _plot(self):
+    def _plot(self, save=False, name_cycle=None, plot=True):
         self._get_Normalized_EnthalpyVectors()
+
+        # Compute the yticks in °C
+        Tmin_c = round(min(self.TemperatureVector_c) - 273.15, ndigits=1)
+        Tmax_c = round(max(self.TemperatureVector_c) - 273.15, ndigits=1)
+        Tmin_h = round(min(self.TemperatureVector_h) - 273.15, ndigits=1)
+        Tmax_h = round(max(self.TemperatureVector_h) - 273.15, ndigits=1)
+        yticks = np.array([Tmin_c, Tmin_h, Tmax_c, Tmax_h])
+        yticks = np.unique(yticks)
+
+        # Compute the xticks
+        xticks = np.array([0, 1]) 
         
+        # Create the plot
         plt.figure()
-        plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c, marker='o', color="blue")
-        plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h, marker='o', color="red")
-        plt.xlabel(r"$\hat{h}[-]$")
+        plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c - 273.15, marker='o', color="blue", clip_on=False)
+        plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h - 273.15, marker='o', color="red", clip_on=False)
+        plt.xlabel(r"$\hat{h}$ [-]", fontsize=12)
         plt.xlim(0,1)
-        plt.ylabel(r"$T[K]$")
-        plt.show()
+        plt.ylim(yticks[0], yticks[-1])
+
+        # Customize the axes
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major')
+        ax.set_title('Temperature [°C]', loc='left', fontsize=12)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_position(('outward', 20))
+        ax.spines['left'].set_position(('outward', 15))
+        ax.set_xticks(xticks)
+        ax.set_yticks(yticks)
+        plt.tick_params(axis='x', rotation=0)
+        plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+        plt.tight_layout()
+
+        if save and (name_cycle is not None):
+            fig_dir = f'code/Figures/{name_cycle}'
+            os.makedirs(fig_dir, exist_ok=True)
+            plt.savefig(f'{fig_dir}/{self.name}.png', dpi=600)
+
+        if plot : plt.show()
+
 
     def energy_analysis(self, state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary):
 
@@ -896,6 +934,7 @@ class HEX_Design():
         }
     
         return dict_energy
+    
 
     def exergy_analysis(self, T0, P0, state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary):
 
@@ -912,7 +951,6 @@ class HEX_Design():
         return dict_exergy
 
 
-    
 
 
 # Examples of usage
@@ -990,7 +1028,6 @@ if __name__=='__main__':
 
 """
     WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
-        - Value Error management (comment in the code at the moment)
         - Add a calculation of the required heat exchanger area
 
 """

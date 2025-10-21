@@ -27,7 +27,7 @@ from scipy.optimize import fsolve
 
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
-glide = 60                      # Temperature glide in the gas cooler [K]
+glide = 55                      # Temperature glide in the gas cooler [K]
 T_sup = 3                       # Superheating at the compressor inlet [K]
 eta_v = 0.8                     # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
@@ -123,26 +123,44 @@ p_guess = np.array([p3_guess, p5_guess])
 
 # Compute the solution
 fsolve(iterative_process, p_guess)
+
+# Limit the highest pressure of the cycle to 50 bars
+if TC1.state_5.p > 5e6 :
+    raise ValueError("The highest pressure of the cycle exceeds 50 bars. Please adjust the input parameters.")
+
 TC1.COP = TC1.GasCooler.Q / P_comp
 
 
+############################################################
+# Print the results
+############################################################
+
+full_details = False
+
 print(TC1)
-"""
-print(TC1.Evaporator)
-print(TC1.GasCooler)
-TC1.Evaporator._plot()
-TC1.GasCooler._plot()
-"""
+
+if full_details :
+    print(TC1.Evaporator)
+    print(TC1.GasCooler)
+
+
+############################################################
+# Plot the results
+############################################################
 
 # Define the transforms 
 TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), Transform('cond', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
                   Transform('adex', '7', '8', None), Transform('evap', '8', '3', TC1.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
 
-
 # Plot T-s diagram with saturation curve
-TC1.Ts_diagram(n=100)
-TC1.energy_chart()
-TC1.exergy_chart(T0 = 293.15, p0 = 1e5)
+TC1.Ts_diagram(n=100, plot=True)
 
+if full_details :
 
-"""  LIMIT PRESSURE TO 50 BARS FOR R290 """
+    # Plot energy and exergy charts
+    TC1.energy_chart(plot=True)
+    TC1.exergy_chart(T0 = 293.15, p0 = 1e5, plot=True)
+
+    # Plot heat exchangers diagrams
+    TC1.Evaporator._plot(save=True, name_cycle=TC1.name, plot=True)
+    TC1.GasCooler._plot(save=True, name_cycle=TC1.name, plot=True)

@@ -28,7 +28,7 @@ from scipy.optimize import fsolve
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
 T_sup = 3                       # Superheating at the compressor inlet [K]
-T_sub = 3                       # Subcooling at the condenser outlet [K]
+T_sub = 6                       # Subcooling at the condenser outlet [K]
 eta_v = 0.8                     # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
@@ -126,23 +126,37 @@ p_guess = np.array([p1_guess, p3_guess])
 fsolve(iterative_process, p_guess)
 SC1.COP = SC1.Condenser.Q / P_comp
 
+
+############################################################
+# Print the results
+############################################################
+
+full_details = False
+
 print(SC1)
-"""
-print(SC1.Evaporator)
-print(SC1.Condenser)
-SC1.Evaporator._plot()
-SC1.Condenser._plot()
-"""
+
+if full_details :
+    print(SC1.Evaporator)
+    print(SC1.Condenser)
+
+
+############################################################
+# Plot the results
+############################################################
 
 # Define the transforms 
 SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('evap', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
                   Transform('adex', '9', '10', None), Transform('cond', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
 
-############################################################
-# Plots
-############################################################
-
 # Plot T-s diagram with saturation curve
-SC1.Ts_diagram()
-SC1.energy_chart()
-SC1.exergy_chart(T0=293.15, p0 = 1e5)
+SC1.Ts_diagram(n=100, plot=True)
+
+if full_details :
+
+    # Plot energy and exergy charts
+    SC1.energy_chart(plot=True)
+    SC1.exergy_chart(T0=293.15, p0 = 1e5, plot=True)
+
+    # Plot heat exchangers diagrams
+    SC1.Evaporator._plot(save=True, name_cycle=SC1.name, plot=True)
+    SC1.Condenser._plot(save=True, name_cycle=SC1.name, plot=True)

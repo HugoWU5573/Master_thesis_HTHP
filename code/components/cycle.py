@@ -280,7 +280,7 @@ class Cycle():
         #plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=300)
+        plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
         if plot == True : plt.show()
         return
 
@@ -385,7 +385,7 @@ class Cycle():
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/energy_chart.png', dpi=300)
+        plt.savefig(f'{fig_dir}/energy_chart.png', dpi=600)
         if plot == True : plt.show()
 
         return 
@@ -502,7 +502,7 @@ class Cycle():
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/exergy_chart.png', dpi=300)
+        plt.savefig(f'{fig_dir}/exergy_chart.png', dpi=600)
         if plot == True : plt.show()
 
         return 
