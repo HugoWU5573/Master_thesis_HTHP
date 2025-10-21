@@ -1,6 +1,7 @@
 import CoolProp
 from matplotlib import pyplot as plt
 import numpy as np
+import os
 
 class Cycle(): 
 
@@ -277,7 +278,9 @@ class Cycle():
         plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
 
         #plt.tight_layout()
-        plt.savefig('code/Figures/' + self.name + '_Ts_diagram.png', dpi=300)
+        fig_dir = f'code/Figures/{self.name}'
+        os.makedirs(fig_dir, exist_ok=True)
+        plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=300)
         if plot == True : plt.show()
         return
 
@@ -380,7 +383,9 @@ class Cycle():
         #plt.tight_layout()
         plt.xlim((0, sum(dict_received.values())/1e3))
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
-        plt.savefig('code/Figures/' + self.name + '_energy_chart.png', dpi=300)
+        fig_dir = f'code/Figures/{self.name}'
+        os.makedirs(fig_dir, exist_ok=True)
+        plt.savefig(f'{fig_dir}/energy_chart.png', dpi=300)
         if plot == True : plt.show()
 
         return 
@@ -495,7 +500,9 @@ class Cycle():
         #plt.tight_layout()
         plt.xlim((0, sum(dict_received.values())/1e3))
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
-        plt.savefig('code/Figures/' + self.name + '_exergy_chart.png', dpi=300)
+        fig_dir = f'code/Figures/{self.name}'
+        os.makedirs(fig_dir, exist_ok=True)
+        plt.savefig(f'{fig_dir}/exergy_chart.png', dpi=300)
         if plot == True : plt.show()
 
         return 
