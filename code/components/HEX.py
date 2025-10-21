@@ -841,8 +841,8 @@ class HEX_Design():
             Th = self.HEOS_hot.T()
             self.TemperatureVector_h[i] = Th
             deltaT = Th - Tc
-            if deltaT < 0:
-                raise ValueError("Heat exchanger model error: temperature difference between hot and cold streams is negative at some point.")
+            # if deltaT < 0:
+            #    raise ValueError("Heat exchanger model error: temperature difference between hot and cold streams is negative at some point.")
             Tpinch = min(Tpinch, deltaT)
 
         self.Tpinch = Tpinch
@@ -990,6 +990,7 @@ if __name__=='__main__':
 
 """
     WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
+        - Value Error management (comment in the code at the moment)
         - Add a calculation of the required heat exchanger area
 
 """
