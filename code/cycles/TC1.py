@@ -69,6 +69,7 @@ TC1.mdot_MT = mdot_MT
 TC1.mdot_HT = mdot_HT
 
 # Compressor
+TC1.P_comp = P_comp
 TC1.Compressor = Compressor_2_param(cycle=TC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -133,9 +134,11 @@ TC1.GasCooler._plot()
 """
 
 # Define the transforms 
-TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), Transform('hex', '5', '7',TC1.GasCooler), 
-                  Transform('adex', '7', '8', None), Transform('hex', '8', '3', TC1.Evaporator)]
+TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), Transform('cond', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
+                  Transform('adex', '7', '8', None), Transform('evap', '8', '3', TC1.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
 
 
 # Plot T-s diagram with saturation curve
 TC1.Ts_diagram(n=100)
+TC1.energy_chart()
+TC1.exergy_chart(T0 = 293.15, p0 = 1e5)
