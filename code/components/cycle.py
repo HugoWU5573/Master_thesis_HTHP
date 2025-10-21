@@ -294,7 +294,7 @@ class Cycle():
                 args = {'P_el' : self.P_comp, 'mdot_wf' : self.mdot_wf}
                 energies = transform.energy_analysis(state_in, state_out, args)
                 dict_received[r'$P_{el}$'] = energies['P_{el}']
-                dict_delivered[r'$P_{L,comp}$'] = energies['P_{loss}']
+                dict_delivered[r'$P_{mec,comp}$'] = energies['P_{loss}']
 
             elif transform.type == 'evap' or transform.type == 'cond' :
                 state_in_secondary = getattr(self, f"state_{transform.label_in_secondary}")
