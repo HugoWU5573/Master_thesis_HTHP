@@ -67,7 +67,7 @@ SC1.mdot_LT = mdot_LT
 SC1.mdot_MT = mdot_MT
 
 # Compressor
-SC1.P_comp = P_comp
+SC1.P_comp_bottom = P_comp
 SC1.Compressor = Compressor_2_param(cycle=SC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -86,7 +86,7 @@ def iterative_process(p_gess) :
     SC1.state_1 = State(HEOS_working_fluid, T=Tsat_1 + T_sup, p=p1_guess)
 
         # Compute guessed state 3
-    SC1.mdot_wf, T_3 = SC1.Compressor.Solve(P_el=P_comp, p_ex=p3_guess, state_in=SC1.state_1)
+    SC1.mdot_wf_bottom, T_3 = SC1.Compressor.Solve(P_el=P_comp, p_ex=p3_guess, state_in=SC1.state_1)
     SC1.state_3 = State(HEOS_working_fluid, T=T_3, p=p3_guess)
 
         # Compute guessed state 9
@@ -100,14 +100,14 @@ def iterative_process(p_gess) :
 
     # STEP 2 : Compute the residual for the evaporator
 
-    SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, None], mdot=[SC1.mdot_wf, SC1.mdot_LT], name="Evaporator")
+    SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, None], mdot=[SC1.mdot_wf_bottom, SC1.mdot_LT], name="Evaporator")
     Tpinch_real = SC1.Evaporator.Compute_Pinch()
     SC1.state_2_prime = SC1.Evaporator.state_out_h
     res_evap = Tpinch_real - T_pinch
 
     # STEP 3 : Compute the residual for the condenser
 
-    SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[None, SC1.state_9], mdot=[SC1.mdot_MT, SC1.mdot_wf], name="Condenser")
+    SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[None, SC1.state_9], mdot=[SC1.mdot_MT, SC1.mdot_wf_bottom], name="Condenser")
     Tpinch_real = SC1.Condenser.Compute_Pinch()
     SC1.state_3_prime = SC1.Condenser.state_out_c
     res_cond = Tpinch_real - T_pinch
@@ -131,11 +131,11 @@ SC1.COP = SC1.Condenser.Q / P_comp
 # Plot the results
 ############################################################
 
-full_details = False
+full_details = True
 
 # Define the transforms 
-SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('evap', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
-                  Transform('adex', '9', '10', None), Transform('cond', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
+SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
+                  Transform('adex', '9', '10', None), Transform('hex', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
 
 # Plot T-s diagram with saturation curve
 SC1.Ts_diagram(n=100, plot=True)

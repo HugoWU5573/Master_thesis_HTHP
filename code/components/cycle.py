@@ -36,6 +36,8 @@ class Cycle():
 
         # Power of the compressor
         self.P_comp = None   # Compressor power [W]
+        self.P_comp_bottom = None   # Compressor power in bottom cycle [W] (useful for dual-evaporator cycles)
+        self.P_comp_top = None   # Compressor power in top cycle [W] (useful for dual-evaporator cycles)
 
         # List of transforms
         self.transforms = []
@@ -290,6 +292,10 @@ class Cycle():
 
 
     def energy_chart(self, plot=True) :
+        if self.mdot_wf_bottom is None : 
+            self.mdot_wf_bottom = 0
+        if self.mdot_wf_top is None :
+            self.mdot_wf_top = 0
 
         dict_received = {}
         dict_delivered = {}
@@ -298,18 +304,30 @@ class Cycle():
             state_in = getattr(self, f"state_{transform.label_in}")
             state_out = getattr(self, f"state_{transform.label_out}")
             if transform.type == 'comp' :
-                args = {'P_el' : self.P_comp, 'mdot_wf' : self.mdot_wf}
-                energies = transform.energy_analysis(state_in, state_out, args)
-                dict_received[r'$P_{el}$'] = energies['P_{el}']
-                dict_delivered[r'$P_{mec,comp}$'] = energies['P_{loss}']
+                if transform.label_in in ['1', '2'] :
+                    mdot_wf = self.mdot_wf_bottom
+                    P_comp = self.P_comp_bottom
+                    args = {'P_el' : P_comp, 'mdot_wf' : mdot_wf}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    dict_received[r'$P_{el,LT}$'] = energies['P_{el}']
+                    dict_delivered[r'$P_{mec,comp,LT}$'] = energies['P_{loss}']
+                else :
+                    mdot_wf = self.mdot_wf_top
+                    P_comp = self.P_comp_top
+                    args = {'P_el' : P_comp, 'mdot_wf' : mdot_wf}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    dict_received[r'$P_{el,MT}$'] = energies['P_{el}']
+                    dict_delivered[r'$P_{mec,comp,MT}$'] = energies['P_{loss}']
 
-            elif transform.type == 'evap' or transform.type == 'cond' :
+                
+            elif transform.type == 'hex' :
                 state_in_secondary = getattr(self, f"state_{transform.label_in_secondary}")
                 state_out_secondary = getattr(self, f"state_{transform.label_out_secondary}")
                 
                 if transform.label_in_secondary in ['1_prime', '2_prime'] : 
                     mdot_secondary = self.mdot_LT
-                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                    mdot_wf = self.mdot_wf_bottom
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     energies = transform.energy_analysis(state_in, state_out, args)
                     dict_received[r'$\dot Q_{LT}$'] = energies['P_{wf}']
@@ -317,19 +335,24 @@ class Cycle():
 
                 elif transform.label_in_secondary in ['4_prime', '3_prime'] : 
                     mdot_secondary = self.mdot_MT
-                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                    mdot_wf = abs(self.mdot_wf_top - self.mdot_wf_bottom)
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     energies = transform.energy_analysis(state_in, state_out, args)
-                    if transform.type == 'cond' :
-                        dict_delivered[r'$\dot Q_{MT}$'] = energies['P_{secondary}']
-                        dict_delivered[r'$P_{L,MT}$'] = energies['P_{loss}']
-                    else :
+
+                    
+                    if energies['P_{wf}'] >= 0 :
+                        print(True)
                         dict_received[r'$\dot Q_{MT}$'] = energies['P_{wf}']
+                        dict_delivered[r'$P_{L,MT}$'] = energies['P_{loss}']
+                    else : 
+                        dict_delivered[r'$\dot Q_{MT}$'] = energies['P_{secondary}']
                         dict_delivered[r'$P_{L,MT}$'] = energies['P_{loss}']
 
                 elif transform.label_in_secondary in ['5_prime', '6_prime'] :
                     mdot_secondary = self.mdot_HT
-                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                    mdot_wf = self.mdot_wf_top
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     energies = transform.energy_analysis(state_in, state_out, args)
                     dict_delivered[r'$\dot Q_{HT}$'] = energies['P_{secondary}']
@@ -395,32 +418,54 @@ class Cycle():
         return 
     
     def exergy_chart(self, T0, p0, plot = True) :
+        if self.mdot_wf_bottom is None : 
+            self.mdot_wf_bottom = 0
+        if self.mdot_wf_top is None :
+            self.mdot_wf_top = 0
         dict_received = {}
         dict_delivered = {}
         for transform in self.transforms :
             state_in = getattr(self, f"state_{transform.label_in}")
             state_out = getattr(self, f"state_{transform.label_out}")
             if transform.type == 'comp' :
-                args = {'P_el' : self.P_comp, 'mdot_wf' : self.mdot_wf}
-                exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
-                dict_received[r'$P_{el}$'] = exergies['P_{el}']
-                dict_delivered[r'$P_{mec,comp}$'] = exergies['P_{loss}']
-                dict_delivered[r'$P_{irr,comp}$'] = exergies['P_{irr}']
+                if transform.label_in in ['1', '2'] :
+                    mdot_wf = self.mdot_wf_bottom
+                    P_comp = self.P_comp_bottom
+                    args = {'P_el' : P_comp, 'mdot_wf' : mdot_wf}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    dict_received[r'$P_{el,LT}$'] = exergies['P_{el}']
+                    dict_delivered[r'$P_{mec,comp,LT}$'] = exergies['P_{loss}']
+                    dict_delivered[r'$P_{irr,comp,LT}$'] = exergies['P_{irr}']
 
+                else :
+                    mdot_wf = self.mdot_wf_top
+                    P_comp = self.P_comp_top
+                    args = {'P_el' : P_comp, 'mdot_wf' : mdot_wf}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    dict_received[r'$P_{el,MT}$'] = exergies['P_{el}']
+                    dict_delivered[r'$P_{mec,comp,MT}$'] = exergies['P_{loss}']
+                    dict_delivered[r'$P_{irr,comp,MT}$'] = exergies['P_{irr}']
 
             elif transform.type == 'adex' :
-                mdot_wf = self.mdot_wf
-                args = {'mdot_wf' : mdot_wf}
-                exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
-                dict_delivered[r'$P_{irr,adex}$'] = exergies['P_{irr}']
+                if transform.label_in == '9' :
+                    mdot_wf = self.mdot_wf_bottom
+                    args = {'mdot_wf' : mdot_wf}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    dict_delivered[r'$P_{irr,adex,MT}$'] = exergies['P_{irr}']
+                elif transform.label_in == '7' :
+                    mdot_wf = abs(self.mdot_wf_top - self.mdot_wf_bottom)
+                    args = {'mdot_wf' : mdot_wf}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    dict_delivered[r'$P_{irr,adex,LT}$'] = exergies['P_{irr}']
 
-            elif transform.type == 'evap' or transform.type == 'cond' :
+            elif transform.type == 'hex' :
                 state_in_secondary = getattr(self, f"state_{transform.label_in_secondary}")
                 state_out_secondary = getattr(self, f"state_{transform.label_out_secondary}")
                 
                 if transform.label_in_secondary in ['1_prime', '2_prime'] : 
                     mdot_secondary = self.mdot_LT
-                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                    mdot_wf = self.mdot_wf_bottom
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
                     if exergies['P_{wf}'] > exergies['P_{secondary}'] :
@@ -432,7 +477,8 @@ class Cycle():
 
                 elif transform.label_in_secondary in ['4_prime', '3_prime'] : 
                     mdot_secondary = self.mdot_MT
-                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                    mdot_wf = abs(self.mdot_wf_top - self.mdot_wf_bottom)
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
 
@@ -444,7 +490,8 @@ class Cycle():
 
                 elif transform.label_in_secondary in ['5_prime', '6_prime'] :
                     mdot_secondary = self.mdot_HT
-                    args = {'mdot_wf' : self.mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                    mdot_wf = self.mdot_wf_top
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
                     if exergies['P_{wf}'] > exergies['P_{secondary}'] :

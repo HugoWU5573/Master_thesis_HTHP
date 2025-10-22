@@ -923,9 +923,9 @@ class HEX_Design():
 
     def energy_analysis(self, state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary):
 
-        P_wf = abs((state_out.h - state_in.h) * mdot_wf)
-        P_secondary = abs((state_out_secondary.h - state_in_secondary.h) * mdot_secondary)
-        P_loss = abs(P_wf - P_secondary)
+        P_wf = (state_out.h - state_in.h) * mdot_wf
+        P_secondary = (state_out_secondary.h - state_in_secondary.h) * mdot_secondary
+        P_loss = abs(abs(P_wf) - abs(P_secondary))
 
         dict_energy = {
             "P_{wf}": P_wf,

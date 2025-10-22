@@ -48,7 +48,7 @@ class Transform:
                     T[i] = heos.T()
                     s[i] = heos.smass()
 
-        elif self.type == 'evap' or self.type == 'cond' : 
+        elif self.type == 'hex' :
             p = state_in.p
             s_max = state_in.s
             s_min = state_out.s
@@ -86,7 +86,7 @@ class Transform:
             mdot_wf = args['mdot_wf']
             return self.component.energy_analysis(P_el, state_in, state_out, mdot_wf)
         
-        elif self.type == 'evap' or self.type == 'cond' :
+        elif self.type == 'hex' :
             mdot_wf = args['mdot_wf']
             mdot_secondary = args['mdot_secondary']
             state_in_secondary = args['state_in_secondary']
@@ -111,7 +111,7 @@ class Transform:
             mdot_wf = args['mdot_wf']
             return self.component.exergy_analysis(T0, P0, P_el, state_in, state_out, mdot_wf)
         
-        elif self.type == 'evap' or self.type == 'cond' :
+        elif self.type == 'hex' :
             mdot_wf = args['mdot_wf']
             mdot_secondary = args['mdot_secondary']
             state_in_secondary = args['state_in_secondary']
