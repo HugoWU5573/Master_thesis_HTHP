@@ -70,7 +70,7 @@ TC1.mdot_MT = mdot_MT
 TC1.mdot_HT = mdot_HT
 
 # Compressor
-TC1.P_comp = P_comp
+TC1.P_comp_top = P_comp
 TC1.Compressor = Compressor_2_param(cycle=TC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -89,12 +89,12 @@ def iterative_process(p_gess) :
     TC1.state_3 = State(HEOS_working_fluid, T=Tsat_3 + T_sup, p=p3_guess)
 
         # Compute guessed state 5
-    TC1.mdot_wf, T_5 = TC1.Compressor.Solve(P_el=P_comp, p_ex=p5_guess, state_in=TC1.state_3)
+    TC1.mdot_wf_top, T_5 = TC1.Compressor.Solve(P_el=P_comp, p_ex=p5_guess, state_in=TC1.state_3)
     TC1.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
 
     # STEP 2 : Compute the residual for the gas cooler
 
-    TC1.GasCooler = HEX_Design(states_in=[TC1.state_5_prime, TC1.state_5], states_out=[TC1.state_6_prime, None], mdot=[TC1.mdot_HT, TC1.mdot_wf], name="Gas Cooler")
+    TC1.GasCooler = HEX_Design(states_in=[TC1.state_5_prime, TC1.state_5], states_out=[TC1.state_6_prime, None], mdot=[TC1.mdot_HT, TC1.mdot_wf_top], name="Gas Cooler")
     Tpinch_real = TC1.GasCooler.Compute_Pinch()
     TC1.state_7 = TC1.GasCooler.state_out_h
     res_gas_cooler = Tpinch_real - T_pinch
@@ -106,7 +106,7 @@ def iterative_process(p_gess) :
 
     # STEP 4 : Compute the residual for the evaporator
 
-    TC1.Evaporator = HEX_Design(states_in=[TC1.state_8, TC1.state_3_prime], states_out=[TC1.state_3, None], mdot=[TC1.mdot_wf, TC1.mdot_MT], name="Evaporator")
+    TC1.Evaporator = HEX_Design(states_in=[TC1.state_8, TC1.state_3_prime], states_out=[TC1.state_3, None], mdot=[TC1.mdot_wf_top, TC1.mdot_MT], name="Evaporator")
     Tpinch_real = TC1.Evaporator.Compute_Pinch()
     TC1.state_4_prime = TC1.Evaporator.state_out_h
     res_evap = Tpinch_real - T_pinch
@@ -138,8 +138,10 @@ TC1.COP = TC1.GasCooler.Q / P_comp
 full_details = False
 
 # Define the transforms 
-TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), Transform('cond', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
-                  Transform('adex', '7', '8', None), Transform('evap', '8', '3', TC1.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
+TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), 
+                  Transform('hex', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
+                  Transform('adex', '7', '8', None), 
+                  Transform('hex', '8', '3', TC1.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
 
 # Plot T-s diagram with saturation curve
 TC1.Ts_diagram(n=100, plot=True)

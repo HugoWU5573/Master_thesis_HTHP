@@ -79,7 +79,8 @@ SC2.mdot_MT = mdot_MT
 SC2.mdot_HT = mdot_HT
 
 # Compressors
-SC2.P_comp = P_comp_1 + P_comp_2
+SC2.P_comp_bottom = P_comp_1
+SC2.P_comp_top = P_comp_2
 SC2.Compressor_1 = Compressor_2_param(cycle=SC2, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 SC2.Compressor_2 = Compressor_2_param(cycle=SC2, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
@@ -164,7 +165,7 @@ p_guess = np.array([p1_guess, p3_guess, p5_guess])
 
 # Compute the solution
 fsolve(iterative_process, p_guess)
-SC2.COP = SC2.Condenser.Q / SC2.P_comp
+SC2.COP = SC2.Condenser.Q / (SC2.P_comp_top + SC2.P_comp_bottom)
 
 
 ############################################################
@@ -177,24 +178,21 @@ full_details = False
 SC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
                   Transform('comp', '1', '3_comp', SC2.Compressor_1),
                   Transform('comp', '3', '5', SC2.Compressor_2),
-                  Transform('cond', '5', '7', SC2.Condenser, label_in_secondary='5_prime', label_out_secondary='6_prime'),
+                  Transform('hex', '5', '7', SC2.Condenser, label_in_secondary='5_prime', label_out_secondary='6_prime'),
                   Transform('adex', '7', '8', None),
                   Transform('adex', '9', '10', None),
-                  Transform('evap', '8', '3_evap',SC2.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
-                  Transform('evap', '10', '1',SC2.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime')]
+                  Transform('hex', '8', '3_evap',SC2.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
+                  Transform('hex', '10', '1',SC2.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime')]
 
 # Plot T-s diagram with saturation curve
 SC2.Ts_diagram(n=100, plot=True)
 
 if full_details :
 
-    """
     # Plot energy and exergy charts
     SC2.energy_chart(plot=True)
     SC2.exergy_chart(T0=293.15, p0 = 1e5, plot=True)
-    """
     
-
     # Plot heat exchangers diagrams
     SC2.Evaporator_LT._plot(save=True, name_cycle=SC2.name, plot=True)
     SC2.Evaporator_MT._plot(save=True, name_cycle=SC2.name, plot=True)
@@ -220,10 +218,3 @@ if full_details :
         f.write('\n' + str(SC2.Evaporator_LT) + '\n')
         f.write('\n' + str(SC2.Evaporator_MT) + '\n')
         f.write('\n' + str(SC2.Condenser) + '\n')
-
-
-
-""" WHAT REMAINS TO BE DONE :
-    - Uncomment the exergy and energy analysis plots + analyze results
-
-"""

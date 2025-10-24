@@ -342,7 +342,6 @@ class Cycle():
 
                     
                     if energies['P_{wf}'] >= 0 :
-                        print(True)
                         dict_received[r'$\dot Q_{MT}$'] = energies['P_{wf}']
                         dict_delivered[r'$P_{L,MT}$'] = energies['P_{loss}']
                     else : 

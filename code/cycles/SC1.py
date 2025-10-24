@@ -131,11 +131,13 @@ SC1.COP = SC1.Condenser.Q / P_comp
 # Plot the results
 ############################################################
 
-full_details = True
+full_details = False
 
 # Define the transforms 
-SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), Transform('hex', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
-                  Transform('adex', '9', '10', None), Transform('hex', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
+SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor), 
+                  Transform('hex', '10', '1',SC1.Evaporator, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
+                  Transform('adex', '9', '10', None), 
+                  Transform('hex', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
 
 # Plot T-s diagram with saturation curve
 SC1.Ts_diagram(n=100, plot=True)

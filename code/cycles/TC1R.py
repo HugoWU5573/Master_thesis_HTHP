@@ -70,7 +70,7 @@ TC1R.mdot_MT = mdot_MT
 TC1R.mdot_HT = mdot_HT
 
 # Compressor
-TC1R.P_comp = P_comp
+TC1R.P_comp_top = P_comp
 TC1R.Compressor = Compressor_2_param(cycle=TC1R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -92,19 +92,19 @@ def iterative_process(p_gess) :
     TC1R.state_4 = State(HEOS_working_fluid, T=TC1R.state_3.T + T_sup, p=p3_guess)
 
         # Compute guessed state 5
-    TC1R.mdot_wf, T_5 = TC1R.Compressor.Solve(P_el=P_comp, p_ex=p5_guess, state_in=TC1R.state_4)
+    TC1R.mdot_wf_top, T_5 = TC1R.Compressor.Solve(P_el=P_comp, p_ex=p5_guess, state_in=TC1R.state_4)
     TC1R.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
 
     # STEP 2 : Compute the residual for the gas cooler
 
-    TC1R.GasCooler = HEX_Design(states_in=[TC1R.state_5_prime, TC1R.state_5], states_out=[TC1R.state_6_prime, None], mdot=[TC1R.mdot_HT, TC1R.mdot_wf], name="Gas Cooler")
+    TC1R.GasCooler = HEX_Design(states_in=[TC1R.state_5_prime, TC1R.state_5], states_out=[TC1R.state_6_prime, None], mdot=[TC1R.mdot_HT, TC1R.mdot_wf_top], name="Gas Cooler")
     Tpinch_real = TC1R.GasCooler.Compute_Pinch()
     TC1R.state_6 = TC1R.GasCooler.state_out_h
     res_gas_cooler = Tpinch_real - T_pinch
 
     # STEP 3 : Compute states 7 and 8 through the recuperator model
 
-    TC1R.Recuperator = HEX_Design(states_in=[TC1R.state_3, TC1R.state_6], states_out=[TC1R.state_4, None], mdot=[TC1R.mdot_wf, TC1R.mdot_wf], name="Recuperator")
+    TC1R.Recuperator = HEX_Design(states_in=[TC1R.state_3, TC1R.state_6], states_out=[TC1R.state_4, None], mdot=[TC1R.mdot_wf_top, TC1R.mdot_wf_top], name="Recuperator")
     TC1R.Recuperator.Compute_Pinch()
     TC1R.state_7 = TC1R.Recuperator.state_out_h
 
@@ -113,7 +113,7 @@ def iterative_process(p_gess) :
 
     # STEP 4 : Compute the residual for the evaporator
 
-    TC1R.Evaporator = HEX_Design(states_in=[TC1R.state_8, TC1R.state_3_prime], states_out=[TC1R.state_3, None], mdot=[TC1R.mdot_wf, TC1R.mdot_MT], name="Evaporator")
+    TC1R.Evaporator = HEX_Design(states_in=[TC1R.state_8, TC1R.state_3_prime], states_out=[TC1R.state_3, None], mdot=[TC1R.mdot_wf_top, TC1R.mdot_MT], name="Evaporator")
     Tpinch_real = TC1R.Evaporator.Compute_Pinch()
     TC1R.state_4_prime = TC1R.Evaporator.state_out_h
     res_evap = Tpinch_real - T_pinch
@@ -146,9 +146,10 @@ full_details = False
 
 # Define the transforms 
 TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor), 
-                   Transform('cond', '5', '6',TC1R.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
+                   Transform('hex', '5', '6',TC1R.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
                    Transform('adex', '7', '8', None), 
-                   Transform('evap', '8', '3', TC1R.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
+                   Transform('hex', '8', '3', TC1R.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime'),
+                   Transform('hex', '3', '4', TC1R.Recuperator, label_in_secondary='6', label_out_secondary='7')]
 
 # Plot T-s diagram with saturation curve
 TC1R.Ts_diagram(n=100, plot=True)
@@ -156,9 +157,11 @@ TC1R.Ts_diagram(n=100, plot=True)
 
 if full_details :
 
+    """
     # Plot energy and exergy charts
     TC1R.energy_chart(plot=True)
     TC1R.exergy_chart(T0 = 293.15, p0 = 1e5, plot=True)
+    """
 
     # Plot heat exchangers diagrams
     TC1R.Evaporator._plot(save=True, name_cycle=TC1R.name, plot=True)
@@ -187,10 +190,15 @@ if full_details:
         f.write('\n' + str(TC1R.Recuperator) + '\n')
 
 
-"""
+""" WHAT REMAINS TO BE DONE :
 
-WHAT REMAINS TO BE DONE :
-    - Complete the Transformations part with the recuperator (both sides)
-    - Verify the exergy analysis of the cycle (energy analysis seems fine since it is an internal heat exchanger)
+    /!\ /!\ SAME AS SC2R CYCLE /!\ /!\
+
+    - Uncomment the energy and exergy charts part :
+        - This is commented because there is an issue with the energy/exergy analysis of 
+          the recuperators
+    
+    - Verify the part of the Ts diagram where the recuperators are (with 'hex' transforms,
+      only one side of the hex is represented, maybe add a new 'recup' transform)
 
 """

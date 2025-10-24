@@ -20,9 +20,10 @@ Mass Flow Rates:
 +--------------------+--------------+
 | Mass Flow Rate     | Value [kg/s] |
 +--------------------+--------------+
-| mdot_wf            | 0.0933       |
 | mdot_MT            | 0.5000       |
 | mdot_HT            | 0.1000       |
+| mdot_wf_bottom     | 0.0000       |
+| mdot_wf_top        | 0.0933       |
 +--------------------+--------------+
 
 Performance:

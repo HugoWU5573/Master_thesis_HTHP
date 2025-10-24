@@ -78,7 +78,8 @@ SC2R.mdot_MT = mdot_MT
 SC2R.mdot_HT = mdot_HT
 
 # Compressors
-SC2R.P_comp = P_comp_1 + P_comp_2
+SC2R.P_comp_bottom = P_comp_1
+SC2R.P_comp_top = P_comp_2
 SC2R.Compressor_1 = Compressor_2_param(cycle=SC2R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 SC2R.Compressor_2 = Compressor_2_param(cycle=SC2R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
@@ -178,7 +179,7 @@ p_guess = np.array([p1_guess, p3_guess, p5_guess])
 
 # Compute the solution
 fsolve(iterative_process, p_guess)
-SC2R.COP = SC2R.Condenser.Q / SC2R.P_comp
+SC2R.COP = SC2R.Condenser.Q / (SC2R.P_comp_top + SC2R.P_comp_bottom)
 
 
 ############################################################
@@ -191,11 +192,13 @@ full_details = False
 SC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
                   Transform('comp', '2', '3_comp', SC2R.Compressor_1),
                   Transform('comp', '4', '5', SC2R.Compressor_2),
-                  Transform('cond', '5', '6', SC2R.Condenser, label_in_secondary='5_prime', label_out_secondary='6_prime'),
+                  Transform('hex', '5', '6', SC2R.Condenser, label_in_secondary='5_prime', label_out_secondary='6_prime'),
                   Transform('adex', '7', '8', None),
                   Transform('adex', '9', '10', None),
-                  Transform('evap', '8', '3_evap',SC2R.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
-                  Transform('evap', '10', '1',SC2R.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime')]
+                  Transform('hex', '8', '3_evap',SC2R.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
+                  Transform('hex', '10', '1',SC2R.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime'),
+                  Transform('hex', '3', '4',SC2R.Recuperator_2, label_in_secondary='6', label_out_secondary='7'),
+                  Transform('hex', '1', '2',SC2R.Recuperator_1, label_in_secondary='7', label_out_secondary='9')]
 
 # Plot T-s diagram with saturation curve
 SC2R.Ts_diagram(n=100, plot=True)
@@ -207,7 +210,6 @@ if full_details :
     SC2R.energy_chart(plot=True)
     SC2R.exergy_chart(T0=293.15, p0 = 1e5, plot=True)
     """
-    
 
     # Plot heat exchangers diagrams
     SC2R.Evaporator_LT._plot(save=True, name_cycle=SC2R.name, plot=True)
@@ -243,7 +245,14 @@ if full_details :
 
 
 """ WHAT REMAINS TO BE DONE :
-    - Complete the Transformations part with the recuperators (both sides)
-    - Uncomment the exergy and energy analysis plots + analyze results
+
+    /!\ /!\ SAME AS TC1R CYCLE /!\ /!\
+
+    - Uncomment the energy and exergy charts part :
+        - This is commented because there is an issue with the energy/exergy analysis of 
+          the recuperators
+    
+    - Verify the part of the Ts diagram where the recuperators are (with 'hex' transforms,
+      only one side of the hex is represented, maybe add a new 'recup' transform)
 
 """
