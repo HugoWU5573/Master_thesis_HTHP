@@ -938,9 +938,9 @@ class HEX_Design():
 
     def exergy_analysis(self, T0, P0, state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary):
 
-        P_wf = abs((state_out.exergy(T0, P0) - state_in.exergy(T0, P0)) * mdot_wf)
-        P_secondary = abs((state_out_secondary.exergy(T0, P0) - state_in_secondary.exergy(T0, P0)) * mdot_secondary)
-        P_loss = abs(P_wf - P_secondary)
+        P_wf = (state_out.exergy(T0, P0) - state_in.exergy(T0, P0)) * mdot_wf
+        P_secondary = (state_out_secondary.exergy(T0, P0) - state_in_secondary.exergy(T0, P0)) * mdot_secondary
+        P_loss = -(P_wf + P_secondary)
 
         dict_exergy = {
             "P_{wf}": P_wf,

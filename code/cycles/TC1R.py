@@ -157,11 +157,9 @@ TC1R.Ts_diagram(n=100, plot=True)
 
 if full_details :
 
-    """
     # Plot energy and exergy charts
     TC1R.energy_chart(plot=True)
     TC1R.exergy_chart(T0 = 293.15, p0 = 1e5, plot=True)
-    """
 
     # Plot heat exchangers diagrams
     TC1R.Evaporator._plot(save=True, name_cycle=TC1R.name, plot=True)

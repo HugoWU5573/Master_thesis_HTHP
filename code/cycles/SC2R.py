@@ -205,11 +205,9 @@ SC2R.Ts_diagram(n=100, plot=True)
 
 if full_details :
 
-    """
     # Plot energy and exergy charts
     SC2R.energy_chart(plot=True)
     SC2R.exergy_chart(T0=293.15, p0 = 1e5, plot=True)
-    """
 
     # Plot heat exchangers diagrams
     SC2R.Evaporator_LT._plot(save=True, name_cycle=SC2R.name, plot=True)

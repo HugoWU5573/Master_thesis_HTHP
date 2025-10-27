@@ -117,3 +117,11 @@ class Transform:
             state_in_secondary = args['state_in_secondary']
             state_out_secondary = args['state_out_secondary']
             return self.component.exergy_analysis(T0, P0, state_in, state_out, mdot_wf, mdot_secondary, state_in_secondary, state_out_secondary)
+        
+        if self.type == 'isobaric_mixing' :
+            mdot_wf = args['mdot_wf']
+            exergy_in = mdot_wf[0] * state_in[0].exergy(T0, P0) + mdot_wf[1] * state_in[1].exergy(T0, P0)
+            exergy_out = abs(mdot_wf[0] + mdot_wf[1]) * state_out.exergy(T0, P0)
+            exergy_losses = exergy_in - exergy_out
+            dict_exergy = {'P_{irr}' : exergy_losses}
+            return dict_exergy

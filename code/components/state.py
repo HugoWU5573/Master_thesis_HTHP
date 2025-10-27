@@ -97,9 +97,8 @@ class State() :
 
         else:
             raise ValueError("Invalid or insufficient property combination")
-        
-        
-    def exergy(self, T0=298.15, p0=101325):
+    
+    def exergy(self, T0, p0) :
         """
         Calculate the specific exergy of the state.
 
@@ -115,3 +114,7 @@ class State() :
         s0 = self.heos.smass()
         self.e = (self.h - h0) - T0 * (self.s - s0)
         return self.e
+    
+    def __str__(self):
+        return (f"State({self.fluid}): T={self.T:.2f} K, p={self.p/1e5:.2f} bar, Q={self.Q:.4f}, "
+                f"h={self.h/1e3:.2f} kJ/kg, s={self.s/1e3:.4f} kJ/kg-K), e={self.e/1e3:.2f} kJ/kg" if self.e is not None else "State not fully defined")

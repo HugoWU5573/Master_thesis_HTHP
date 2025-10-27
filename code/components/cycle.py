@@ -12,6 +12,8 @@ class Cycle():
         self.state_1 = None
         self.state_2 = None
         self.state_3 = None
+        self.state_3_evap = None
+        self.state_3_comp = None
         self.state_4 = None
         self.state_5 = None
         self.state_6 = None
@@ -180,16 +182,25 @@ class Cycle():
         s_points = np.zeros((len(self.transforms), n))
         states = {}
         labels_transorm = []
+        T_sat_state = {}
         
         for i, transform in enumerate(self.transforms):
             states[transform.label_in] = getattr(self, f"state_{transform.label_in}")
             states[transform.label_out] = getattr(self, f"state_{transform.label_out}")
             T_points[i, :], s_points[i, :] = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)
-            labels_transorm.append(transform.type)
+            labels_transorm.append(transform.type)    
+
         
         heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
         T_crit = heos.T_critical() - 1
-        
+        p_crit = heos.p_critical()
+        for key, value in states.items() :
+            if key in ['1', '3', '5'] :
+                if p_crit >= value.p :
+                    heos.update(CoolProp.PQ_INPUTS, value.p, 1)
+                    T_sat_state[key] = heos.T()
+        T_sat_state = list(T_sat_state.values())
+
         plt.figure(figsize=(8,6))
 
         s_states = np.zeros(len(states))
@@ -255,29 +266,22 @@ class Cycle():
         xticks = np.array([xlim[0], xlim[1]])
 
         # Y ticks: use state T values if available, but ensure axis limits are included
-        yticks = np.unique(T_states - 273.15) if T_states.size else np.array([])
-        if yticks.size:
-            yticks = yticks[(yticks >= ylim[0]) & (yticks <= ylim[1])]
-            tol = 1e-9
-            to_add = []
-            if yticks.size == 0 or (ylim[0] < yticks.min() - tol):
-                to_add.append(ylim[0])
-            if yticks.size == 0 or (ylim[1] > yticks.max() + tol):
-                to_add.append(ylim[1])
-            if to_add:
-                yticks = np.unique(np.concatenate([yticks, np.array(to_add)]))
-        else:
-            yticks = np.array([ylim[0], ylim[1]])
+        yticks = []
+        if T_max_state - 273.15 < ylim[1]:
+            yticks = np.concatenate([np.array(T_sat_state) - 273.15, np.array([T_max_state - 273.15, ylim[1]])])
+        else : 
+            yticks = np.concatenate([np.array(T_sat_state) - 273.15, np.array([ylim[1]])])
+
 
         # Apply ticks and formatted labels (s in kJ/kg/K, T in °C)
         xticks = np.sort(xticks)
         ax.set_xticks(xticks)
         ax.set_xticklabels([f"{v:.3f}" for v in xticks])
 
-        if yticks.size:
-            yticks = np.sort(yticks)
-            ax.set_yticks(yticks)
-            ax.set_yticklabels([f"{v:.1f}" for v in yticks])
+        
+        yticks = np.sort(yticks)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels([f"{v:.1f}" for v in yticks])
 
         # Improve readability
         plt.tick_params(axis='x', rotation=0)
@@ -356,6 +360,21 @@ class Cycle():
                     energies = transform.energy_analysis(state_in, state_out, args)
                     dict_delivered[r'$\dot Q_{HT}$'] = energies['P_{secondary}']
                     dict_delivered[r'$P_{L,HT}$'] = energies['P_{loss}']
+
+                elif transform.label_in_secondary in ['1', '2', '7', '9'] :
+                    mdot_secondary = self.mdot_wf_bottom
+                    mdot_wf = self.mdot_wf_bottom
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    dict_delivered[r'$P_{L,recup,LT}$'] = energies['P_{loss}']
+                elif transform.label_in_secondary in ['3', '4', '6', '7'] :
+                    mdot_secondary = abs(self.mdot_wf_top - self.mdot_wf_bottom)
+                    mdot_wf = abs(self.mdot_wf_top - self.mdot_wf_bottom)
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    energies = transform.energy_analysis(state_in, state_out, args)
+                    dict_delivered[r'$P_{L,recup,MT}$'] = energies['P_{loss}']
                 else : 
                     raise ValueError("Unknown secondary mass flow rate for energy analysis.")
 
@@ -444,6 +463,16 @@ class Cycle():
                     dict_received[r'$P_{el,MT}$'] = exergies['P_{el}']
                     dict_delivered[r'$P_{mec,comp,MT}$'] = exergies['P_{loss}']
                     dict_delivered[r'$P_{irr,comp,MT}$'] = exergies['P_{irr}']
+            elif transform.type == 'isobaric_mixing' : 
+                state_in = [state_in, state_out]
+                state_out = getattr(self, f"state_3")
+                if transform.label_in == '3_evap' :
+                    mdot = [abs(self.mdot_wf_bottom - self.mdot_wf_top), self.mdot_wf_bottom]
+                else : 
+                    mdot = [self.mdot_wf_bottom, abs(self.mdot_wf_bottom - self.mdot_wf_top)]
+                args = {'mdot_wf' : mdot}
+                exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                dict_delivered[r'$P_{irr,mix}$'] = exergies['P_{irr}']
 
             elif transform.type == 'adex' :
                 if transform.label_in == '9' :
@@ -467,10 +496,10 @@ class Cycle():
                     args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
-                    if exergies['P_{wf}'] > exergies['P_{secondary}'] :
-                        dict_delivered[r'$\dot{ \Delta E}_{LT, water}$'] = exergies['P_{secondary}']
+                    if abs(exergies['P_{wf}']) > abs(exergies['P_{secondary}']) :
+                        dict_delivered[r'$\dot{ \Delta E}_{LT, water}$'] = abs(exergies['P_{secondary}'])
                     else : 
-                        dict_received[r'$\dot{ \DeltaE}_{LT, wf}$'] = exergies['P_{secondary}']
+                        dict_received[r'$\dot{ \DeltaE}_{LT, wf}$'] = abs(exergies['P_{secondary}'])
 
                     dict_delivered[r'$P_{irr,LT}$'] = exergies['P_{irr}']
 
@@ -481,10 +510,10 @@ class Cycle():
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
 
-                    if exergies['P_{wf}'] > exergies['P_{secondary}'] :
-                        dict_delivered[r'$\dot{ \Delta E}_{MT, water}$'] = exergies['P_{secondary}']
+                    if abs(exergies['P_{wf}']) > abs(exergies['P_{secondary}']) :
+                        dict_delivered[r'$\dot{ \Delta E}_{MT, water}$'] = abs(exergies['P_{secondary}'])
                     else :
-                        dict_received[r'$\dot{ \Delta E}_{MT, wf}$'] = exergies['P_{secondary}']
+                        dict_received[r'$\dot{ \Delta E}_{MT, wf}$'] = abs(exergies['P_{secondary}'])
                     dict_delivered[r'$P_{irr,MT}$'] = exergies['P_{irr}']
 
                 elif transform.label_in_secondary in ['5_prime', '6_prime'] :
@@ -493,15 +522,29 @@ class Cycle():
                     args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
-                    if exergies['P_{wf}'] > exergies['P_{secondary}'] :
-                        dict_delivered[r'$\dot{ \Delta E}_{HT, water}$'] = exergies['P_{secondary}']
+                    if abs(exergies['P_{wf}']) > abs(exergies['P_{secondary}']) :
+                        dict_delivered[r'$\dot{ \Delta E}_{HT, water}$'] = abs(exergies['P_{secondary}'])
                     else :
-                        dict_received[r'$\dot{ \Delta E}_{HT, wf}$'] = exergies['P_{secondary}']
+                        dict_received[r'$\dot{ \Delta E}_{HT, wf}$'] = abs(exergies['P_{secondary}'])
                     dict_delivered[r'$P_{irr,HT}$'] = exergies['P_{irr}']
+
+                elif transform.label_in_secondary in ['1', '2', '7', '9'] :
+                    mdot_secondary = self.mdot_wf_bottom
+                    mdot_wf = self.mdot_wf_bottom
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    dict_delivered[r'$P_{irr,recup,LT}$'] = exergies['P_{irr}']
+
+                elif transform.label_in_secondary in ['3', '4', '6', '7'] :
+                    mdot_secondary = self.mdot_wf_top
+                    mdot_wf = self.mdot_wf_top
+                    args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
+                            'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
+                    exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
+                    dict_delivered[r'$P_{irr,recup,MT}$'] = exergies['P_{irr}']
                 else : 
                     raise ValueError("Unknown secondary mass flow rate for energy analysis.")
-        
-
         # Plot the energy chart
 
         plt.figure(figsize=(8,6))
