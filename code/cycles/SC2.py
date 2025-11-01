@@ -206,6 +206,9 @@ if full_details :
 print(SC2)
 
 if full_details :
+    SC2.Evaporator_LT.Compute_Area()
+    SC2.Evaporator_MT.Compute_Area()
+    SC2.Condenser.Compute_Area()
     print(SC2.Evaporator_LT)
     print(SC2.Evaporator_MT)
     print(SC2.Condenser)

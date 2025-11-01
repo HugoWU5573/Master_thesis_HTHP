@@ -47,6 +47,7 @@ Performance:
 
 Heat transfer rate: 16.00 kW,th
 Delta_T at pinch point: 3.00 K
+Heat exchanger area: 0.13 m2
 ====================================================================================
 
 
@@ -61,4 +62,5 @@ Delta_T at pinch point: 3.00 K
 
 Heat transfer rate: 23.13 kW,th
 Delta_T at pinch point: 3.00 K
+Heat exchanger area: 0.28 m2
 ====================================================================================

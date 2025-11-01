@@ -594,9 +594,13 @@ class HEX_Design():
         - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out] (one of the two can be None)
         - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s]
         - name : name of the heat exchanger (optional)
+        - W : Width of the heat exchanger plates [m] (optional, default = 0.1 m)
+        - w : Distance between two plates (channel gap) [m] (optional, default = 2e-3 m)
+        - beta : Chevron angle of the plates [degrees] (optional, default = 60 degrees)
+        - Rcond : thermal resistance of the heat exchanger wall [m²K/W] (optional, default = 0)
     
     """
-    def __init__(self, states_in, states_out, mdot, name ="HEX"):
+    def __init__(self, states_in, states_out, mdot, name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0):
 
         self.state_in_c = states_in[0]
         self.state_in_h = states_in[1]
@@ -610,6 +614,12 @@ class HEX_Design():
         self.Tpinch = None
         self.name = name
         self.supercritical_hot_stream = False
+        self.Rcond = Rcond
+        self.W = W
+        self.w = w
+        self.Aflow = self.W * self.w    # Cross-sectional flow area for one channel [m2]
+        self.beta = beta
+        self.A = None
 
 
     """
@@ -643,6 +653,12 @@ class HEX_Design():
         # Summary of heat duty and pinch
         result += f"\nHeat transfer rate: {self.Q/1000:.2f} kW,th\n"
         result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
+        if self.A == None:
+            result += "Heat exchanger area: Not calculated yet\n"
+        elif self.A > 0.1:
+            result += f"Heat exchanger area: {self.A:.2f} m2\n"
+        else :
+            result += f"Heat exchanger area: {self.A:.4f} m2\n"
         result += "===================================================================================="
 
         return result
@@ -852,6 +868,346 @@ class HEX_Design():
     
 
     """
+    This method analyses a single cell of the heat exchanger and returns the required area for that cell.
+        - Inputs :
+            - cell_index : index of the cell to be analysed
+            - alpha_h_j : convective heat transfer coefficient of the hot stream in cell j [W/m²K]
+            - alpha_c_j : convective heat transfer coefficient of the cold stream in cell j [W/m²K]
+        - Output :
+            - Aj : required area for cell j [m²]
+    """
+    def _cell_analysis(self, cell_index, alpha_h_j, alpha_c_j):
+
+        # Heat transfer rate in cell "cell_index"
+        Qj_h = self.mdot_h * (self.EnthalpyVector_h[cell_index+1] - self.EnthalpyVector_h[cell_index])
+        Qj_c = self.mdot_c * (self.EnthalpyVector_c[cell_index+1] - self.EnthalpyVector_c[cell_index])
+        if not (np.isclose(Qj_h, Qj_c, atol=1e-6)):
+            raise ValueError("Heat transfer rates in cell j are not consistent.")
+        else :
+            Qj = (Qj_h + Qj_c)/2
+
+        Th_j = self.TemperatureVector_h[cell_index]
+        Th_j_plus_1 = self.TemperatureVector_h[cell_index+1]
+        Tc_j = self.TemperatureVector_c[cell_index]
+        Tc_j_plus_1 = self.TemperatureVector_c[cell_index+1]
+
+        # Temperature differences at both ends of cell j
+        DeltaTA_j = Th_j_plus_1 - Tc_j_plus_1
+        DeltaTB_j = Th_j - Tc_j
+
+        # Log Mean Temperature Difference (LMTD) for cell j
+        if (np.isclose(DeltaTA_j, DeltaTB_j, atol=1e-6)):
+            LMTDj = DeltaTA_j
+        else :
+            DeltaTA_j = max(DeltaTA_j, 1e-6)  # To avoid log(0) or log(negative)
+            DeltaTB_j = max(DeltaTB_j, 1e-6)  # To avoid log(infinity) or log(negative)
+            LMTDj = (DeltaTA_j - DeltaTB_j) / np.log(DeltaTA_j / DeltaTB_j)
+        
+        # Area for cell j
+        UAj = Qj / LMTDj
+        Uj = 1 / (1/alpha_h_j + self.Rcond + 1/alpha_c_j)  # Overall heat transfer coefficient for cell j
+        Aj = UAj / Uj
+
+        return Aj
+
+    
+    """
+    This method computes the total heat exchanger area required to achieve the desired heat transfer.
+        - Output : A (total heat exchanger area) [m²]
+
+    """
+    def Compute_Area(self):
+
+        Arequired_list = np.zeros(self.N)
+
+        for cell_index in range(self.N):
+            alpha_c, alpha_h = self._alpha(cell_index)
+            Arequired_list[cell_index] = self._cell_analysis(cell_index, alpha_h, alpha_c)
+
+        self.A = np.sum(Arequired_list)
+
+        return self.A
+
+
+    """
+    This method calculates the convective heat transfer coefficients for both streams in cell "cell_index".
+        - Input : cell_index (index of the cell for which we want to calculate the heat transfer coefficients)
+        - Outputs :
+            - alpha_c : convective heat transfer coefficient for the cold stream [W/m2K]
+            - alpha_h : convective heat transfer coefficient for the hot stream [W/m2K]
+    
+    """
+    def _alpha(self, cell_index):
+
+        alpha_c = None
+        alpha_h = None
+
+        ## Cold stream
+        hc_start = self.EnthalpyVector_c[cell_index]
+        hc_end = self.EnthalpyVector_c[cell_index+1]
+
+        if self.state_in_c.p > self.HEOS_cold.p_critical():
+            # Cold stream is supercritical
+            alpha_c = self._Supercritical_Correlation(cell_index, "cold")
+        elif hc_end <= self.h_c_bub or hc_start >= self.h_c_dew: 
+            # Cold stream is single phase
+            alpha_c = self._SinglePhase_Correlation(cell_index, "cold")
+        else :
+            # Cold stream is in 2 phase and evaporating
+            alpha_c = self._Evaporation_Correlation()
+
+        ## Hot stream
+        hh_start = self.EnthalpyVector_h[cell_index]
+        hh_end = self.EnthalpyVector_h[cell_index+1]
+
+        if self.supercritical_hot_stream:
+            # Hot stream is supercritical
+            alpha_h = self._Supercritical_Correlation(cell_index, "hot")
+        elif hh_end <= self.h_h_bub or hh_start >= self.h_h_dew:
+            # Hot stream is single phase liquid
+            alpha_h = self._SinglePhase_Correlation(cell_index, "hot")
+        else :
+            # Hot stream is in 2 phase and condensing
+            alpha_h = self._Condensation_Correlation(cell_index)
+
+        return alpha_c, alpha_h
+
+
+    """
+    This method implements the Thonon and Bontemps (2002) correlation to estimate the convective heat transfer 
+    coefficient of condensing fluid (ideally R290) inside a plate heat exchanger.
+        - Input : cell_index (index of the cell for which we want to calculate the heat transfer coefficient)
+        - Output : h (heat transfer coefficient) [W/m2K]
+    
+    """
+    def _Condensation_Correlation(self, cell_index):
+
+        # Liquid properties
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
+        mu_l = self.HEOS_hot.viscosity()
+        rho_l = self.HEOS_hot.rhomass()
+        Pr_l = self.HEOS_hot.Prandtl()
+        k_l = self.HEOS_hot.conductivity()
+
+        # Vapor properties
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 1)
+        rho_v = self.HEOS_hot.rhomass()
+        Pr_g = self.HEOS_hot.Prandtl()
+
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index], self.state_in_h.p)
+        x_start = self.HEOS_hot.Q()
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index+1], self.state_in_h.p)
+        x_end = self.HEOS_hot.Q()
+        x_m = (x_start + x_end) / 2
+
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index], self.state_in_h.p)
+        mu_start = self.HEOS_hot.viscosity()
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index+1], self.state_in_h.p)
+        mu_end = self.HEOS_hot.viscosity()
+        mu_m = (mu_start + mu_end) / 2
+
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+
+        G = self.mdot_h / self.Aflow
+        Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
+
+        Pr = (1-x_m)*Pr_l + x_m*Pr_g
+
+        Re_eq = Geq * Dh / mu_l
+        Re = Dh * G / mu_m
+        #if (Re < 100) or (Re > 2000) :
+        #    print("Warning: Reynolds number out of range for the Thonon and Bontemps correlation (condensation), Re = {:.2f}".format(Re))
+        h_l0 = 0.347 * (k_l / Dh) * Re**0.653 * Pr**0.33
+        h = 1564 * h_l0 * Re_eq**(-0.76)
+        return h
+
+
+    """
+    This method implements the Khan et al. (2010) correlation to estimate the convective heat transfer
+    coefficient of single phase fluid (ideally water) inside a plate heat exchanger.
+        - Inputs :
+            - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
+            - stream : "hot" or "cold" to indicate which stream we are considering
+        - Output : h (heat transfer coefficient) [W/m2K]
+
+    """
+    def _SinglePhase_Correlation(self, cell_index, stream):
+
+        beta_max = 60           # Maximum chevron angle [degrees]
+        correction_factor = 1   # Correction factor for Nu when the fluid is not water but propane
+
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index], self.state_in_h.p)
+        T_start_h = self.HEOS_hot.T()
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index+1], self.state_in_h.p)
+        T_end_h = self.HEOS_hot.T()
+
+        self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[cell_index], self.state_in_c.p)
+        T_start_c = self.HEOS_cold.T()
+        self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[cell_index+1], self.state_in_c.p)
+        T_end_c = self.HEOS_cold.T()
+        T_avg_h = (T_start_h + T_end_h) / 2 ; T_avg_c = (T_start_c + T_end_c) / 2
+        Tw = (T_avg_h + T_avg_c) / 2 
+
+        if stream == "hot":
+            pressure = self.state_in_h.p
+            fluid = self.state_in_h.fluid
+            T_start = T_start_h
+            T_end = T_end_h
+            mdot = self.mdot_h
+            Tm = (T_start + T_end) / 2
+            self.HEOS_hot.update(CoolProp.PT_INPUTS, pressure, Tm)
+            mu = self.HEOS_hot.viscosity()
+            Pr = self.HEOS_hot.Prandtl()
+            k = self.HEOS_hot.conductivity()
+            self.HEOS_hot.update(CoolProp.PT_INPUTS, pressure, Tw)
+            mu_w = self.HEOS_hot.viscosity()
+        else :
+            pressure = self.state_in_c.p
+            fluid = self.state_in_c.fluid
+            T_start = T_start_c
+            T_end = T_end_c
+            mdot = self.mdot_c
+            Tm = (T_start + T_end) / 2
+            self.HEOS_cold.update(CoolProp.PT_INPUTS, pressure, Tm)
+            mu = self.HEOS_cold.viscosity()
+            Pr = self.HEOS_cold.Prandtl()
+            k = self.HEOS_cold.conductivity()
+            self.HEOS_cold.update(CoolProp.PT_INPUTS, pressure, Tw)
+            mu_w = self.HEOS_cold.viscosity()
+
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+        G = mdot / self.Aflow
+        Re = Dh * G / mu
+
+        Nu = (0.0161*self.beta/beta_max+0.1298)*Re**(0.198*self.beta/beta_max+0.6398)*Pr**(0.35)*(mu/mu_w)**(0.14)
+        if (fluid != "Water"):
+            Nu *= correction_factor
+        h = Nu * k / Dh
+
+        return h
+
+
+    """
+    This method implements the Palmer et al. (2000) correlation to estimate the convective heat transfer
+    coefficient of evaporating fluid inside a plate heat exchanger.
+        - Input : None
+        - Output : h (heat transfer coefficient) [W/m2K]
+    
+    """
+    def _Evaporation_Correlation(self):
+
+        # Liquid properties
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
+        kl = self.HEOS_cold.conductivity()
+        Pr_l = self.HEOS_cold.Prandtl()
+        mu_l = self.HEOS_cold.viscosity()
+
+        # Calculation of Re_l
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+        G = self.mdot_c / self.Aflow
+        Re_l = Dh * G / mu_l
+
+        # Calculation of h
+        h = 2.7 * (kl / Dh) * Re_l**0.55 * Pr_l**0.5
+
+        return h
+    
+
+    """
+    This method implements the Forooghi et al. (2014) correlation to estimate the convective heat transfer
+    coefficient of supercritical fluid inside a plate heat exchanger.
+        - Inputs :
+            - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
+            - stream : "hot" or "cold" to indicate which stream we are considering
+        - Output : h (heat transfer coefficient) [W/m2K]
+
+    """
+    def _Supercritical_Correlation(self, cell_index, stream):
+
+        # Calculation of the bulk temperature
+        T_start_h = self.TemperatureVector_h[cell_index]
+        T_end_h = self.TemperatureVector_h[cell_index+1]
+        Tb_h = (T_start_h + T_end_h) / 2
+        
+        T_start_c = self.TemperatureVector_c[cell_index]
+        T_end_c = self.TemperatureVector_c[cell_index+1]
+        Tb_c = (T_start_c + T_end_c) / 2
+
+        if stream == "hot":
+            Tb = Tb_h
+            heos = self.HEOS_hot
+            mdot = self.mdot_h
+        else :
+            Tb = Tb_c
+            heos = self.HEOS_cold
+            mdot = self.mdot_c
+        
+        # Wall temperature estimation
+        Tw = (Tb_h + Tb_c) / 2
+
+        # Average cp calculation between Tb and Tw
+        Cp_avg = self._Cp_average(heos, Tb, Tw)
+
+        # Fluid properties at Tb
+        heos.update(CoolProp.PT_INPUTS, heos.p(), Tb)
+        rho_b = heos.rhomass()
+        Cp_b = heos.cpmass()
+        Pr = heos.Prandtl()
+        mu_b = heos.viscosity()
+        k = heos.conductivity()
+
+        # Fluid properties at Tw
+        heos.update(CoolProp.PT_INPUTS, heos.p(), Tw)
+        rho_w = heos.rhomass()
+
+        # Calculation of Re
+        P = 2*(self.w + self.W)
+        Dh = 4 * self.Aflow / P
+        G = mdot / self.Aflow
+        Re = Dh * G / mu_b
+
+        if self.beta >= 45:
+            Nu = 0.187 * Re**0.71 * Pr**0.35 * (Cp_avg / Cp_b)**0.5 * (rho_w / rho_b)**0.3
+        else :
+            Nu = 0.09 * Re**0.74 * Pr**0.35 * (Cp_avg / Cp_b)**0.5 * (rho_w / rho_b)**0.3
+
+        h = Nu * k / Dh
+
+        return h
+
+
+    """
+    This method computes the average specific heat capacity of a fluid between the bulk and wall temperatures.
+        - Inputs :
+            - heos : CoolProp HEOS object of the fluid
+            - Tb : bulk temperature [K]
+            - Tw : wall temperature [K]
+        - Output :
+            - Cp_avg : average specific heat capacity [J/kg/K]
+
+    """
+    def _Cp_average(self, heos, Tb, Tw):
+
+        # Discretization of the temperature range
+        N = 100
+        T_values = np.linspace(Tb, Tw, N)
+
+        # Calculation of Cp at each temperature
+        Cp_values = np.zeros(len(T_values))
+        for i, T in enumerate(T_values):
+            heos.update(CoolProp.PT_INPUTS, heos.p(), T)
+            Cp_values[i] = heos.cpmass()
+
+        # Numerical integration using the trapezoidal rule
+        Cp_avg = np.trapz(Cp_values, T_values) / (Tw - Tb)
+
+        return Cp_avg
+    
+
+    """
     This method returns the normalized enthalpy vectors of both streams for further analysis.
         - Outputs :
             - Normalized_EnthalpyVector_c : normalized enthalpy vector of the cold stream
@@ -885,7 +1241,9 @@ class HEX_Design():
         Tmax_c = round(max(self.TemperatureVector_c) - 273.15, ndigits=1)
         Tmin_h = round(min(self.TemperatureVector_h) - 273.15, ndigits=1)
         Tmax_h = round(max(self.TemperatureVector_h) - 273.15, ndigits=1)
-        yticks = np.array([Tmin_c, Tmin_h, Tmax_c, Tmax_h])
+        Tmax = max(Tmax_c, Tmax_h)
+        Tmin = min(Tmin_c, Tmin_h)
+        yticks = np.array([Tmin, Tmax])
         yticks = np.unique(yticks)
 
         # Compute the xticks
@@ -996,6 +1354,7 @@ if __name__=='__main__':
         state_out_h = None
         Evaporator = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.04, 0.4], name="Evaporator")
         Evaporator.Compute_Pinch()
+        Evaporator.Compute_Area()
         print(Evaporator)
         Evaporator._plot()
 
@@ -1008,6 +1367,7 @@ if __name__=='__main__':
         state_out_h = State(heos=HEOS_R290, T=PropsSI('T', 'P', 25e5, 'Q', 0, 'R290') - Tsub, p=25e5)
         Condenser = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.5, 0.15], name="Condenser")
         Condenser.Compute_Pinch()
+        Condenser.Compute_Area()
         print(Condenser)
         Condenser._plot()
         
@@ -1019,6 +1379,7 @@ if __name__=='__main__':
         state_out_h = None
         GasCooler = HEX_Design(states_in=[state_in_c, state_in_h], states_out=[state_out_c, state_out_h], mdot=[0.19, 0.15], name="Gas Cooler")
         GasCooler.Compute_Pinch()
+        GasCooler.Compute_Area()
         print(GasCooler)
         GasCooler._plot()
 
@@ -1029,5 +1390,7 @@ if __name__=='__main__':
 """
     WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
         - Add a calculation of the required heat exchanger area
+        - Add as parameters self.w and self.W and re-use the correlations from HEX_Simu to calculate alpha_h and alpha_c
+        - Add a new correlation for supercritical operation
 
 """

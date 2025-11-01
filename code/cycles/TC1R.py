@@ -174,6 +174,9 @@ if full_details :
 print(TC1R)
 
 if full_details:
+    TC1R.Evaporator.Compute_Area()
+    TC1R.GasCooler.Compute_Area()
+    TC1R.Recuperator.Compute_Area()
     print(TC1R.Evaporator)
     print(TC1R.GasCooler)
     print(TC1R.Recuperator)
@@ -192,9 +195,7 @@ if full_details:
 
     /!\ /!\ SAME AS SC2R CYCLE /!\ /!\
 
-    - Uncomment the energy and exergy charts part :
-        - This is commented because there is an issue with the energy/exergy analysis of 
-          the recuperators
+    - There is still a problem with the exergy plot (visual problem)
     
     - Verify the part of the Ts diagram where the recuperators are (with 'hex' transforms,
       only one side of the hex is represented, maybe add a new 'recup' transform)

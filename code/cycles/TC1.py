@@ -164,6 +164,8 @@ if full_details :
 print(TC1)
 
 if full_details :
+    TC1.Evaporator.Compute_Area()
+    TC1.GasCooler.Compute_Area()
     print(TC1.Evaporator)
     print(TC1.GasCooler)
 
