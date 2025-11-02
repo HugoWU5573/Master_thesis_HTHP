@@ -135,7 +135,7 @@ SC1R.COP = SC1R.Condenser.Q / P_comp
 # Plot the results
 ############################################################
 
-full_details = True
+full_details = False
 
 # Define the transforms 
 SC1R.transforms = [Transform('comp', '2', '3', SC1R.Compressor), 
@@ -166,6 +166,9 @@ if full_details :
 print(SC1R)
 
 if full_details :
+    SC1R.Evaporator.Compute_Area()
+    SC1R.Condenser.Compute_Area()
+    SC1R.Recuperator.Compute_Area()
     print(SC1R.Evaporator)
     print(SC1R.Condenser)
     print(SC1R.Recuperator)
