@@ -117,4 +117,4 @@ class State() :
     
     def __str__(self):
         return (f"State({self.fluid}): T={self.T:.2f} K, p={self.p/1e5:.2f} bar, Q={self.Q:.4f}, "
-                f"h={self.h/1e3:.2f} kJ/kg, s={self.s/1e3:.4f} kJ/kg-K), e={self.e/1e3:.2f} kJ/kg" if self.e is not None else "State not fully defined")
+                f"h={self.h/1e3:.2f} kJ/kg, s={self.s/1e3:.4f} kJ/kg-K)")

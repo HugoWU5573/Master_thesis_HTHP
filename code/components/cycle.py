@@ -2,6 +2,20 @@ import CoolProp
 from matplotlib import pyplot as plt
 import numpy as np
 import os
+import seaborn as sns
+
+list_labels_exergy = [r'$P_{el,LT}$', r'$P_{el,MT}$',
+                    r'$\dot{ \Delta E}_{ex,LT,wf}$', r'$\dot{ \Delta E}_{ex,MT,wf}$', r'$\dot{ \Delta E}_{ex,HT,wf}$',
+                    r'$\dot{ \Delta E}_{ex,LT,water}$', r'$\dot{ \Delta E}_{ex,MT,water}$', r'$\dot{ \Delta E}_{ex,HT,water}$',
+                    r'$P_{mec,comp,LT}$', r'$P_{mec,comp,MT}$',
+                    r'$P_{irr,comp,LT}$', r'$P_{irr,comp,MT}$',
+                    r'$P_{irr,adex,LT}$', r'$P_{irr,adex,MT}$',
+                    r'$P_{irr,ex,LT}$', r'$P_{irr,ex,MT}$', r'$P_{irr,ex,HT}$',
+                    r'$P_{irr,recup,LT}$', r'$P_{irr,recup,MT}$',
+                    r'$P_{irr,mix}$']
+list_colors_exergy_all = sns.color_palette("hls", len(list_labels_exergy))
+dict_colors_exergy_all = {label: color for label, color in zip(list_labels_exergy, list_colors_exergy_all)}
+
 
 class Cycle(): 
 
@@ -361,7 +375,7 @@ class Cycle():
                     dict_delivered[r'$\dot Q_{HT}$'] = energies['P_{secondary}']
                     dict_delivered[r'$P_{L,HT}$'] = energies['P_{loss}']
 
-                elif transform.label_in_secondary in ['1', '2', '7', '9'] :
+                elif transform.label_in_secondary in ['1', '2', '7', '8', '9'] :
                     mdot_secondary = self.mdot_wf_bottom
                     mdot_wf = self.mdot_wf_bottom
                     args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
@@ -377,7 +391,7 @@ class Cycle():
                     dict_delivered[r'$P_{L,recup,MT}$'] = energies['P_{loss}']
                 else : 
                     raise ValueError("Unknown secondary mass flow rate for energy analysis.")
-
+        
         # Plot the energy chart
 
         plt.figure(figsize=(8,6))
@@ -398,7 +412,7 @@ class Cycle():
         plt.xlabel('Power [kW]', fontsize = 12)
 
         length = len(dict_received) + len(dict_delivered)
-        n_cols = length // 2 if length % 2 == 0 else (length // 2) + 1
+        n_cols = length // 3 if length % 3 == 0 else (length // 3) + 1
         
         plt.legend(frameon=False,
            loc='lower center',
@@ -435,7 +449,7 @@ class Cycle():
 
         return 
     
-    def exergy_chart(self, T0, p0, plot = True) :
+    def exergy_chart(self, T0, p0, plot = True, losses = 'per_type') :
         if self.mdot_wf_bottom is None : 
             self.mdot_wf_bottom = 0
         if self.mdot_wf_top is None :
@@ -497,11 +511,11 @@ class Cycle():
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
                     if abs(exergies['P_{wf}']) > abs(exergies['P_{secondary}']) :
-                        dict_delivered[r'$\dot{ \Delta E}_{LT, water}$'] = abs(exergies['P_{secondary}'])
+                        dict_delivered[r'$\dot{ \Delta E}_{ex,LT,water}$'] = abs(exergies['P_{secondary}'])
                     else : 
-                        dict_received[r'$\dot{ \DeltaE}_{LT, wf}$'] = abs(exergies['P_{secondary}'])
+                        dict_received[r'$\dot{ \Delta E}_{ex,LT,wf}$'] = abs(exergies['P_{secondary}'])
 
-                    dict_delivered[r'$P_{irr,LT}$'] = exergies['P_{irr}']
+                    dict_delivered[r'$P_{irr,ex,LT}$'] = exergies['P_{irr}']
 
                 elif transform.label_in_secondary in ['4_prime', '3_prime'] : 
                     mdot_secondary = self.mdot_MT
@@ -511,10 +525,10 @@ class Cycle():
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
 
                     if abs(exergies['P_{wf}']) > abs(exergies['P_{secondary}']) :
-                        dict_delivered[r'$\dot{ \Delta E}_{MT, water}$'] = abs(exergies['P_{secondary}'])
+                        dict_delivered[r'$\dot{ \Delta E}_{ex,MT,water}$'] = abs(exergies['P_{secondary}'])
                     else :
-                        dict_received[r'$\dot{ \Delta E}_{MT, wf}$'] = abs(exergies['P_{secondary}'])
-                    dict_delivered[r'$P_{irr,MT}$'] = exergies['P_{irr}']
+                        dict_received[r'$\dot{ \Delta E}_{ex,MT,wf}$'] = abs(exergies['P_{secondary}'])
+                    dict_delivered[r'$P_{irr,ex,MT}$'] = exergies['P_{irr}']
 
                 elif transform.label_in_secondary in ['5_prime', '6_prime'] :
                     mdot_secondary = self.mdot_HT
@@ -523,12 +537,12 @@ class Cycle():
                             'state_in_secondary' : state_in_secondary, 'state_out_secondary' : state_out_secondary}
                     exergies = transform.exergy_analysis(T0, p0, state_in, state_out, args)
                     if abs(exergies['P_{wf}']) > abs(exergies['P_{secondary}']) :
-                        dict_delivered[r'$\dot{ \Delta E}_{HT, water}$'] = abs(exergies['P_{secondary}'])
+                        dict_delivered[r'$\dot{ \Delta E}_{ex,HT,water}$'] = abs(exergies['P_{secondary}'])
                     else :
-                        dict_received[r'$\dot{ \Delta E}_{HT, wf}$'] = abs(exergies['P_{secondary}'])
-                    dict_delivered[r'$P_{irr,HT}$'] = exergies['P_{irr}']
+                        dict_received[r'$\dot{ \Delta E}_{ex,HT, wf}$'] = abs(exergies['P_{secondary}'])
+                    dict_delivered[r'$P_{irr,ex,HT}$'] = exergies['P_{irr}']
 
-                elif transform.label_in_secondary in ['1', '2', '7', '9'] :
+                elif transform.label_in_secondary in ['1', '2', '7', '8', '9'] :
                     mdot_secondary = self.mdot_wf_bottom
                     mdot_wf = self.mdot_wf_bottom
                     args = {'mdot_wf' : mdot_wf, 'mdot_secondary' : mdot_secondary, 
@@ -545,9 +559,51 @@ class Cycle():
                     dict_delivered[r'$P_{irr,recup,MT}$'] = exergies['P_{irr}']
                 else : 
                     raise ValueError("Unknown secondary mass flow rate for energy analysis.")
+
         # Plot the energy chart
 
-        plt.figure(figsize=(8,6))
+        if losses == 'all' :
+            pass
+        elif losses == 'per_type' :
+            losses_compressors = []
+            losses_exchangers = []
+            losses_adex = []
+            losses_recup = []
+            losses_mec = []
+            to_delete = []
+            for key in dict_delivered.keys() :
+                if 'irr,comp' in key :
+                    losses_compressors.append(dict_delivered[key])
+                    to_delete.append(key)
+                elif 'irr,ex' in key  :
+                    losses_exchangers.append(dict_delivered[key])
+                    to_delete.append(key)
+                elif 'irr,adex' in key :
+                    losses_adex.append(dict_delivered[key])
+                    to_delete.append(key)
+                elif 'irr,recup' in key :
+                    losses_recup.append(dict_delivered[key])
+                    to_delete.append(key)
+                elif 'mec' in key :
+                    losses_mec.append(dict_delivered[key])
+                    to_delete.append(key)
+            for key in to_delete :
+                del dict_delivered[key]
+            if len(losses_compressors) > 0 :
+                dict_delivered[r'$P_{irr,comp,tot}$'] = sum(losses_compressors)
+            if len(losses_exchangers) > 0 :
+                dict_delivered[r'$P_{irr,ex,tot}$'] = sum(losses_exchangers)
+            if len(losses_adex) > 0 :
+                dict_delivered[r'$P_{irr,adex,tot}$'] = sum(losses_adex)
+            if len(losses_recup) > 0 :
+                dict_delivered[r'$P_{irr,recup,tot}$'] = sum(losses_recup)
+            if len(losses_mec) > 0 :
+                dict_delivered[r'$P_{mec,tot}$'] = sum(losses_mec)
+        elif losses == 'biggest' :
+            pass 
+
+        plt.figure(figsize=(9,6))
+        
         y_pos = np.arange(2)
         for dic, i in zip([dict_received, dict_delivered], y_pos):
             x_tot = 0
@@ -564,11 +620,11 @@ class Cycle():
         #plt.legend(frameon=False, loc = 'lower right')
 
         length = len(dict_received) + len(dict_delivered)
-        n_cols = length // 2 if length % 2 == 0 else (length // 2) + 1
+        n_cols = length // 3 if length % 3 == 0 else (length // 3) + 1
 
         plt.legend(frameon=False,
            loc='lower center',
-           bbox_to_anchor=(0.5, 1),
+           bbox_to_anchor=(0.5, 0.95),
            ncol=n_cols)  # Adjust ncol based on number of legend items
 
 
@@ -593,6 +649,64 @@ class Cycle():
         #plt.tight_layout()
         plt.xlim((0, sum(dict_received.values())/1e3))
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
+        '''
+        fig, (ax1, ax2) = plt.subplots(figsize=(10,6), nrows=1, ncols=2)
+        total = sum(dict_received.values())
+
+        # Create the second subplot
+        dict_delivered = dict(sorted(dict_delivered.items(), key=lambda item: item[1], reverse=True))
+        # Plot horizontal bars (convert to kW) and annotate values to the right of each bar
+        vals_perc = [v/total * 100 for v in dict_delivered.values()]
+        bars = ax2.barh(list(dict_delivered.keys()), vals_perc)
+
+        # Padding to place the text slightly to the right of the bar
+        pad = (max(vals_perc) * 0.01) if len(vals_perc) and max(vals_perc) > 0 else 0.01
+
+        for bar in bars:
+            width = bar.get_width()
+            y = bar.get_y() + bar.get_height() / 2
+            ax2.text(width + pad, y, f"{width:.1f} %", va='center', fontsize=11)
+        ax2.set_title('Exergy Outputs')
+        
+
+        # Hide top and right spines
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['right'].set_visible(False)
+        ax2.spines['left'].set_visible(False)
+        ax2.spines['bottom'].set_visible(False)
+
+        ax2.set_xticks([])  # Hide x-axis ticks
+        ax2.invert_yaxis()  # labels read top-to-bottom
+        ax2.set_xlim(0, 100)
+        ax2.tick_params(axis='y', which='both', length=0)
+
+
+        # Create the first subplot
+        dict_received = dict(sorted(dict_received.items(), key=lambda item: item[1], reverse=True))
+        # Plot horizontal bars (convert to kW) and annotate values to the right of each bar
+        vals_perc = [v/total * 100 for v in dict_received.values()]
+        bars = ax1.barh(list(dict_received.keys()), vals_perc)
+
+        # Padding to place the text slightly to the right of the bar
+        pad = (max(vals_perc) * 0.01) if len(vals_perc) and max(vals_perc) > 0 else 0.01
+
+        for bar in bars:
+            width = bar.get_width()
+            y = bar.get_y() + bar.get_height() / 2
+            ax1.text(width + pad, y, f"{width:.1f} %", va='center', fontsize=11)
+        ax1.set_title('Exergy Inputs')
+        # Hide top and right spines
+        ax1.spines['top'].set_visible(False)
+        ax1.spines['right'].set_visible(False)
+        ax1.spines['left'].set_visible(False)
+        ax1.spines['bottom'].set_visible(False)
+
+        ax1.set_xticks([])  # Hide x-axis ticks
+        ax1.invert_yaxis()  # labels read top-to-bottom
+        ax1.set_xlim(0, 100)
+        ax1.tick_params(axis='y', which='both', length=0)
+        '''
+
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
         plt.savefig(f'{fig_dir}/exergy_chart.png', dpi=600)

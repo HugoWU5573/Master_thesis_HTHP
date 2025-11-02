@@ -70,7 +70,7 @@ class Compressor_2_param():
             raise ValueError("Inlet pressure (p), enthalpy (h), and entropy (s) must be defined to calculate outlet state.")
         
         self.state_in = state_in
-
+        
         # Isentropic compression
         heos = state_in.heos
         heos.update(CoolProp.PSmass_INPUTS, p_ex, state_in.s)
@@ -84,6 +84,7 @@ class Compressor_2_param():
         w_real = w_tot * self.eta_v
         heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_real, p_ex)
         T_ex = heos.T()
+        
 
 
         #self.cycle.transforms.append(Transform(label_in='Compressor Inlet', label_out='Compressor Outlet', type='comp'))                                               
@@ -98,9 +99,13 @@ class Compressor_2_param():
         T = np.zeros(n_points)
         s = np.zeros(n_points)
         for i, p_val in enumerate(p):
-            T[i] = self.Solve(P_el=0, p_ex=p_val, state_in=state_in)[1]
-            heos.update(CoolProp.PT_INPUTS, p_val, T[i])
-            s[i] = heos.smass()
+            try : 
+                T[i] = self.Solve(P_el=0, p_ex=p_val, state_in=state_in)[1]
+                heos.update(CoolProp.PT_INPUTS, p_val, T[i])
+                s[i] = heos.smass()
+            except ValueError as e:
+                T[i] = float('nan')
+                s[i] = float('nan')
         return T, s
     
     def energy_analysis(self, P_el, state_in, state_out, mdot_wf) : 
