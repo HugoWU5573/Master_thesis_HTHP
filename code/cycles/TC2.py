@@ -42,19 +42,25 @@ P_comp_2 = 7.5e3                # Electrical power of the second compressor [W]
 
     # 1. LT source
 external_fluid_LT = 'Water'     # External fluid in the LT source
-mdot_LT = 1                     # Mass flow rate of external fluid in the LT heat source [kg/s]
+""" MODIFIED START """
+mdot_LT = 0.5                   # Mass flow rate of external fluid in the LT heat source [kg/s]
+""" MODIFIED END """
 T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the LT heat source [K]
 p1_prime = 1e5                  # Inlet pressure of the external fluid in LT the heat source [Pa]
 
     # 2. MT source
 external_fluid_MT = 'Water'     # External fluid in the MT source
-mdot_MT = 0.75                  # Mass flow rate of external fluid in the MT heat source [kg/s]
+""" MODIFIED START """
+mdot_MT = 0.4                   # Mass flow rate of external fluid in the MT heat source [kg/s]
+""" MODIFIED END """
 T3_prime = 40 + 273.15          # Inlet temperature of the external fluid in the MT heat source [K]
 p3_prime = 1e5                  # Inlet pressure of the external fluid in MT the heat source [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-mdot_HT = 0.15                  # Mass flow rate of external fluid in the heat sink [kg/s]
+""" MODIFIED START """
+mdot_HT = 0.13                  # Mass flow rate of external fluid in the heat sink [kg/s]
+""" MODIFIED END """
 T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 T6_prime = T5_prime + glide     # Outlet temperature of the external fluid in the heat sink [K]
@@ -94,7 +100,6 @@ TC2.Compressor_2 = Compressor_2_param(cycle=TC2, eta_v=eta_v, eta_is_max=eta_is_
 
 def iterative_process(p_gess) :
     p1_guess = p_gess[0] ; p3_guess = p_gess[1] ; p5_guess = p_gess[2]
-    print(p_gess)
 
     # STEP 1 : Compute the states based on the guesses values
 
@@ -128,8 +133,10 @@ def iterative_process(p_gess) :
     h8 = TC2.state_7.h
     TC2.state_8 = State(HEOS_working_fluid, h=h8, p=p3_guess)
 
-        # Compute guessed state 9
-    TC2.state_9 = TC2.state_7
+    """ MODIFIED START """
+        # Compute guessed state 9 (same as state 7)
+    TC2.state_9 = State(HEOS_working_fluid, h=TC2.state_7.h, p=TC2.state_7.p)
+    """ MODIFIED END """
 
         # Compute guessed state 10
     h10 = TC2.state_9.h
@@ -156,85 +163,25 @@ def iterative_process(p_gess) :
   
     # STEP 5 : Assemble the residuals
     residuals = np.array([res_evap_LT, res_evap_MT, res_gas_cooler])
-    print(residuals)
     return residuals
 
 
 # Initial guesses
-p1_guess = 15e5 ; p3_guess = 20e5 ; p5_guess = 50e5
+""" MODIFIED START """
+p1_guess = 5e5 ; p3_guess = 10e5 ; p5_guess = 50e5
+""" MODIFIED END """
 p_guess = np.array([p1_guess, p3_guess, p5_guess])
 
 # Compute the solution
 fsolve(iterative_process, p_guess)
 TC2.COP = TC2.GasCooler.Q / (TC2.P_comp_top + TC2.P_comp_bottom)
 
-'''
-p_gess = np.array([10e5, 25e5, 50e5])
-p1_guess = p_gess[0] ; p3_guess = p_gess[1] ; p5_guess = p_gess[2]
 
-# STEP 1 : Compute the states based on the guesses values
-
-    # Compute guessed state 1 (first compressor inlet is superheated)
-HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p1_guess, 0.0)
-Tsat_1 = HEOS_working_fluid.T()
-TC2.state_1 = State(HEOS_working_fluid, T=Tsat_1 + T_sup, p=p1_guess)
-
-    # Compute guessed state 3 (second compressor inlet is superheated)
-HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p3_guess, 0.0)
-Tsat_3 = HEOS_working_fluid.T()
-TC2.state_3 = State(HEOS_working_fluid, T=Tsat_3 + T_sup, p=p3_guess)
-
-    # Compute guessed state 3_comp (exit of first compressor)
-TC2.mdot_wf_bottom, T_3_comp = TC2.Compressor_1.Solve(P_el=P_comp_1, p_ex=p3_guess, state_in=TC2.state_1)
-TC2.state_3_comp = State(HEOS_working_fluid, T=T_3_comp, p=p3_guess)
-
-    # Compute guessed state 5 (exit of second compressor)
-TC2.mdot_wf_top, T_5 = TC2.Compressor_2.Solve(P_el=P_comp_2, p_ex=p5_guess, state_in=TC2.state_3)
-TC2.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
-
-# STEP 2 : Compute the residual for the gas cooler
-TC2.GasCooler = HEX_Design(states_in=[TC2.state_5_prime, TC2.state_5], states_out=[TC2.state_6_prime, None], mdot=[TC2.mdot_HT, TC2.mdot_wf_top], name="Gas Cooler")
-Tpinch_real = TC2.GasCooler.Compute_Pinch()
-TC2.state_7 = TC2.GasCooler.state_out_h
-res_gas_cooler = Tpinch_real - T_pinch
-
-# STEP 3 : Compute the residual for the first evaporator
-    
-    # Compute guessed state 8
-h8 = TC2.state_7.h
-TC2.state_8 = State(HEOS_working_fluid, h=h8, p=p3_guess)
-
-    # Compute guessed state 9
-TC2.state_9 = TC2.state_7
-
-    # Compute guessed state 10
-h10 = TC2.state_9.h
-TC2.state_10 = State(HEOS_working_fluid, h=h10, p=p1_guess)
-
-    # Compute the residual for the first evap
-TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, None], mdot=[TC2.mdot_wf_bottom, TC2.mdot_LT], name="Evaporator_LT")
-T_pinch_real = TC2.Evaporator_LT.Compute_Pinch()
-TC2.state_2_prime = TC2.Evaporator_LT.state_out_h
-res_evap_LT = Tpinch_real - T_pinch
-
-# STEP 4 : Compute the residual for the second evaporator
-mdot_evap_MT = TC2.mdot_wf_top - TC2.mdot_wf_bottom  # Mass flow rate through the second evaporator
-
-    # We first make a power balance to find state 3_evap (exit of the second evaporator) based on states 3 and 3_comp
-h_3_evap = (TC2.mdot_wf_top * TC2.state_3.h - TC2.mdot_wf_bottom * TC2.state_3_comp.h) / mdot_evap_MT
-TC2.state_3_evap = State(HEOS_working_fluid, h=h_3_evap, p=p3_guess)
-
-    # We can now compute the residual for the second evaporator
-TC2.Evaporator_MT = HEX_Design(states_in=[TC2.state_8, TC2.state_3_prime], states_out=[TC2.state_3_evap, None], mdot=[mdot_evap_MT, TC2.mdot_MT], name="Evaporator_MT")
-Tpinch_real = TC2.Evaporator_MT.Compute_Pinch()
-TC2.state_4_prime = TC2.Evaporator_MT.state_out_h
-res_evap_MT = Tpinch_real - T_pinch
-'''
 ############################################################
 # Plot the results
 ############################################################
 
-full_details = True
+full_details = False
 
 # Define the transforms 
 TC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
@@ -269,6 +216,11 @@ if full_details :
 print(TC2)
 
 if full_details :
+    """ MODIFIED START """
+    TC2.Evaporator_LT.Compute_Area()
+    TC2.Evaporator_MT.Compute_Area()
+    TC2.GasCooler.Compute_Area()
+    """ MODIFIED END """
     print(TC2.Evaporator_LT)
     print(TC2.Evaporator_MT)
     print(TC2.GasCooler)

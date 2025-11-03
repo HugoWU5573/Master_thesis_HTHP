@@ -192,18 +192,32 @@ class Cycle():
     def Ts_diagram(self, plot = True, n=100) : 
         # Generate saturation curve for working fluid
 
-        T_points = np.zeros((len(self.transforms), n))
-        s_points = np.zeros((len(self.transforms), n))
+        T_points = []
+        s_points = []
         states = {}
-        labels_transorm = []
+        labels_transform = []
         T_sat_state = {}
         
         for i, transform in enumerate(self.transforms):
             states[transform.label_in] = getattr(self, f"state_{transform.label_in}")
             states[transform.label_out] = getattr(self, f"state_{transform.label_out}")
-            T_points[i, :], s_points[i, :] = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)
-            labels_transorm.append(transform.type)    
+            T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)
+            T_points.append(T_points_transform)
+            s_points.append(s_points_transform)
+            labels_transform.append(transform.type)
+            if transform.label_out_secondary == '7' : 
+                T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)
+                T_points.append(T_points_transform)
+                s_points.append(s_points_transform)
+                labels_transform.append(transform.type)
+            if transform.label_out_secondary == '9' : 
+                T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)
+                T_points.append(T_points_transform)
+                s_points.append(s_points_transform)
+                labels_transform.append(transform.type)    
 
+        T_points = np.array(T_points)
+        s_points =  np.array(s_points)
         
         heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
         T_crit = heos.T_critical() - 1
@@ -252,7 +266,7 @@ class Cycle():
         s_crit = heos.smass()
         plt.scatter(s_crit/1e3, T_crit-273.15, color='black', s=10, clip_on = False)  # Triple point
 
-        plt.plot(s_points.T/1e3, T_points.T-273.15, '-', label=labels_transorm, color = 'firebrick', clip_on = False)
+        plt.plot(s_points.T/1e3, T_points.T-273.15, '-', label=labels_transform, color = 'firebrick', clip_on = False)
         plt.scatter(s_states/1e3, T_states-273.15, color='firebrick', clip_on = False)
 
         plt.xlabel('Entropy [kJ/kg/K]', fontsize = 12)
@@ -394,7 +408,7 @@ class Cycle():
         
         # Plot the energy chart
 
-        plt.figure(figsize=(8,6))
+        plt.figure(figsize=(9,6))
         y_pos = np.arange(2)
         for dic, i in zip([dict_received, dict_delivered], y_pos):
             x_tot = 0
@@ -416,7 +430,7 @@ class Cycle():
         
         plt.legend(frameon=False,
            loc='lower center',
-           bbox_to_anchor=(0.5, 1),
+           bbox_to_anchor=(0.5, 0.95),
            ncol=n_cols)  # Adjust ncol based on number of legend items
 
 
