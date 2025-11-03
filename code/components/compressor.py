@@ -1,10 +1,9 @@
 import CoolProp
-from CoolProp.CoolProp import PropsSI
-from components.transform import Transform
-from components.state import State
 import numpy as np
+import matplotlib.pyplot as plt
+from CoolProp.CoolProp import PropsSI
 
-class Compressor_3():
+class Compressor_3_params():
 
     def __init__(self, BVR, eta_v, eta_is_max, eta_elme = 0.98):
         self.BVR = BVR
@@ -13,7 +12,7 @@ class Compressor_3():
         self.eta_elme = eta_elme
 
     
-    def Solve(self, P_el, p_ex, state_in, fluid):
+    def Solve(self, P_el, p_ex, state_in):
         """
         2-parameter model for compressor outlet state calculation.
         
@@ -29,18 +28,25 @@ class Compressor_3():
         if state_in.p is None  or state_in.s is None:
             raise ValueError("Inlet pressure (p), enthalpy (h), and entropy (s) must be defined to calculate outlet state.")
         
+        heos = state_in.heos
+        
         # Isentropic compression
-        v_su = 1/PropsSI('D', 'T', state_in.T, 'P', state_in.p, fluid)             # Specific volume at inlet [m^3/kg]
-        v_ad = v_su * self.BVR                                                     # Specific volume at outlet assuming isentropic compression [m^3/kg]
-        h_ad = PropsSI('H', 'D', 1/v_ad, 'S', state_in.s, fluid)                   # Enthalpy at outlet assuming isentropic compression [J/kg]
-        p_ad = PropsSI('P', 'D', 1/v_ad, 'H', h_ad, fluid)                         # Outlet pressure assuming isentropic compression [Pa]
+        heos.update(CoolProp.PT_INPUTS, state_in.p, state_in.T)
+        v_su = 1/heos.rhomass()                                                    # Specific volume at inlet [m^3/kg]
+        v_ad = v_su / self.BVR 
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)                # Specific volume at outlet assuming isentropic compression [m^3/kg]
+        h_ad = heos.hmass()                                                        # Enthalpy at outlet assuming isentropic compression [J/kg]
+        p_ad = heos.p()                                                            # Outlet pressure assuming isentropic compression [Pa]
         w_su_ad = h_ad - state_in.h                                                # Specific work for isentropic compression [J/kg]
 
         # Isochoric compression with electrical power input
         w_ad_ex = v_ad * (p_ex - p_ad)                                             # Specific work for isentropic compression based on efficiency [J/kg]
-        T_ex = PropsSI('T', 'P', p_ex, 'H', h_ad + w_ad_ex, fluid)                 # Outlet temperature based on efficiency [K]
         w_tot = (w_ad_ex + w_su_ad) / self.eta_is_max                              # Total specific work based on efficiency [J/kg]
         mdot_wf = P_el * self.eta_elme / (w_tot * self.eta_v)                      # Mass flow rate based on electrical power input [kg/s]
+
+        w_real = w_tot * self.eta_v
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_real, p_ex)
+        T_ex = heos.T()
 
         return mdot_wf, T_ex 
     
@@ -68,8 +74,6 @@ class Compressor_2_param():
         """
         if state_in.p is None  or state_in.s is None:
             raise ValueError("Inlet pressure (p), enthalpy (h), and entropy (s) must be defined to calculate outlet state.")
-        
-        self.state_in = state_in
         
         # Isentropic compression
         heos = state_in.heos
@@ -140,11 +144,9 @@ class Compressor_2_param():
 
 if __name__ == "__main__" :
     # Theoretical graph
-
-    import matplotlib.pyplot as plt
-    import numpy as np
     from state import State
 
+    '''
     T = 300
     p = PropsSI('P', 'T', T, 'Q', 1, 'R290')
     state_in = State(T=T+3, p=p, fluid='R290')
@@ -153,10 +155,8 @@ if __name__ == "__main__" :
     print(f'Mass flow rate: {mdot_wf} kg/s')
     print(f'Outlet temperature: {T_ex} K')
     print(PropsSI('Q', 'T', T_ex, 'P', 2*p, 'R290'))
-
-
-
     '''
+    heos = CoolProp.AbstractState("HEOS", "R290")
 
     p_in = np.linspace(5e5, 40e5, 100)
     T_in = PropsSI('T', 'P', p_in, 'Q', 1, 'R290') + 3
@@ -171,9 +171,9 @@ if __name__ == "__main__" :
         for j in range(len(pi)) :
             ratio = pi[j]
             p_out[j, k] = p_in[k] * ratio
-            state_in = State(T=T_in[k], p=p_in[k], fluid='R290')
-            compressor = Compressor(BVR=1/2.1260, eta_v=0.95, eta_is_max=0.65, eta_elme=0.98)
-            mdot_wf= compressor.modelCompressor2(P_el=P_comp, p_ex=p_out[j, k], state_in=state_in, fluid='R290')[0]
+            state_in = State(heos,T=T_in[k], p=p_in[k])
+            compressor = Compressor_3_params(BVR=2.1260, eta_v=0.95, eta_is_max=0.65, eta_elme=0.98)
+            mdot_wf= compressor.Solve(P_el=P_comp, p_ex=p_out[j, k], state_in=state_in)[0]
             w_comp[j, k] = P_comp / mdot_wf / 1000 # in kJ/kg
 
     plt.figure(figsize=(8,6))
@@ -200,26 +200,26 @@ if __name__ == "__main__" :
 
     # Impact of BVR
 
-    BVR = 1/np.linspace(1, 10, 10)
+    BVR = np.linspace(1, 10, 10)
+    pi = np.linspace(1.1, 2.2477, 10)
     w_comp_BVR = np.zeros((len(pi), len(BVR)))
-    p_in = 15e5 
+    p_in = 5e5 
     T_in = PropsSI('T', 'P', p_in, 'Q', 1, 'R290') + 3
-    pi = [1.5, 2, 2.2477]
 
     #p_out = 3 * p_in
 
     for i in range(len(pi)) :
         p_out = p_in * pi[i]
         for j in range(len(BVR)) :
-            state_in = State(T=T_in, p=p_in, fluid='R290')
-            compressor = Compressor(BVR=BVR[j], eta_v=0.95, eta_is_max=0.65, eta_elme=0.98)
-            mdot_wf= compressor.modelCompressor2(P_el=P_comp, p_ex=p_out, state_in=state_in, fluid='R290')[0]
+            state_in = State(heos, T=T_in, p=p_in)
+            compressor = Compressor_3_params(BVR=BVR[j], eta_v=0.95, eta_is_max=0.65, eta_elme=0.98)
+            mdot_wf= compressor.Solve(P_el=P_comp, p_ex=p_out, state_in=state_in)[0]
             w_comp_BVR[i][j] = P_comp / mdot_wf / 1000 # in kJ/kg
 
     plt.figure(figsize=(8,6))
-    for i in range(len(pi)):
-        plt.plot(BVR, w_comp_BVR[i], marker='o', label=f'Pressure Ratio: {pi[i]}')
-    plt.xlabel('BVR')
+    for j in range(len(BVR)):
+        plt.plot(pi, w_comp_BVR[:,j], marker='o', label=f'BVR: {BVR[j]:.3f}')
+    plt.xlabel('Pressure Ratio')
     plt.legend(frameon=False)
     #plt.grid()
 
@@ -246,9 +246,9 @@ if __name__ == "__main__" :
     T_in = PropsSI('T', 'P', p_in, 'Q', 1, 'R290') + 3
     p_out = p_in * 2.2477
     for j in range(len(eta_is_max)) :
-        state_in = State(T=T_in, p=p_in, fluid='R290')
-        compressor = Compressor(BVR=1/2.1260, eta_v=0.95, eta_is_max=eta_is_max[j], eta_elme=0.98)
-        mdot_wf= compressor.modelCompressor2(P_el=P_comp, p_ex=p_out, state_in=state_in, fluid='R290')[0]
+        state_in = State(heos, T=T_in, p=p_in)
+        compressor = Compressor_3_params(BVR=2.1260, eta_v=0.95, eta_is_max=eta_is_max[j], eta_elme=0.98)
+        mdot_wf= compressor.Solve(P_el=P_comp, p_ex=p_out, state_in=state_in)[0]
         w_comp_eta[j] = P_comp / mdot_wf / 1000 # in kJ/kg
     plt.figure(figsize=(8,6))
     plt.plot(eta_is_max, w_comp_eta, marker='o', color='black')
@@ -277,9 +277,9 @@ if __name__ == "__main__" :
     T_in = PropsSI('T', 'P', p_in, 'Q', 1, 'R290') + 3
     p_out = p_in * 2.2477
     for j in range(len(eta_v)) :
-        state_in = State(T=T_in, p=p_in, fluid='R290')
-        compressor = Compressor(BVR=1/2.1260, eta_v=eta_v[j], eta_is_max=0.65, eta_elme=0.98)
-        mdot_wf= compressor.modelCompressor2(P_el=P_comp, p_ex=p_out, state_in=state_in, fluid='R290')[0]
+        state_in = State(heos, T=T_in, p=p_in)
+        compressor = Compressor_3_params(BVR=2.1260, eta_v=eta_v[j], eta_is_max=0.65, eta_elme=0.98)
+        mdot_wf= compressor.Solve(P_el=P_comp, p_ex=p_out, state_in=state_in)[0]
         w_comp_eta_v[j] = P_comp / mdot_wf / 1000 # in kJ/kg
     plt.figure(figsize=(8,6))
     plt.plot(eta_v, w_comp_eta_v, marker='o', color = 'black')
@@ -296,4 +296,4 @@ if __name__ == "__main__" :
     ax.spines['bottom'].set_position(('outward', 10))
     ax.spines['left'].set_position(('outward', 10))
     plt.show()
-    '''
+    
