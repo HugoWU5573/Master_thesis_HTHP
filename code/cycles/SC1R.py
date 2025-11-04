@@ -135,7 +135,7 @@ SC1R.COP = SC1R.Condenser.Q / P_comp
 # Plot the results
 ############################################################
 
-full_details = False
+full_details = True
 
 # Define the transforms 
 SC1R.transforms = [Transform('comp', '2', '3', SC1R.Compressor), 
@@ -179,3 +179,4 @@ if full_details :
         f.write(str(SC1R) + '\n')
         f.write('\n' + str(SC1R.Evaporator) + '\n')
         f.write('\n' + str(SC1R.Condenser) + '\n')
+        f.write('\n' + str(SC1R.Recuperator) + '\n')

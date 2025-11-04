@@ -200,8 +200,8 @@ if __name__ == "__main__" :
 
     # Impact of BVR
 
-    BVR = np.linspace(1, 8, 5)
-    pi = np.linspace(1, 8, 10)
+    BVR = np.linspace(2, 5, 4)
+    pi = np.linspace(1, 5, 10)
     w_comp_BVR = np.zeros((len(pi), len(BVR)))
     p_in = 5e5 
     T_in = PropsSI('T', 'P', p_in, 'Q', 1, 'R290') + 3
@@ -218,7 +218,7 @@ if __name__ == "__main__" :
 
     plt.figure(figsize=(8,6))
     for j in range(len(BVR)):
-        plt.plot(pi, w_comp_BVR[:,j], marker='o', label=f'BVR: {BVR[j]:.3f}')
+        plt.plot(pi, w_comp_BVR[:,j], marker='o', label=f'BVR: {BVR[j]:.0f}')
     plt.xlabel('Pressure Ratio')
     plt.legend(frameon=False)
     #plt.grid()

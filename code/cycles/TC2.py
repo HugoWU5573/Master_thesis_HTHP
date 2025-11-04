@@ -42,25 +42,19 @@ P_comp_2 = 7.5e3                # Electrical power of the second compressor [W]
 
     # 1. LT source
 external_fluid_LT = 'Water'     # External fluid in the LT source
-""" MODIFIED START """
 mdot_LT = 0.5                   # Mass flow rate of external fluid in the LT heat source [kg/s]
-""" MODIFIED END """
 T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the LT heat source [K]
 p1_prime = 1e5                  # Inlet pressure of the external fluid in LT the heat source [Pa]
 
     # 2. MT source
 external_fluid_MT = 'Water'     # External fluid in the MT source
-""" MODIFIED START """
 mdot_MT = 0.4                   # Mass flow rate of external fluid in the MT heat source [kg/s]
-""" MODIFIED END """
 T3_prime = 40 + 273.15          # Inlet temperature of the external fluid in the MT heat source [K]
 p3_prime = 1e5                  # Inlet pressure of the external fluid in MT the heat source [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-""" MODIFIED START """
 mdot_HT = 0.13                  # Mass flow rate of external fluid in the heat sink [kg/s]
-""" MODIFIED END """
 T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 T6_prime = T5_prime + glide     # Outlet temperature of the external fluid in the heat sink [K]
@@ -133,10 +127,8 @@ def iterative_process(p_gess) :
     h8 = TC2.state_7.h
     TC2.state_8 = State(HEOS_working_fluid, h=h8, p=p3_guess)
 
-    """ MODIFIED START """
         # Compute guessed state 9 (same as state 7)
     TC2.state_9 = State(HEOS_working_fluid, h=TC2.state_7.h, p=TC2.state_7.p)
-    """ MODIFIED END """
 
         # Compute guessed state 10
     h10 = TC2.state_9.h
@@ -167,9 +159,7 @@ def iterative_process(p_gess) :
 
 
 # Initial guesses
-""" MODIFIED START """
 p1_guess = 5e5 ; p3_guess = 10e5 ; p5_guess = 50e5
-""" MODIFIED END """
 p_guess = np.array([p1_guess, p3_guess, p5_guess])
 
 # Compute the solution
@@ -216,11 +206,9 @@ if full_details :
 print(TC2)
 
 if full_details :
-    """ MODIFIED START """
     TC2.Evaporator_LT.Compute_Area()
     TC2.Evaporator_MT.Compute_Area()
     TC2.GasCooler.Compute_Area()
-    """ MODIFIED END """
     print(TC2.Evaporator_LT)
     print(TC2.Evaporator_MT)
     print(TC2.GasCooler)

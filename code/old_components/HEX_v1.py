@@ -591,20 +591,16 @@ class HEX_Design():
     Creates a counter-flow heat exchanger object that will be modelled using the pinch model for design purposes.
     The parameters are:
         - states_in : list of State objects for the inlet states of both streams [State_c_in, State_h_in]
-        - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out]
-        - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s] (see note below)
+        - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out] (one of the two can be None)
+        - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s]
         - name : name of the heat exchanger (optional)
         - W : Width of the heat exchanger plates [m] (optional, default = 0.1 m)
         - w : Distance between two plates (channel gap) [m] (optional, default = 2e-3 m)
         - beta : Chevron angle of the plates [degrees] (optional, default = 60 degrees)
         - Rcond : thermal resistance of the heat exchanger wall [m²K/W] (optional, default = 0)
-        - mode : "Dimensional" or "Non-Dimensional" (optional, default = "Dimensional")
-    
-    Note : In the "Dimensional" mode, at least one of the two mass flow rates must be provided (the other can be None).
-           In the "Non-Dimensional" mode, both mass flow rates must be set to None (default setting)
     
     """
-    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0, mode="Dimensional"):
+    def __init__(self, states_in, states_out, mdot, name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0):
 
         self.state_in_c = states_in[0]
         self.state_in_h = states_in[1]
@@ -624,7 +620,6 @@ class HEX_Design():
         self.Aflow = self.W * self.w    # Cross-sectional flow area for one channel [m2]
         self.beta = beta
         self.A = None
-        self.mode = mode
 
 
     """
@@ -670,46 +665,31 @@ class HEX_Design():
     
 
     """
-    This method determines the unknown mass flow rate(s) based on an energy balance.
+    This method determines the unknown outlet state of the heat exchanger (either hot or cold stream) based
+    on an energy balance.
         - Output : Q (heat transfer rate) [W]
 
     """
-    def _determine_unknown_mass_flow(self):
+    def _determine_unknown_outlet_state(self):
+        if self.state_out_c == None :    # Cold outlet state is unknown
+            Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+            hout_c = self.state_in_c.h + Qh / self.mdot_c
+            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+            self.Q = Qh 
 
-        if self.mode == "Non-Dimensional":
-            self.Q = 1 # In non-dimensional mode, we set Q = 1 W as a reference value
-            Delta_h_c = self.state_out_c.h - self.state_in_c.h
-            Delta_h_h = self.state_in_h.h - self.state_out_h.h
-            self.mdot_c = self.Q / Delta_h_c
-            self.mdot_h = self.Q / Delta_h_h
-        
-        elif self.mode == "Dimensional" :
+        elif self.state_out_h == None :  # Hot outlet state is unknown
+            Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+            hout_h = self.state_in_h.h - Qc / self.mdot_h
+            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+            self.Q = Qc
 
-            if self.mdot_c == None and self.mdot_h == None :
-                raise ValueError("In 'Dimensional' mode, at least one mass flow rate must be provided.")
-
-            elif self.mdot_c == None :    # Mass flow rate of the cold stream is unknown
-                Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
-                self.Q = Qh 
-                Delta_h_c = self.state_out_c.h - self.state_in_c.h
-                self.mdot_c = Qh / Delta_h_c
-
-            elif self.mdot_h == None :    # Mass flow rate of the hot stream is unknown
-                Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
-                self.Q = Qc
-                Delta_h_h = self.state_in_h.h - self.state_out_h.h
-                self.mdot_h = Qc / Delta_h_h
-
-            else :                        # Both mass flow rates are known
-                Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
-                Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
-                if not np.isclose(Qc, Qh, atol=1e-3):
-                    raise ValueError("Heat duty of both streams are not consistent.")
-                else :
-                    self.Q = (Qc + Qh) / 2
-        
-        else :
-            raise ValueError("Invalid mode. Choose either 'Dimensional' or 'Non-Dimensional'.")
+        else :                           # Both outlet states are known (not usual case)
+            Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+            Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+            if not np.isclose(Qc, Qh, atol=1e-3):
+                raise ValueError("Heat duty of both streams are not consistent.")
+            else :
+                self.Q = (Qc + Qh) / 2
 
         return self.Q
 
@@ -856,7 +836,7 @@ class HEX_Design():
     
     """
     def Compute_Pinch(self):
-        self._determine_unknown_mass_flow()
+        self._determine_unknown_outlet_state()
 
         # Check if the hot stream is supercritical or not
         Tcrit_h = self.HEOS_hot.T_critical()
@@ -1409,6 +1389,8 @@ if __name__=='__main__':
 
 """
     WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
-        - Add maybe a new class for the recuperators
+        - Add a calculation of the required heat exchanger area
+        - Add as parameters self.w and self.W and re-use the correlations from HEX_Simu to calculate alpha_h and alpha_c
+        - Add a new correlation for supercritical operation
 
 """

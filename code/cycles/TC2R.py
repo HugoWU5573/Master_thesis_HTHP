@@ -42,25 +42,19 @@ P_comp_2 = 7.5e3                # Electrical power of the second compressor [W]
 
     # 1. LT source
 external_fluid_LT = 'Water'     # External fluid in the LT source
-""" MODIFIED START """
 mdot_LT = 0.5                   # Mass flow rate of external fluid in the LT heat source [kg/s]
-""" MODIFIED END """
 T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the LT heat source [K]
 p1_prime = 1e5                  # Inlet pressure of the external fluid in LT the heat source [Pa]
 
     # 2. MT source
 external_fluid_MT = 'Water'     # External fluid in the MT source
-""" MODIFIED START """
 mdot_MT = 0.4                   # Mass flow rate of external fluid in the MT heat source [kg/s]
-""" MODIFIED END """
 T3_prime = 40 + 273.15          # Inlet temperature of the external fluid in the MT heat source [K]
 p3_prime = 1e5                  # Inlet pressure of the external fluid in MT the heat source [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-""" MODIFIED START """
 mdot_HT = 0.13                  # Mass flow rate of external fluid in the heat sink [kg/s]
-""" MODIFIED END """
 T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 T6_prime = T5_prime + glide     # Outlet temperature of the external fluid in the heat sink [K]
@@ -214,6 +208,8 @@ if full_details :
     TC2R.Evaporator_LT._plot(save=True, name_cycle=TC2R.name, plot=True)
     TC2R.Evaporator_MT._plot(save=True, name_cycle=TC2R.name, plot=True)
     TC2R.GasCooler._plot(save=True, name_cycle=TC2R.name, plot=True)
+    TC2R.Recuperator_1._plot(save=True, name_cycle=TC2R.name, plot=True)
+    TC2R.Recuperator_2._plot(save=True, name_cycle=TC2R.name, plot=True)
 
 
 ############################################################
@@ -223,14 +219,16 @@ if full_details :
 print(TC2R)
 
 if full_details :
-    """ MODIFIED START """
     TC2R.Evaporator_LT.Compute_Area()
     TC2R.Evaporator_MT.Compute_Area()
     TC2R.GasCooler.Compute_Area()
-    """ MODIFIED END """
+    TC2R.Recuperator_1.Compute_Area()
+    TC2R.Recuperator_2.Compute_Area()
     print(TC2R.Evaporator_LT)
     print(TC2R.Evaporator_MT)
     print(TC2R.GasCooler)
+    print(TC2R.Recuperator_1)
+    print(TC2R.Recuperator_2)
 
     # Save prints to a text file
     output_file = Path(__file__).parent.parent / "Figures" / TC2R.name / f"{TC2R.name}_results.txt"
@@ -240,3 +238,5 @@ if full_details :
         f.write('\n' + str(TC2R.Evaporator_LT) + '\n')
         f.write('\n' + str(TC2R.Evaporator_MT) + '\n')
         f.write('\n' + str(TC2R.GasCooler) + '\n')
+        f.write('\n' + str(TC2R.Recuperator_1) + '\n')
+        f.write('\n' + str(TC2R.Recuperator_2) + '\n')

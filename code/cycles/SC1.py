@@ -28,26 +28,28 @@ from scipy.optimize import fsolve
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
 T_sup = 3                       # Superheating at the compressor inlet [K]
-T_sub = 6                       # Subcooling at the condenser outlet [K]
 eta_v = 0.8                     # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
 
 # Cycle parameters
 working_fluid = 'R290'          # Working fluid
-P_comp = 2.5e3                  # Compressor power [W]
+P_comp = 10e3                   # Compressor power [W]
 
 # Heat source parameters
 external_fluid_LT = 'Water'     # External fluid in the heat source
-mdot_LT = 0.4                   # Mass flow rate of external fluid the heat source [kg/s]
-T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
+T1_prime = 15 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
 p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
 
 # Heat sink parameters
 external_fluid_MT = 'Water'     # External fluid in the heat sink
-mdot_MT = 0.5                   # Mass flow rate of external fluid the heat sink [kg/s]
-T4_prime = 35 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+T4_prime = 40 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 p4_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+
+# Optimization parameters
+T_sub = np.linspace(1, 10, 10)      # Subcooling at the condenser outlet [K]
+glide_LT = np.linspace(3, 10, 8)    # Temperature glide of the external fluid in the heat source [K]
+glide_MT = np.linspace(3, 10, 8)    # Temperature glide of the external fluid in the heat sink [K]
 
 
 ############################################################
@@ -63,8 +65,6 @@ HEOS_working_fluid = CoolProp.AbstractState("HEOS", working_fluid)
 SC1 = Cycle("SC1")
 SC1.state_1_prime = State(HEOS_external_fluid_LT, T=T1_prime, p=p1_prime)
 SC1.state_4_prime = State(HEOS_external_fluid_MT, T=T4_prime, p=p4_prime)
-SC1.mdot_LT = mdot_LT
-SC1.mdot_MT = mdot_MT
 
 # Compressor
 SC1.P_comp_bottom = P_comp
@@ -75,8 +75,15 @@ SC1.Compressor = Compressor_2_param(cycle=SC1, eta_v=eta_v, eta_is_max=eta_is_ma
 # Solve the cycle to determine the unknown states
 ############################################################
 
-def iterative_process(p_gess) :
+def iterative_process(p_gess, T_sub_current, glide_LT_current, glide_MT_current):
     p1_guess = p_gess[0] ; p3_guess = p_gess[1]
+
+    # STEP 0 : Compute states 2_prime and 3_prime based on the current glides
+
+    T2_prime = T1_prime - glide_LT_current
+    SC1.state_2_prime = State(HEOS_external_fluid_LT, T=T2_prime, p=p1_prime)
+    T3_prime = T4_prime + glide_MT_current
+    SC1.state_3_prime = State(HEOS_external_fluid_MT, T=T3_prime, p=p4_prime)
 
     # STEP 1 : Compute the states based on the guesses values
 
@@ -92,7 +99,7 @@ def iterative_process(p_gess) :
         # Compute guessed state 9
     HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p3_guess, 0.0)
     Tsat_9 = HEOS_working_fluid.T()
-    SC1.state_9 = State(HEOS_working_fluid, T=Tsat_9 - T_sub, p=p3_guess)
+    SC1.state_9 = State(HEOS_working_fluid, T=Tsat_9 - T_sub_current, p=p3_guess)
 
         # Compute guessed state 10
     h10 = SC1.state_9.h
@@ -100,16 +107,14 @@ def iterative_process(p_gess) :
 
     # STEP 2 : Compute the residual for the evaporator
 
-    SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, None], mdot=[SC1.mdot_wf_bottom, SC1.mdot_LT], name="Evaporator")
+    SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, SC1.state_2_prime], name="Evaporator", mode="Non-Dimensional")
     Tpinch_real = SC1.Evaporator.Compute_Pinch()
-    SC1.state_2_prime = SC1.Evaporator.state_out_h
     res_evap = Tpinch_real - T_pinch
 
     # STEP 3 : Compute the residual for the condenser
 
-    SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[None, SC1.state_9], mdot=[SC1.mdot_MT, SC1.mdot_wf_bottom], name="Condenser")
+    SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[SC1.state_3_prime, SC1.state_9], name="Condenser", mode="Non-Dimensional")
     Tpinch_real = SC1.Condenser.Compute_Pinch()
-    SC1.state_3_prime = SC1.Condenser.state_out_c
     res_cond = Tpinch_real - T_pinch
 
     # STEP 4 : Assemble the residuals
@@ -122,8 +127,50 @@ def iterative_process(p_gess) :
 p1_guess = 5e5 ; p3_guess = 20e5
 p_guess = np.array([p1_guess, p3_guess])
 
-# Compute the solution
-fsolve(iterative_process, p_guess)
+# Compute the solution for each combination of (T_sub, R_LT, R_MT)
+p_solution = np.zeros((len(T_sub), len(glide_LT), len(glide_MT), 2))
+COP_matrix = np.zeros((len(T_sub), len(glide_LT), len(glide_MT)))
+
+for i in range(len(T_sub)) :
+    print(f"Solving for T_sub = {T_sub[i]:.2f} K ({i+1}/{len(T_sub)})")
+    for j in range(len(glide_LT)) :
+        for k in range(len(glide_MT)) :
+
+            T_sub_current = T_sub[i]
+            glide_LT_current = glide_LT[j]
+            glide_MT_current = glide_MT[k]
+
+            p_solution[i,j,k, :] = fsolve(iterative_process, p_guess, args=(T_sub_current, glide_LT_current, glide_MT_current))
+            SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[SC1.state_3_prime, SC1.state_9], mdot=[None, SC1.mdot_wf_bottom], name="Condenser", mode="Dimensional")
+            SC1.Condenser.Compute_Pinch()
+            COP = SC1.Condenser.Q / P_comp
+            COP_matrix[i,j,k] = COP
+
+# Determine the best cycle
+best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
+T_sub_best = T_sub[best_index[0]]
+glide_LT_best = glide_LT[best_index[1]]
+glide_MT_best = glide_MT[best_index[2]]
+p1_best = p_solution[best_index][0]
+p3_best = p_solution[best_index][1]
+
+print("\nBest cycle found with parameters :")
+print(f"  - Subcooling at condenser outlet : {T_sub_best:.2f} K")
+print(f"  - Temperature glide in heat source : {glide_LT_best:.2f} K")
+print(f"  - Temperature glide in heat sink : {glide_MT_best:.2f} K")
+
+# Recompute the best cycle states
+iterative_process(np.array([p1_best, p3_best]), T_sub_best, glide_LT_best, glide_MT_best)
+
+# Compute heat exchangers with dimensional mode
+SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, SC1.state_2_prime], mdot=[SC1.mdot_wf_bottom, None], name="Evaporator", mode="Dimensional")
+SC1.Evaporator.Compute_Pinch()
+SC1.mdot_LT = SC1.Evaporator.mdot_h
+SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[SC1.state_3_prime, SC1.state_9], mdot=[None, SC1.mdot_wf_bottom], name="Condenser", mode="Dimensional")
+SC1.Condenser.Compute_Pinch()
+SC1.mdot_MT = SC1.Condenser.mdot_c
+
+# Compute cycle performance
 SC1.COP = SC1.Condenser.Q / P_comp
 
 
