@@ -200,8 +200,8 @@ if __name__ == "__main__" :
 
     # Impact of BVR
 
-    BVR = np.linspace(1, 10, 10)
-    pi = np.linspace(1.1, 2.2477, 10)
+    BVR = np.linspace(1, 8, 5)
+    pi = np.linspace(1, 8, 10)
     w_comp_BVR = np.zeros((len(pi), len(BVR)))
     p_in = 5e5 
     T_in = PropsSI('T', 'P', p_in, 'Q', 1, 'R290') + 3

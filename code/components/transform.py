@@ -61,8 +61,8 @@ class Transform:
             T, s = self.component.get_points_between(state_in, state_out, n_points)
             for i in range(n_points):
                 if np.isnan(T[i]) or np.isnan(s[i]):
-                    T[i] = T[0]
-                    s[i] = s[0]
+                    T[i] = T[i-1]
+                    s[i] = s[i-1]
 
         elif self.type == 'isobaric_mixing' :
             p = state_in.p

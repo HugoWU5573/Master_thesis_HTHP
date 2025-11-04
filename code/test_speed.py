@@ -2,8 +2,8 @@ import CoolProp
 from CoolProp.CoolProp import PropsSI
 import time
 
-import components.state as state_1
-import code.components.state as state
+import components.state as state
+import old_components.state as state_1
 
 p = 1e5 
 h = 200e3
