@@ -599,12 +599,17 @@ class HEX_Design():
         - beta : Chevron angle of the plates [degrees] (optional, default = 60 degrees)
         - Rcond : thermal resistance of the heat exchanger wall [m²K/W] (optional, default = 0)
         - mode : "Dimensional" or "Non-Dimensional" (optional, default = "Dimensional")
+        - type : "Recuperator" or None (optional, default = None)  (see note below)
+        - epsilon : Effectiveness of the heat exchanger (only for type = "Recuperator") (optional, default = None)
     
-    Note : In the "Dimensional" mode, at least one of the two mass flow rates must be provided (the other can be None).
-           In the "Non-Dimensional" mode, both mass flow rates must be set to None (default setting)
+    Notes : 
+        - In the "Dimensional" mode, at least one of the two mass flow rates must be provided (the other can be None).
+        - In the "Non-Dimensional" mode, both mass flow rates must be set to None (default setting)
+        - In the "Recuperator" type, the heat exchanger is modelled using a constant effectiveness (epsilon) approach.
+        - In the "Recuperator" type, the mass flow rates and inlet states must be provided to calculate the outlet states.
     
     """
-    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0, mode="Dimensional"):
+    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0, mode="Dimensional", type=None, epsilon=None):
 
         self.state_in_c = states_in[0]
         self.state_in_h = states_in[1]
@@ -625,6 +630,8 @@ class HEX_Design():
         self.beta = beta
         self.A = None
         self.mode = mode
+        self.type = type
+        self.epsilon = epsilon
 
 
     """
@@ -712,6 +719,62 @@ class HEX_Design():
             raise ValueError("Invalid mode. Choose either 'Dimensional' or 'Non-Dimensional'.")
 
         return self.Q
+    
+
+    """
+    This method determines the unknow outlet states of the heat exchanger based on its effectiveness
+    using an iterative approach to accurately estimate cp_min.
+        - Outputs :
+            - state_out_c : outlet State of the cold stream
+            - state_out_h : outlet State of the hot stream
+
+    """
+    def _determine_unknown_outlet_states(self):
+
+        Delta_T_in = self.state_in_h.T - self.state_in_c.T
+
+        # First estimate of cp_min based on the inlet states
+        self.HEOS_cold.update(CoolProp.PT_INPUTS, self.state_in_c.p, self.state_in_c.T)
+        cp_c = self.HEOS_cold.cpmass()
+        self.HEOS_hot.update(CoolProp.PT_INPUTS, self.state_in_h.p, self.state_in_h.T)
+        cp_h = self.HEOS_hot.cpmass()
+        cp_min = min(cp_c, cp_h)
+
+        # First estimate of state_out_c and state_out_h based on epsilon
+        hout_h = self.state_in_h.h - self.epsilon * cp_min * Delta_T_in
+        self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+        hout_c = self.state_in_c.h + self.epsilon * cp_min * Delta_T_in
+        self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+
+        cp_min_old = 0.0
+        cp_min_new = cp_min
+
+        while not np.isclose(cp_min_old, cp_min_new, atol=1e-2):
+            cp_min_old = cp_min_new
+
+            # Compute cp_c and cp_h by averaging between inlet and outlet temperatures
+            cp_c = self._Cp_average(self.state_in_c.heos, self.state_in_c.T, self.state_out_c.T)
+            cp_h = self._Cp_average(self.state_in_h.heos, self.state_in_h.T, self.state_out_h.T)
+            cp_min_new = min(cp_c, cp_h)
+
+            # Update outlet States based on new cp_min
+            hout_h = self.state_in_h.h - self.epsilon * cp_min_new * Delta_T_in
+            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+            hout_c = self.state_in_c.h + self.epsilon * cp_min_new * Delta_T_in
+            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+        
+        if self.mode == "Non-Dimensional":
+            self.Q = 1 # In non-dimensional mode, we set Q = 1 W as a reference value
+        
+        else :
+            Q_h = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+            Q_c = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+            if not np.isclose(Q_h, Q_c, atol=1e-3):
+                raise ValueError("Heat duty of both streams are not consistent after iteration.")
+            else :
+                self.Q = (Q_h + Q_c) / 2
+
+        return self.state_out_c, self.state_out_h
 
 
     """
@@ -856,7 +919,8 @@ class HEX_Design():
     
     """
     def Compute_Pinch(self):
-        self._determine_unknown_mass_flow()
+        if self.type is None:
+            self._determine_unknown_mass_flow()
 
         # Check if the hot stream is supercritical or not
         Tcrit_h = self.HEOS_hot.T_critical()
@@ -886,6 +950,27 @@ class HEX_Design():
 
         return self.Tpinch
     
+
+    """
+    This method computes the outlet states of both streams for a Recuperator type heat exchanger using
+    a constant effectiveness model.
+        - Outputs :
+            - state_out_c : State object for the outlet state of the cold stream
+            - state_out_h : State object for the outlet state of the hot stream
+
+    """
+    def Solve_Recuperator(self):
+
+        if self.type != "Recuperator":
+            raise ValueError("This method is only applicable for recuperator type heat exchangers.")
+        if self.epsilon is None:
+            raise ValueError("Effectiveness (epsilon) must be provided for recuperator type heat exchangers.")
+
+        self._determine_unknown_outlet_states()
+        self.Compute_Pinch()    # We call Compute_Pinch to set up the enthalpy and temperature vectors (the actual pinch is not relevant here)
+
+        return self.state_out_c, self.state_out_h
+
 
     """
     This method analyses a single cell of the heat exchanger and returns the required area for that cell.
@@ -1200,20 +1285,20 @@ class HEX_Design():
 
 
     """
-    This method computes the average specific heat capacity of a fluid between the bulk and wall temperatures.
+    This method computes the average specific heat capacity of a fluid between two temperatures.
         - Inputs :
             - heos : CoolProp HEOS object of the fluid
-            - Tb : bulk temperature [K]
-            - Tw : wall temperature [K]
+            - T1 : first temperature [K]
+            - T2 : second temperature [K]
         - Output :
             - Cp_avg : average specific heat capacity [J/kg/K]
 
     """
-    def _Cp_average(self, heos, Tb, Tw):
+    def _Cp_average(self, heos, T1, T2):
 
         # Discretization of the temperature range
         N = 100
-        T_values = np.linspace(Tb, Tw, N)
+        T_values = np.linspace(T1, T2, N)
 
         # Calculation of Cp at each temperature
         Cp_values = np.zeros(len(T_values))
@@ -1222,7 +1307,7 @@ class HEX_Design():
             Cp_values[i] = heos.cpmass()
 
         # Numerical integration using the trapezoidal rule
-        Cp_avg = np.trapz(Cp_values, T_values) / (Tw - Tb)
+        Cp_avg = np.trapz(Cp_values, T_values) / (T2 - T1)
 
         return Cp_avg
     
@@ -1404,11 +1489,8 @@ if __name__=='__main__':
         GasCooler._plot()
 
 
-
-
-
 """
-    WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
-        - Add maybe a new class for the recuperators
+WHAT REMAINS TO BE DONE :
+    - Re-do the test section at the end of the file for the HEX_Design class !
 
 """
