@@ -56,7 +56,7 @@ p4_prime = 1e5                  # Inlet pressure of the external fluid in the he
 # Optimization parameters
 
 if rapid_optimization :
-    nb_points = 9
+    nb_points = 8
 else :
     nb_points = 71
 
