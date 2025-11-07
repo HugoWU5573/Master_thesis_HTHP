@@ -18,7 +18,7 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import fsolve
+from scipy.optimize import least_squares
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -49,9 +49,9 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
 T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
-glide_HT = 70                   # Temperature glide in the gas cooler [K]
+glide_HT = 55                   # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
-p5_prime = 3e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Optimization parameters
 
@@ -62,8 +62,8 @@ else :
     nb_points_1 = 71
     nb_points_2 = 51
 
-T_sup = np.linspace(1, 8, nb_points_1)      # Superheating at the compressor inlet [K]
-T_6 = np.linspace(335, 340, nb_points_2)    # Subcooling at the condenser outlet [K]
+T_sup = np.linspace(4, 8, nb_points_1)      # Superheating at the compressor inlet [K]
+T_6 = np.linspace(336, 340, nb_points_2)    # Subcooling at the condenser outlet [K]
 
 ############################################################
 # Instantiate objects
@@ -92,6 +92,7 @@ TC1R.Compressor = Compressor_2_param(cycle=TC1R, eta_v=eta_v, eta_is_max=eta_is_
 
 def iterative_process(p_gess, T_sup_current, T_6_current) :
     p3_guess = p_gess[0] ; p5_guess = p_gess[1]
+    print(f"Trying p3 = {p3_guess/1e5:.2f} bar, p5 = {p5_guess/1e5:.2f} bar")
 
     # STEP 1 : Compute the states based on T_sup_current and T_6_current
 
@@ -136,6 +137,7 @@ def iterative_process(p_gess, T_sup_current, T_6_current) :
     # STEP 6 : Assemble the residuals
 
     residuals = np.array([res_evap, res_gas_cooler])
+    print(residuals)
     return residuals
 
 
@@ -155,7 +157,7 @@ for i in range(len(T_sup)) :
         T_6_current = T_6[j]
 
         try :
-            p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sup_current, T_6_current))
+            p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 10e5], [40e5, 80e5]), args=(T_sup_current, T_6_current), xtol=1e-6).x
         except :
             p_solution[i,j, :] = np.array([np.nan, np.nan])
             COP_matrix[i,j] = np.nan
@@ -210,7 +212,7 @@ if TC1R.state_5.p > 5.5e6 :
 # Plot the results
 ############################################################
 
-full_details = False
+full_details = True
 
 # Define the transforms 
 TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor), 
@@ -222,7 +224,7 @@ TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor),
 # Plot T-s diagram with saturation curve
 TC1R.Ts_diagram(n=100, plot=True)
 
-if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
+if full_details and rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
 
     # Plot energy and exergy charts
     TC1R.energy_chart(plot=True)
@@ -281,14 +283,13 @@ if full_details and not rapid_optimization:   # Full details only available for 
     plt.savefig("code/Figures/" + TC1R.name + "/" + TC1R.name + "_optimization.png", dpi=600)
     plt.show()
 
-
 ############################################################
 # Print the results
 ############################################################
 
 print(TC1R)
 
-if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
+if full_details and rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
     TC1R.Evaporator.Compute_Area()
     TC1R.GasCooler.Compute_Area()
     TC1R.Recuperator.Compute_Area()
