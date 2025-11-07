@@ -18,7 +18,7 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import fsolve
+from scipy.optimize import least_squares
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -37,7 +37,7 @@ recuperator_effectiveness = 0.8   # Effectiveness of the recuperator
 
 # Cycle parameters
 working_fluid = 'R290'          # Working fluid
-P_comp = 10e3                   # Compressor power [W]
+Q = 30e3                        # Power output at the condenser [W]
 
 # Heat source parameters
 external_fluid_LT = 'Water'     # External fluid in the heat source
@@ -80,7 +80,6 @@ SC1R.state_4_prime = State(HEOS_external_fluid_MT, T=T4_prime, p=p4_prime)
 SC1R.state_3_prime = State(HEOS_external_fluid_MT, T=T3_prime, p=p4_prime)
 
 # Compressor
-SC1R.P_comp_bottom = P_comp
 SC1R.Compressor = Compressor_2_param(cycle=SC1R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -118,7 +117,7 @@ def iterative_process(p_gess, T_sub_current, T_sup_current):
     # STEP 3 : Solve the Compressor to get state 3 and mass flow rate
 
         # Compute guessed state 3
-    SC1R.mdot_wf_bottom, T_3 = SC1R.Compressor.Solve(P_el=P_comp, p_ex=p3_guess, state_in=SC1R.state_2)
+    T_3 = SC1R.Compressor.Solve(p_ex=p3_guess, state_in=SC1R.state_2, mode="Non-Dimensional")[1]
     SC1R.state_3 = State(HEOS_working_fluid, T=T_3, p=p3_guess)
 
     # STEP 4 : Compute the residual for the evaporator
@@ -154,9 +153,15 @@ for i in range(len(T_sub)) :
         T_sub_current = T_sub[i]
         T_sup_current = T_sup[j]
 
-        p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sub_current, T_sup_current))
-        Q_cond = SC1R.mdot_wf_bottom * (SC1R.state_3.h - SC1R.state_8.h)
-        COP = Q_cond / P_comp
+        # Find the pressures that satisfy the pinch constraints
+        p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 10e5], [10e5, 40e5]), args=(T_sub_current, T_sup_current), xtol=1e-6).x
+        p3_solution = p_solution[i,j,1]
+
+        # Compute the COP for the current cycle
+        Delta_h_Condenser = SC1R.state_3.h - SC1R.state_8.h
+        SC1R.mdot_wf_bottom = Q / Delta_h_Condenser
+        SC1R.P_comp_bottom = SC1R.Compressor.Solve(p_ex=p3_solution, state_in=SC1R.state_2, mdot_wf=SC1R.mdot_wf_bottom, mode="Dimensional")[0]
+        COP = Q / SC1R.P_comp_bottom
         COP_matrix[i,j] = COP
 
 # Determine the best cycle
@@ -173,7 +178,10 @@ print(f"  - Superheating at compressor inlet : {T_sup_best:.2f} K")
 # Recompute the best cycle states
 iterative_process(np.array([p1_best, p3_best]), T_sub_best, T_sup_best)
 
-# Compute heat exchangers with dimensional mode
+# Compute heat exchangers and compressor with dimensional mode
+Delta_h_Condenser = SC1R.state_3.h - SC1R.state_8.h
+SC1R.mdot_wf_bottom = Q / Delta_h_Condenser
+SC1R.P_comp_bottom = SC1R.Compressor.Solve(p_ex=p3_best, state_in=SC1R.state_2, mdot_wf=SC1R.mdot_wf_bottom, mode="Dimensional")[0]
 SC1R.Evaporator = HEX_Design(states_in=[SC1R.state_10, SC1R.state_1_prime], states_out=[SC1R.state_1, SC1R.state_2_prime], mdot=[SC1R.mdot_wf_bottom, None], name="Evaporator", mode="Dimensional")
 SC1R.Evaporator.Compute_Pinch()
 SC1R.mdot_LT = SC1R.Evaporator.mdot_h
@@ -184,7 +192,9 @@ SC1R.Recuperator = HEX_Design(states_in=[SC1R.state_1, SC1R.state_8], states_out
 SC1R.Recuperator.Solve_Recuperator()
 
 # Compute cycle performance
-SC1R.COP = SC1R.Condenser.Q / P_comp
+SC1R.COP = SC1R.Condenser.Q / SC1R.P_comp_bottom
+print(f"  - Best cycle COP : {SC1R.COP:.2f}")
+print(f"  - Compressor power : {SC1R.P_comp_bottom/1e3:.2f} kW")
 
 
 ############################################################

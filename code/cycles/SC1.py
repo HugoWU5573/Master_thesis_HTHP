@@ -171,7 +171,7 @@ iterative_process(np.array([p1_best, p3_best]), T_sub_best, T_sup_best)
 # Compute heat exchangers and compressor with dimensional mode
 Delta_h_Condenser = SC1.state_3.h - SC1.state_9.h
 SC1.mdot_wf_bottom = Q / Delta_h_Condenser
-SC1.P_comp_bottom, T_3 = SC1.Compressor.Solve(p_ex=p3_best, state_in=SC1.state_1, mdot_wf=SC1.mdot_wf_bottom, mode="Dimensional")
+SC1.P_comp_bottom = SC1.Compressor.Solve(p_ex=p3_best, state_in=SC1.state_1, mdot_wf=SC1.mdot_wf_bottom, mode="Dimensional")[0]
 SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, SC1.state_2_prime], mdot=[SC1.mdot_wf_bottom, None], name="Evaporator", mode="Dimensional")
 SC1.Evaporator.Compute_Pinch()
 SC1.mdot_LT = SC1.Evaporator.mdot_h
@@ -181,8 +181,8 @@ SC1.mdot_MT = SC1.Condenser.mdot_c
 
 # Compute cycle performance
 SC1.COP = SC1.Condenser.Q / SC1.P_comp_bottom
-print(f"\nBest cycle COP : {SC1.COP:.2f}")
-print(f"Compressor power : {SC1.P_comp_bottom/1e3:.2f} kW")
+print(f"  - Best cycle COP : {SC1.COP:.2f}")
+print(f"  - Compressor power : {SC1.P_comp_bottom/1e3:.2f} kW")
 
 
 ############################################################
