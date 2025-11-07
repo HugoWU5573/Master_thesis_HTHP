@@ -18,7 +18,7 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import fsolve
+from scipy.optimize import least_squares
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -36,7 +36,7 @@ eta_elme = 0.95                 # Electrical-mechanical efficiency
 
 # Cycle parameters
 working_fluid = 'R290'          # Working fluid
-P_comp = 10e3                   # Compressor power [W]
+Q = 30e3                        # Power output at the gas cooler [W]
 
 # Heat source parameters
 external_fluid_MT = 'Water'     # External fluid in the heat source
@@ -82,7 +82,6 @@ TC1.state_5_prime = State(HEOS_external_fluid_HT, T=T5_prime, p=p5_prime)
 TC1.state_6_prime = State(HEOS_external_fluid_HT, T=T6_prime, p=p5_prime)
 
 # Compressor
-TC1.P_comp_top = P_comp
 TC1.Compressor = Compressor_2_param(cycle=TC1, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -110,7 +109,7 @@ def iterative_process(p_gess, T_sup_current, T_7_current) :
     # STEP 2 : Solve the Compressor to get state 5 and mass flow rate
 
         # Compute guessed state 5
-    TC1.mdot_wf_top, T_5 = TC1.Compressor.Solve(P_el=P_comp, p_ex=p5_guess, state_in=TC1.state_3)
+    T_5 = TC1.Compressor.Solve(p_ex=p5_guess, state_in=TC1.state_3, mode="Non-Dimensional")[1]
     TC1.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
 
     # STEP 3 : Compute the residual for the evaporator
@@ -146,19 +145,20 @@ for i in range(len(T_sup)) :
         T_sup_current = T_sup[i]
         T_7_current = T_7[j]
 
-        try :
-            p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sup_current, T_7_current))
-        except :
-            p_solution[i,j, :] = np.array([np.nan, np.nan])
-            COP_matrix[i,j] = np.nan
-            continue
+        # Find the pressures that satisfy the pinch constraints
+        p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 30e5], [20e5, 70e5]), args=(T_sup_current, T_7_current), xtol=1e-4).x
+        p5_solution = p_solution[i,j,1]
 
         # Detect unphysical solutions and set COP to NaN
         if TC1.GasCooler.Tpinch - T_pinch < -1e-4 :
             COP = np.nan
         else :
-            Q_gas_cooler = TC1.mdot_wf_top * (TC1.state_5.h - TC1.state_7.h)
-            COP = Q_gas_cooler / P_comp
+            # Compute the COP for the current cycle
+            Delta_h_Condenser = TC1.state_5.h - TC1.state_7.h
+            TC1.mdot_wf_top = Q / Delta_h_Condenser
+            TC1.P_comp_top = TC1.Compressor.Solve(p_ex=p5_solution, state_in=TC1.state_3, mdot_wf=TC1.mdot_wf_top, mode="Dimensional")[0]
+            COP = Q / TC1.P_comp_top
+            COP_matrix[i,j] = COP
         
         COP_matrix[i,j] = COP
 
@@ -181,7 +181,10 @@ print(f"  - Outlet temperature of gas cooler : {T_7_best:.0f} K")
 # Recompute the best cycle states
 iterative_process(np.array([p3_best, p5_best]), T_sup_best, T_7_best)
 
-# Compute heat exchangers with dimensional mode
+# Compute heat exchangers and compressor with dimensional mode
+Delta_h_Condenser = TC1.state_5.h - TC1.state_7.h
+TC1.mdot_wf_top = Q / Delta_h_Condenser
+TC1.P_comp_top = TC1.Compressor.Solve(p_ex=p5_best, state_in=TC1.state_3, mdot_wf=TC1.mdot_wf_top, mode="Dimensional")[0]
 TC1.Evaporator = HEX_Design(states_in=[TC1.state_8, TC1.state_3_prime], states_out=[TC1.state_3, TC1.state_4_prime], mdot=[TC1.mdot_wf_top, None], name="Evaporator", mode="Dimensional")
 TC1.Evaporator.Compute_Pinch()
 TC1.mdot_MT = TC1.Evaporator.mdot_h
@@ -190,7 +193,9 @@ TC1.GasCooler.Compute_Pinch()
 TC1.mdot_HT = TC1.GasCooler.mdot_c
 
 # Compute cycle performance
-TC1.COP = TC1.GasCooler.Q / P_comp
+TC1.COP = TC1.GasCooler.Q / TC1.P_comp_top
+print(f"  - Best cycle COP : {TC1.COP:.2f}")
+print(f"  - Compressor power : {TC1.P_comp_top/1e3:.2f} kW")
 
 # Limit the highest pressure of the cycle to 50 bars
 if TC1.state_5.p > 5e6 :
