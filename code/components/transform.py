@@ -28,6 +28,8 @@ class Transform:
         
         T = np.zeros(n_points)
         s = np.zeros(n_points)
+        p = np.zeros(n_points)
+        h = np.zeros(n_points)
 
         heos = state_in.heos  # Assuming both states use the same fluid
         
@@ -36,7 +38,7 @@ class Transform:
             p_min = state_out.p
             p = np.linspace(p_max, p_min, n_points)
             p_crit = heos.p_critical()
-            h = state_in.h
+            h = state_in.h * np.ones(n_points)
 
             for i, p_val in enumerate(p):
                 if np.isclose(p_val/1e5, p_crit/1e5, atol=1e-1):
@@ -44,37 +46,39 @@ class Transform:
                     T[i] = T[i-1]  # Assign previous temperature to avoid discontinuity
                     s[i] = s[i-1]
                 else :
-                    heos.update(CoolProp.HmassP_INPUTS, h, p_val)
+                    heos.update(CoolProp.HmassP_INPUTS, h[0], p_val)
                     T[i] = heos.T()
                     s[i] = heos.smass()
 
         elif self.type == 'hex' :
-            p = state_in.p
+            p = state_in.p * np.ones(n_points)
             s_max = state_in.s
             s_min = state_out.s
             s = np.linspace(s_max, s_min, n_points)
             for i, s_val in enumerate(s):
-                heos.update(CoolProp.PSmass_INPUTS, p, s_val)
+                heos.update(CoolProp.PSmass_INPUTS, p[i], s_val)
                 T[i] = heos.T()
+                h[i] = heos.hmass()
         
         elif self.type == 'comp' :
-            T, s = self.component.get_points_between(state_in, state_out, n_points)
+            T, s, p, h = self.component.get_points_between(state_in, state_out, n_points)
             for i in range(n_points):
                 if np.isnan(T[i]) or np.isnan(s[i]):
                     T[i] = T[i-1]
                     s[i] = s[i-1]
 
         elif self.type == 'isobaric_mixing' :
-            p = state_in.p
+            p = state_in.p * np.ones(n_points)
             s_max = state_in.s
             s_min = state_out.s
             s = np.linspace(s_max, s_min, n_points)
             for i, s_val in enumerate(s):
-                heos.update(CoolProp.PSmass_INPUTS, p, s_val)
+                heos.update(CoolProp.PSmass_INPUTS, p[i], s_val)
                 T[i] = heos.T()
+                h[i] = heos.hmass()
 
-        return T, s
-    
+        return T, s, p, h
+
     def energy_analysis(self, state_in, state_out, args) : 
         """
         Placeholder for energy analysis of the transform.

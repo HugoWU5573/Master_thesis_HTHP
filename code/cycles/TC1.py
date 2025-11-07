@@ -210,6 +210,8 @@ TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor),
 
 # Plot T-s diagram with saturation curve
 TC1.Ts_diagram(n=100, plot=True)
+# Plot p-h diagram with saturation curve
+TC1.ph_diagram(n=100, plot=True)
 
 if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
 

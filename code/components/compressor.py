@@ -102,15 +102,18 @@ class Compressor_2_param():
         p = np.linspace(p_min, p_max, n_points)
         T = np.zeros(n_points)
         s = np.zeros(n_points)
+        h = np.zeros(n_points)
         for i, p_val in enumerate(p):
             try : 
                 T[i] = self.Solve(P_el=0, p_ex=p_val, state_in=state_in)[1]
                 heos.update(CoolProp.PT_INPUTS, p_val, T[i])
                 s[i] = heos.smass()
+                h[i] = heos.hmass()
             except ValueError as e:
                 T[i] = float('nan')
                 s[i] = float('nan')
-        return T, s
+                h[i] = float('nan')
+        return T, s, p, h
     
     def energy_analysis(self, P_el, state_in, state_out, mdot_wf) : 
         """

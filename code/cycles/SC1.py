@@ -187,8 +187,9 @@ SC1.transforms = [Transform('comp', '1', '3', SC1.Compressor),
                   Transform('adex', '9', '10', None), 
                   Transform('hex', '3', '9', SC1.Condenser, label_in_secondary='4_prime', label_out_secondary='3_prime')]
 
-# Plot T-s diagram with saturation curve
+# Plot T-s and p-h diagrams with saturation curve
 SC1.Ts_diagram(n=100, plot=True)
+SC1.ph_diagram(n=100, plot=True)
 
 if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
 

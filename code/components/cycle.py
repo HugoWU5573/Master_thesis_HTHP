@@ -201,17 +201,17 @@ class Cycle():
         for i, transform in enumerate(self.transforms):
             states[transform.label_in] = getattr(self, f"state_{transform.label_in}")
             states[transform.label_out] = getattr(self, f"state_{transform.label_out}")
-            T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)
+            T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)[:2]
             T_points.append(T_points_transform)
             s_points.append(s_points_transform)
             labels_transform.append(transform.type)
             if transform.label_out_secondary == '7' : 
-                T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)
+                T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)[:2]
                 T_points.append(T_points_transform)
                 s_points.append(s_points_transform)
                 labels_transform.append(transform.type)
             if transform.label_out_secondary == '9' : 
-                T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)
+                T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)[:2]
                 T_points.append(T_points_transform)
                 s_points.append(s_points_transform)
                 labels_transform.append(transform.type)    
@@ -220,7 +220,7 @@ class Cycle():
         s_points =  np.array(s_points)
         
         heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
-        T_crit = heos.T_critical() - 1
+        T_crit = heos.T_critical()
         p_crit = heos.p_critical()
         for key, value in states.items() :
             if key in ['1', '3', '5'] :
@@ -251,7 +251,7 @@ class Cycle():
         plt.xlim((min(s_min_state/1e3, s_min_liq/1e3), s_max_state/1e3))
         plt.ylim((T_min_state-273.15, max((T_max_state-273.15, T_crit-273.15))))
 
-        T_sat = np.linspace(T_min_state, T_crit, 100)
+        T_sat = np.linspace(T_min_state, T_crit - 1, 100)
         s_liq = np.zeros(100)
         s_vap = np.zeros(100)
         for i, T in enumerate(T_sat):
@@ -321,6 +321,144 @@ class Cycle():
         plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
         if plot == True : plt.show()
         return
+    
+    def ph_diagram(self, plot = True, n=100) :
+        # Generate saturation curve for working fluid
+
+        p_points = []
+        h_points = []
+        states = {}
+        labels_transform = []
+        p_sat_state = {}
+        
+        for i, transform in enumerate(self.transforms):
+            states[transform.label_in] = getattr(self, f"state_{transform.label_in}")
+            states[transform.label_out] = getattr(self, f"state_{transform.label_out}")
+            p_points_transform, h_points_transform = transform.get_points_between(states[transform.label_in], states[transform.label_out], n)[2:]
+            p_points.append(p_points_transform)
+            h_points.append(h_points_transform)
+            labels_transform.append(transform.type)
+            if transform.label_out_secondary == '7' : 
+                p_points_transform, h_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)[2:]
+                p_points.append(p_points_transform)
+                h_points.append(h_points_transform)
+                labels_transform.append(transform.type)
+            if transform.label_out_secondary == '9' : 
+                p_points_transform, h_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)[2:]
+                p_points.append(p_points_transform)
+                h_points.append(h_points_transform)
+                labels_transform.append(transform.type)    
+
+        p_points = np.array(p_points)
+        h_points =  np.array(h_points)
+        heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
+
+        p_states = np.zeros(len(states))
+        h_states = np.zeros(len(states))
+        for i, (label, state) in enumerate(states.items()):
+            p_states[i] = state.p
+            h_states[i] = state.h
+            #plt.text(state.h/1e3, state.p/1e5, f"{label}", fontsize=9)
+        
+
+        h_max_state = max(h_states)
+        h_min_state = min(h_states)
+        p_max_state = max(p_states)
+        p_min_state = min(p_states)
+
+        heos.update(CoolProp.PQ_INPUTS, p_min_state, 0)
+        h_min_liq = heos.hmass()
+        heos.update(CoolProp.PQ_INPUTS, p_min_state, 1)
+
+        plt.figure(figsize=(8,6))
+        plt.plot(h_points.T/1e3, p_points.T/1e5, '-', label=labels_transform, color = 'firebrick', clip_on = False)
+        plt.scatter(h_states/1e3, p_states/1e5, color = 'firebrick', clip_on = False)
+        plt.yscale('log')
+
+        p_crit = heos.p_critical()
+        for key, value in states.items() :
+            if key in ['1', '3', '5'] :
+                if p_crit >= value.p :
+                    p_sat_state[key] = value.p
+        p_sat_state = list(p_sat_state.values())
+
+
+        plt.xlim((min(h_min_state/1e3, h_min_liq/1e3), h_max_state/1e3))
+        plt.ylim((p_min_state/1e5, max((p_max_state, p_crit))/1e5))
+
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major')
+        ax.set_title('Pressure [bar]', loc='left', fontsize=12)
+
+        # Hide top and right spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # Move bottom and left spines away
+        ax.spines['bottom'].set_position(('outward', 10))
+        ax.spines['left'].set_position(('outward', 10))
+
+        # Disable automatic tick locator
+        ax.yaxis.set_major_locator(plt.NullLocator())
+        ax.yaxis.set_minor_locator(plt.NullLocator())
+
+        # Show only axis limit values for entropy (s). Keep T state ticks but ensure limits included.
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        # X ticks: only the axis limits (no per-state s values)
+        xticks = np.array([xlim[0], xlim[1]])
+
+        # Y ticks: use state T values if available, but ensure axis limits are included
+        yticks = []
+        if p_max_state/1e5 < ylim[1]:
+            yticks = np.concatenate([np.array(p_sat_state)/1e5, np.array([p_max_state/1e5, ylim[1]])])
+        else : 
+            yticks = np.concatenate([np.array(p_sat_state)/1e5, np.array([ylim[1]])])
+
+
+        # Apply ticks and formatted labels (s in kJ/kg/K, T in °C)
+        xticks = np.sort(xticks)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels([f"{v:.1f}" for v in xticks])
+
+        
+        yticks = np.sort(yticks)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels([f"{v:.2f}" for v in yticks])
+
+        # Improve readability
+        plt.tick_params(axis='x', rotation=0)
+        plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+
+        p_sat = np.linspace(ylim[0]*1e5, p_crit - 1e4, 100)
+        h_liq = np.zeros(100)
+        h_vap = np.zeros(100)
+        for i, p in enumerate(p_sat):
+            heos.update(CoolProp.PQ_INPUTS, p, 0)
+            h_liq[i] = heos.hmass()
+            heos.update(CoolProp.PQ_INPUTS, p, 1)
+            h_vap[i] = heos.hmass()
+
+        plt.plot(h_liq/1e3, p_sat/1e5, 'black', label='Saturated Liquid', clip_on = False)
+        plt.plot(h_vap/1e3, p_sat/1e5, 'black', label='Saturated Vapor', clip_on = False)
+        heos.update(CoolProp.PQ_INPUTS, p_crit, 0.5)
+        plt.scatter(heos.hmass()/1e3, p_crit/1e5, color='black', clip_on=False, s = 15)
+
+        #plt.tight_layout()
+        fig_dir = f'code/Figures/{self.name}'
+        os.makedirs(fig_dir, exist_ok=True)
+        plt.savefig(f'{fig_dir}/ph_diagram.png', dpi=600)
+        if plot == True : plt.show()
+        return
+
+    
+
+
+
+        plt.show()
 
 
     def energy_chart(self, plot=True) :
