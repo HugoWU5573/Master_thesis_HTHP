@@ -59,21 +59,25 @@ class Compressor_2_param():
         self.eta_elme = eta_elme
         self.fluid = fluid
 
-    def Solve(self, P_el, p_ex, state_in):
+    def Solve(self, p_ex, state_in, mdot_wf=None, mode="Dimensional"):
         """
         2-parameter model for compressor outlet state calculation.
         
         Parameters:
+        p_ex (float): The outlet pressure of the compressor in Pa.
         state_in (state): The inlet state of the fluid.
-        P_el (float): The electrical power input to the compressor in Watts.
         mdot_wf (float): The mass flow rate of the working fluid in kg/s.
-        fluid (str): The working fluid.
+        mode (str): Calculation mode, either "Dimensional" or "Non-Dimensional".
         
         Returns:
-        state: The outlet state of the fluid after compression.
+        P_el (float): The electrical power input to the compressor in Watts.
+        T_ex (float): The outlet temperature of the fluid after compression in K.
         """
         if state_in.p is None  or state_in.s is None:
             raise ValueError("Inlet pressure (p), enthalpy (h), and entropy (s) must be defined to calculate outlet state.")
+        
+        if mode not in ["Dimensional", "Non-Dimensional"]:
+            raise ValueError("Mode must be either 'Dimensional' or 'Non-Dimensional'.")
         
         # Isentropic compression
         heos = state_in.heos
@@ -83,7 +87,11 @@ class Compressor_2_param():
         heos.update(CoolProp.HmassP_INPUTS, h_ex, p_ex)
         T_ex = heos.T()
         w_tot = h_ex - state_in.h
-        mdot_wf = P_el * self.eta_elme / (w_tot * self.eta_v)
+
+        if mode == "Dimensional" :
+            P_el =  mdot_wf * w_tot * self.eta_v / self.eta_elme
+        elif mode == "Non-Dimensional" :
+            P_el = None
 
         w_real = w_tot * self.eta_v
         heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_real, p_ex)
@@ -93,7 +101,7 @@ class Compressor_2_param():
 
         #self.cycle.transforms.append(Transform(label_in='Compressor Inlet', label_out='Compressor Outlet', type='comp'))                                               
 
-        return mdot_wf, T_ex
+        return P_el, T_ex
     
     def get_points_between(self, state_in, state_out, n_points=100):
         heos = state_in.heos
@@ -105,7 +113,7 @@ class Compressor_2_param():
         h = np.zeros(n_points)
         for i, p_val in enumerate(p):
             try : 
-                T[i] = self.Solve(P_el=0, p_ex=p_val, state_in=state_in)[1]
+                T[i] = self.Solve(p_ex=p_val, state_in=state_in, mode="Non-Dimensional")[1]
                 heos.update(CoolProp.PT_INPUTS, p_val, T[i])
                 s[i] = heos.smass()
                 h[i] = heos.hmass()

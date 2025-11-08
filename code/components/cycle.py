@@ -164,7 +164,29 @@ class Cycle():
         state_table_str = "\n".join(header_rows + rows)
 
         # ──────────────────────────────────────────────
-        # 5️⃣ COP / Performance
+        # 5️⃣ Compressor power (show only if available)
+        # ──────────────────────────────────────────────
+        comp_items = []
+        if getattr(self, "P_comp_top", None) is not None:
+            comp_items.append(("P_comp_top", self.P_comp_top))
+        if getattr(self, "P_comp_bottom", None) is not None:
+            comp_items.append(("P_comp_bottom", self.P_comp_bottom))
+
+        if comp_items:
+            comp_lines = [
+                "+----------------------+------------+",
+                "| Compressor Power     | Value [kW] |",
+                "+----------------------+------------+",
+            ]
+            for name, val in comp_items:
+                comp_lines.append(f"| {name:<20} | {fmt(val, scale=1e3):<10} |")
+            comp_lines.append("+----------------------+------------+")
+            compressor_str = "\n".join(comp_lines)
+        else:
+            compressor_str = "(No compressor power defined)"
+
+        # ──────────────────────────────────────────────
+        # 6️⃣ COP / Performance
         # ──────────────────────────────────────────────
         cop_val = self.COP
         if cop_val is None:
@@ -175,7 +197,7 @@ class Cycle():
         performance_str = f"+----------------+-------+\n| Performance    | Value |\n+----------------+-------+\n| COP            | {cop_str:<5} |\n+----------------+-------+"
 
         # ──────────────────────────────────────────────
-        # 6️⃣ Build final output string
+        # 7️⃣ Build final output string
         # ──────────────────────────────────────────────
         output = [
             title,
@@ -183,6 +205,8 @@ class Cycle():
             state_table_str,
             "\n\nMass Flow Rates:\n",
             mass_flow_str,
+            "\n\nCompressor Power:\n",
+            compressor_str,
             "\n\nPerformance:\n",
             performance_str,
             f"\n{'=' * 118}\n",
@@ -386,6 +410,7 @@ class Cycle():
 
         plt.xlim((min(h_min_state/1e3, h_min_liq/1e3), h_max_state/1e3))
         plt.ylim((p_min_state/1e5, max((p_max_state, p_crit))/1e5))
+        plt.xlabel('Enthalpy [kJ/kg]', fontsize = 12)
 
 
         # Add some text for labels, title and custom x-axis tick labels, etc.
