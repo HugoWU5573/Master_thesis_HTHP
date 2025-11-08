@@ -374,6 +374,7 @@ class Cycle():
         plt.plot(h_points.T/1e3, p_points.T/1e5, '-', label=labels_transform, color = 'firebrick', clip_on = False)
         plt.scatter(h_states/1e3, p_states/1e5, color = 'firebrick', clip_on = False)
         plt.yscale('log')
+        plt.xlabel('Enthalpy [kJ/kg]', fontsize = 12)
 
         p_crit = heos.p_critical()
         for key, value in states.items() :
