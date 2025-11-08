@@ -37,7 +37,7 @@ recuperator_effectiveness = 0.8   # Effectiveness of the recuperator
 
 # Cycle parameters
 working_fluid = 'R290'          # Working fluid
-P_comp = 10e3                   # Compressor power [W]
+Q = 30e3                        # Power output at the gas cooler [W]
 
 # Heat source parameters
 external_fluid_MT = 'Water'     # External fluid in the heat source
@@ -59,11 +59,11 @@ if rapid_optimization :
     nb_points_1 = 8
     nb_points_2 = 11
 else :
-    nb_points_1 = 71
-    nb_points_2 = 51
+    nb_points_1 = 41
+    nb_points_2 = 41
 
-T_sup = np.linspace(4, 8, nb_points_1)      # Superheating at the compressor inlet [K]
-T_6 = np.linspace(336, 340, nb_points_2)    # Subcooling at the condenser outlet [K]
+T_sup = np.linspace(2, 6, nb_points_1)      # Superheating at the compressor inlet [K]
+T_6 = np.linspace(335, 339, nb_points_2)    # Subcooling at the condenser outlet [K]
 
 ############################################################
 # Instantiate objects
@@ -82,7 +82,6 @@ TC1R.state_5_prime = State(HEOS_external_fluid_HT, T=T5_prime, p=p5_prime)
 TC1R.state_6_prime = State(HEOS_external_fluid_HT, T=T6_prime, p=p5_prime)
 
 # Compressor
-TC1R.P_comp_top = P_comp
 TC1R.Compressor = Compressor_2_param(cycle=TC1R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
 
@@ -92,7 +91,6 @@ TC1R.Compressor = Compressor_2_param(cycle=TC1R, eta_v=eta_v, eta_is_max=eta_is_
 
 def iterative_process(p_gess, T_sup_current, T_6_current) :
     p3_guess = p_gess[0] ; p5_guess = p_gess[1]
-    print(f"Trying p3 = {p3_guess/1e5:.2f} bar, p5 = {p5_guess/1e5:.2f} bar")
 
     # STEP 1 : Compute the states based on T_sup_current and T_6_current
 
@@ -119,7 +117,7 @@ def iterative_process(p_gess, T_sup_current, T_6_current) :
     # STEP 3 : Solve the Compressor to get state 5 and mass flow rate
 
         # Compute guessed state 5
-    TC1R.mdot_wf_top, T_5 = TC1R.Compressor.Solve(P_el=P_comp, p_ex=p5_guess, state_in=TC1R.state_4)
+    T_5 = TC1R.Compressor.Solve(p_ex=p5_guess, state_in=TC1R.state_4, mode="Non-Dimensional")[1]
     TC1R.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
 
     # STEP 4 : Compute the residual for the evaporator
@@ -137,12 +135,11 @@ def iterative_process(p_gess, T_sup_current, T_6_current) :
     # STEP 6 : Assemble the residuals
 
     residuals = np.array([res_evap, res_gas_cooler])
-    print(residuals)
     return residuals
 
 
 # Initial guesses
-p3_guess = 10e5 ; p5_guess = 50e5
+p3_guess = 10e5 ; p5_guess = 45e5
 p_guess = np.array([p3_guess, p5_guess])
 
 # Compute the solution for each combination of (T_sup, T_6)
@@ -156,8 +153,10 @@ for i in range(len(T_sup)) :
         T_sup_current = T_sup[i]
         T_6_current = T_6[j]
 
+        # Find the pressures that satisfy the pinch constraints
         try :
-            p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 10e5], [40e5, 80e5]), args=(T_sup_current, T_6_current), xtol=1e-6).x
+            p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 30e5], [20e5, 60e5]), args=(T_sup_current, T_6_current)).x
+            p5_solution = p_solution[i,j,1]
         except :
             p_solution[i,j, :] = np.array([np.nan, np.nan])
             COP_matrix[i,j] = np.nan
@@ -167,8 +166,12 @@ for i in range(len(T_sup)) :
         if TC1R.GasCooler.Tpinch - T_pinch < -1e-4 :
             COP = np.nan
         else :
-            Q_gas_cooler = TC1R.mdot_wf_top * (TC1R.state_5.h - TC1R.state_6.h)
-            COP = Q_gas_cooler / P_comp
+            # Compute the COP for the current cycle
+            Delta_h_Condenser = TC1R.state_5.h - TC1R.state_6.h
+            TC1R.mdot_wf_top = Q / Delta_h_Condenser
+            TC1R.P_comp_top = TC1R.Compressor.Solve(p_ex=p5_solution, state_in=TC1R.state_4, mdot_wf=TC1R.mdot_wf_top, mode="Dimensional")[0]
+            COP = Q / TC1R.P_comp_top
+            COP_matrix[i,j] = COP
         
         COP_matrix[i,j] = COP
 
@@ -191,7 +194,10 @@ print(f"  - Outlet temperature of gas cooler : {T_6_best:.0f} K")
 # Recompute the best cycle states
 iterative_process(np.array([p3_best, p5_best]), T_sup_best, T_6_best)
 
-# Compute heat exchangers with dimensional mode
+# Compute heat exchangers and compressor with dimensional mode
+Delta_h_Condenser = TC1R.state_5.h - TC1R.state_6.h
+TC1R.mdot_wf_top = Q / Delta_h_Condenser
+TC1R.P_comp_top = TC1R.Compressor.Solve(p_ex=p5_best, state_in=TC1R.state_4, mdot_wf=TC1R.mdot_wf_top, mode="Dimensional")[0]
 TC1R.Evaporator = HEX_Design(states_in=[TC1R.state_8, TC1R.state_3_prime], states_out=[TC1R.state_3, TC1R.state_4_prime], mdot=[TC1R.mdot_wf_top, None], name="Evaporator", mode="Dimensional")
 TC1R.Evaporator.Compute_Pinch()
 TC1R.mdot_MT = TC1R.Evaporator.mdot_h
@@ -202,17 +208,19 @@ TC1R.Recuperator = HEX_Design(states_in=[TC1R.state_3, TC1R.state_6], states_out
 TC1R.Recuperator.Solve_Recuperator()
 
 # Compute cycle performance
-TC1R.COP = TC1R.GasCooler.Q / P_comp
+TC1R.COP = TC1R.GasCooler.Q / TC1R.P_comp_top
+print(f"  - Best cycle COP : {TC1R.COP:.2f}")
+print(f"  - Compressor power : {TC1R.P_comp_top/1e3:.2f} kW")
 
-# Limit the highest pressure of the cycle to 55 bars
-if TC1R.state_5.p > 5.5e6 :
-    raise ValueError("The highest pressure of the cycle exceeds 55 bars. Please adjust the input parameters.")
+# Limit the highest pressure of the cycle to 50 bars
+if TC1R.state_5.p > 5e6 :
+    raise ValueError("The highest pressure of the cycle exceeds 50 bars. Please adjust the input parameters.")
 
 ############################################################
 # Plot the results
 ############################################################
 
-full_details = True
+full_details = False
 
 # Define the transforms 
 TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor), 
@@ -223,8 +231,10 @@ TC1R.transforms = [Transform('comp', '4', '5', TC1R.Compressor),
 
 # Plot T-s diagram with saturation curve
 TC1R.Ts_diagram(n=100, plot=True)
+# Plot p-h diagram with saturation curve
+TC1R.ph_diagram(n=100, plot=True)
 
-if full_details and rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
+if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
 
     # Plot energy and exergy charts
     TC1R.energy_chart(plot=True)
@@ -289,7 +299,7 @@ if full_details and rapid_optimization:   # Full details only available for non-
 
 print(TC1R)
 
-if full_details and rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
+if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
     TC1R.Evaporator.Compute_Area()
     TC1R.GasCooler.Compute_Area()
     TC1R.Recuperator.Compute_Area()
