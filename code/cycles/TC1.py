@@ -18,7 +18,7 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, fsolve
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ rapid_optimization = True  # Set to True for rapid optimization with less points
 
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
-eta_v = 0.8                     # Volumetric efficiency
+eta_v = 1                       # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
 
@@ -58,10 +58,10 @@ if rapid_optimization :
     nb_points_1 = 8
     nb_points_2 = 11
 else :
-    nb_points_1 = 71
+    nb_points_1 = 36
     nb_points_2 = 51
 
-T_sup = np.linspace(1, 8, nb_points_1)      # Superheating at the compressor inlet [K]
+T_sup = np.linspace(2, 5.5, nb_points_1)      # Superheating at the compressor inlet [K]
 T_7 = np.linspace(335, 340, nb_points_2)    # Subcooling at the condenser outlet [K]
 
 
@@ -146,7 +146,8 @@ for i in range(len(T_sup)) :
         T_7_current = T_7[j]
 
         # Find the pressures that satisfy the pinch constraints
-        p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 30e5], [20e5, 70e5]), args=(T_sup_current, T_7_current), xtol=1e-4).x
+        p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sup_current, T_7_current))
+        # p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 35e5], [20e5, 47e5]), args=(T_sup_current, T_7_current), xtol=1e-4).x
         p5_solution = p_solution[i,j,1]
 
         # Detect unphysical solutions and set COP to NaN
@@ -255,11 +256,11 @@ if full_details and not rapid_optimization:   # Full details only available for 
 
     contour = ax.contourf(X, Y, masked_Z, levels=50, cmap=cmap, vmin=vmin, vmax=vmax)
     cbar = fig.colorbar(contour, ax=ax, orientation='vertical')
-    cbar.set_label(r'$COP$ [-]', rotation=0, labelpad=50, fontsize=12, loc='top')
+    cbar.set_label(r'$COP$ [-]', rotation=0, labelpad=55, fontsize=12, loc='top')
 
     cbar_ticks = np.array([vmin, (vmin + vmax) / 2.0, vmax])
     cbar.set_ticks(cbar_ticks)
-    cbar.set_ticklabels([f"{tick:.1f}" for tick in cbar_ticks])
+    cbar.set_ticklabels([f"{tick:.2f}" for tick in cbar_ticks])
 
     ax.set_xlabel(r'$T_{sup}$ [K]', labelpad=10, fontsize=12)
     ax.set_ylabel(r'$T_{7}$ [K]', rotation=0, labelpad=30, fontsize=12)

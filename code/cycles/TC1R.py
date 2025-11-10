@@ -18,7 +18,7 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, fsolve
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ rapid_optimization = True  # Set to True for rapid optimization with less points
 
 # Technological parameters
 T_pinch = 3                       # Minimum temperature difference in heat exchangers [K]
-eta_v = 0.8                       # Volumetric efficiency
+eta_v = 1                         # Volumetric efficiency
 eta_is_max = 0.7                  # Maximum isentropic efficiency
 eta_elme = 0.95                   # Electrical-mechanical efficiency
 recuperator_effectiveness = 0.8   # Effectiveness of the recuperator
@@ -59,10 +59,10 @@ if rapid_optimization :
     nb_points_1 = 8
     nb_points_2 = 11
 else :
-    nb_points_1 = 41
+    nb_points_1 = 36
     nb_points_2 = 41
 
-T_sup = np.linspace(2, 6, nb_points_1)      # Superheating at the compressor inlet [K]
+T_sup = np.linspace(2, 5.5, nb_points_1)      # Superheating at the compressor inlet [K]
 T_6 = np.linspace(335, 339, nb_points_2)    # Subcooling at the condenser outlet [K]
 
 ############################################################
@@ -139,7 +139,7 @@ def iterative_process(p_gess, T_sup_current, T_6_current) :
 
 
 # Initial guesses
-p3_guess = 10e5 ; p5_guess = 45e5
+p3_guess = 10e5 ; p5_guess = 41e5
 p_guess = np.array([p3_guess, p5_guess])
 
 # Compute the solution for each combination of (T_sup, T_6)
@@ -155,12 +155,22 @@ for i in range(len(T_sup)) :
 
         # Find the pressures that satisfy the pinch constraints
         try :
+            p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sup_current, T_6_current))
+            p5_solution = p_solution[i,j,1]
+        except :
+            p_solution[i,j, :] = np.array([np.nan, np.nan])
+            COP_matrix[i,j] = np.nan
+            continue
+
+        """
+        try :
             p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 30e5], [20e5, 60e5]), args=(T_sup_current, T_6_current)).x
             p5_solution = p_solution[i,j,1]
         except :
             p_solution[i,j, :] = np.array([np.nan, np.nan])
             COP_matrix[i,j] = np.nan
             continue
+        """
 
         # Detect unphysical solutions and set COP to NaN
         if TC1R.GasCooler.Tpinch - T_pinch < -1e-4 :
@@ -272,11 +282,11 @@ if full_details and not rapid_optimization:   # Full details only available for 
 
     contour = ax.contourf(X, Y, masked_Z, levels=50, cmap=cmap, vmin=vmin, vmax=vmax)
     cbar = fig.colorbar(contour, ax=ax, orientation='vertical')
-    cbar.set_label(r'$COP$ [-]', rotation=0, labelpad=50, fontsize=12, loc='top')
+    cbar.set_label(r'$COP$ [-]', rotation=0, labelpad=55, fontsize=12, loc='top')
 
     cbar_ticks = np.array([vmin, (vmin + vmax) / 2.0, vmax])
     cbar.set_ticks(cbar_ticks)
-    cbar.set_ticklabels([f"{tick:.1f}" for tick in cbar_ticks])
+    cbar.set_ticklabels([f"{tick:.2f}" for tick in cbar_ticks])
 
     ax.set_xlabel(r'$T_{sup}$ [K]', labelpad=10, fontsize=12)
     ax.set_ylabel(r'$T_{6}$ [K]', rotation=0, labelpad=30, fontsize=12)

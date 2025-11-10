@@ -18,7 +18,7 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import least_squares
+from scipy.optimize import fsolve, least_squares
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ rapid_optimization = True  # Set to True for rapid optimization with less points
 
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
-eta_v = 0.8                     # Volumetric efficiency
+eta_v = 1                       # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
 
@@ -144,7 +144,8 @@ for i in range(len(T_sub)) :
         T_sup_current = T_sup[j]
 
         # Find the pressures that satisfy the pinch constraints
-        p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 10e5], [10e5, 40e5]), args=(T_sub_current, T_sup_current), xtol=1e-6).x
+        p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sub_current, T_sup_current))
+        # p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 10e5], [10e5, 40e5]), args=(T_sub_current, T_sup_current), xtol=1e-6).x
         p3_solution = p_solution[i,j,1]
 
         # Compute the COP for the current cycle
