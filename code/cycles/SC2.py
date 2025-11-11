@@ -198,7 +198,7 @@ for i in range(len(T_sub)) :
             SC2.mdot_wf_top = Q / Delta_h_Condenser
             SC2.P_comp_top = SC2.Compressor_2.Solve(p_ex=p5_solution, state_in=SC2.state_3, mdot_wf=SC2.mdot_wf_top, mode="Dimensional")[0]
 
-            SC2.mdot_wf_bottom = SC2.mdot_wf_top * (1 + ratio_evaporators * (SC2.state_1.h - SC2.state_10.h) / (SC2.state_3_evap.h - SC2.state_8.h))
+            SC2.mdot_wf_bottom = SC2.mdot_wf_top / (1 + ratio_evaporators * (SC2.state_1.h - SC2.state_10.h) / (SC2.state_3_evap.h - SC2.state_8.h))
             SC2.P_comp_bottom = SC2.Compressor_1.Solve(p_ex=p3_solution, state_in=SC2.state_1, mdot_wf=SC2.mdot_wf_bottom, mode="Dimensional")[0]
             COP = Q / (SC2.P_comp_top + SC2.P_comp_bottom)
             COP_matrix[i,j,k] = COP
