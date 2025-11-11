@@ -73,9 +73,9 @@ if rapid_optimization :
 else :
     nb_points = 71
 
-T_sub = np.linspace(1, 8, nb_points)      # Subcooling at the condenser outlet [K]
-T_sup_1 = np.linspace(1, 8, nb_points)      # Superheating at the compressor inlet [K]
-T_sup_3 = np.linspace(1, 8, 2)  # Superheating at the second evaporator outlet [K]
+T_sub = np.linspace(1,8, nb_points)      # Subcooling at the condenser outlet [K]
+T_sup_1 = np.linspace(1,8, nb_points)    # Superheating at the compressor inlet [K]
+T_sup_3 = np.linspace(1,8, nb_points)    # Superheating at the second evaporator outlet [K]
 
 
 ############################################################
@@ -140,25 +140,22 @@ def iterative_process(p_gess, T_sub_current, T_sup_current_1, T_sup_current_3):
     SC2R.state_8 = State(HEOS_working_fluid, h=h8, p=p3_guess)
 
     # STEP 3 : solve the recuperator LT to get states 2, 9, 10
-    '''
+    
     SC2R.Recuperator_1 = HEX_Design(states_in=[SC2R.state_1, SC2R.state_7], states_out=[None, None], 
                                     mdot=[None, None], name="Recuperator_2", mode = "Non-Dimensional", 
                                     type = "Recuperator", epsilon=recuperator_effectiveness)
     SC2R.Recuperator_1.Solve_Recuperator()
     SC2R.state_2 = SC2R.Recuperator_1.state_out_c
     SC2R.state_9 = SC2R.Recuperator_1.state_out_h
-    '''
-    SC2R.state_2 = State(HEOS_working_fluid, T = SC2R.state_1.T, p=p1_guess)  # Temporary, to be fixed later
-    SC2R.state_9 = State(HEOS_working_fluid, T = SC2R.state_7.T, p=p5_guess)  # Temporary, to be fixed later
 
         # Compute guessed state 10
     h10 = SC2R.state_9.h
     SC2R.state_10 = State(HEOS_working_fluid, h=h10, p=p1_guess)
 
     # STEP 4 : Compute the residual for the first evaporator
-    SC2R.Evaporator = HEX_Design(states_in=[SC2R.state_10, SC2R.state_1_prime], states_out=[SC2R.state_1, SC2R.state_2_prime], 
-                                 name="Evaporator", mode="Non-Dimensional")
-    Tpinch_real = SC2R.Evaporator.Compute_Pinch()
+    SC2R.Evaporator_LT = HEX_Design(states_in=[SC2R.state_10, SC2R.state_1_prime], states_out=[SC2R.state_1, SC2R.state_2_prime], 
+                                 name="Evaporator_LT", mode="Non-Dimensional")
+    Tpinch_real = SC2R.Evaporator_LT.Compute_Pinch()
     res_evap_LT = Tpinch_real - T_pinch
 
     # STEP 5 : Compute the residual for the second evaporator
@@ -188,7 +185,7 @@ def iterative_process(p_gess, T_sub_current, T_sup_current_1, T_sup_current_3):
     T_5 = SC2R.Compressor_2.Solve(p_ex=p5_guess, state_in=SC2R.state_4, mode = 'Non-Dimensional')[1]
     SC2R.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
 
-    SC2R.Condenser = HEX_Design(states_in=[SC2R.state_5, SC2R.state_5_prime], states_out=[SC2R.state_6, SC2R.state_6_prime],
+    SC2R.Condenser = HEX_Design(states_in=[SC2R.state_5_prime, SC2R.state_5], states_out=[SC2R.state_6_prime, SC2R.state_6],
                                  name="Condenser", mode="Non-Dimensional")
     Tpinch_real = SC2R.Condenser.Compute_Pinch()
     res_cond = Tpinch_real - T_pinch
@@ -196,7 +193,6 @@ def iterative_process(p_gess, T_sub_current, T_sup_current_1, T_sup_current_3):
     # STEP 7 : Assemble the residuals
 
     residuals = np.array([res_evap_LT, res_evap_MT, res_cond])
-    print(f"    Residuals : Evap_LT = {res_evap_LT:.4f} K, Evap_MT = {res_evap_MT:.4f} K, Condenser = {res_cond:.4f} K")
     return residuals
 
 
@@ -229,12 +225,11 @@ for i in range(len(T_sub)) :
             SC2R.mdot_wf_bottom = SC2R.mdot_wf_top / (1 + ratio_evaporators * (SC2R.state_1.h - SC2R.state_10.h) / (SC2R.state_3_evap.h - SC2R.state_8.h))
             SC2R.P_comp_bottom = SC2R.Compressor_1.Solve(p_ex=p3_solution, state_in=SC2R.state_2, mdot_wf=SC2R.mdot_wf_bottom, mode="Dimensional")[0]
             COP = Q / (SC2R.P_comp_top + SC2R.P_comp_bottom)
+
             if SC2R.Condenser.Tpinch - T_pinch < -1e-4  :
                 COP_matrix[i,j,k] = 0 
             else :
                 COP_matrix[i,j,k] = COP
-
-print(COP_matrix.flatten())
 
 best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
 T_sub_best = T_sub[best_index[0]]
@@ -269,10 +264,9 @@ SC2R.Condenser.Compute_Pinch()
 SC2R.mdot_HT = SC2R.Condenser.mdot_c
 SC2R.Recuperator_2 = HEX_Design(states_in=[SC2R.state_3, SC2R.state_6], states_out=[SC2R.state_4, SC2R.state_7], mdot=[SC2R.mdot_wf_top, SC2R.mdot_wf_top], name="Recuperator_1", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness)
 SC2R.Recuperator_2.Solve_Recuperator()
-'''
 SC2R.Recuperator_1 = HEX_Design(states_in=[SC2R.state_1, SC2R.state_7], states_out=[SC2R.state_2, SC2R.state_9], mdot=[SC2R.mdot_wf_bottom, SC2R.mdot_wf_bottom], name="Recuperator_2", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness)
 SC2R.Recuperator_1.Solve_Recuperator()
-'''
+
 # Compute cycle performance
 SC2R.COP = SC2R.Condenser.Q / (SC2R.P_comp_top + SC2R.P_comp_bottom)
 print(f"  - Best cycle COP : {SC2R.COP:.2f}")
@@ -294,11 +288,12 @@ SC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
                   Transform('adex', '9', '10', None),
                   Transform('hex', '8', '3_evap',SC2R.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
                   Transform('hex', '10', '1',SC2R.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime'),
-                  Transform('hex', '3', '4',SC2R.Recuperator_2, label_in_secondary='6', label_out_secondary='7')]
-                  #Transform('hex', '1', '2',SC2R.Recuperator_1, label_in_secondary='7', label_out_secondary='9')]
+                  Transform('hex', '3', '4',SC2R.Recuperator_2, label_in_secondary='6', label_out_secondary='7'),
+                  Transform('hex', '1', '2',SC2R.Recuperator_1, label_in_secondary='7', label_out_secondary='9')]
 
 # Plot T-s diagram with saturation curve
 SC2R.Ts_diagram(n=100, plot=True)
+SC2R.ph_diagram(n=100, plot=True)
 
 if full_details :
 
@@ -310,7 +305,7 @@ if full_details :
     SC2R.Evaporator_LT._plot(save=True, name_cycle=SC2R.name, plot=True)
     SC2R.Evaporator_MT._plot(save=True, name_cycle=SC2R.name, plot=True)
     SC2R.Condenser._plot(save=True, name_cycle=SC2R.name, plot=True)
-    #SC2R.Recuperator_1._plot(save=True, name_cycle=SC2R.name, plot=True)
+    SC2R.Recuperator_1._plot(save=True, name_cycle=SC2R.name, plot=True)
     SC2R.Recuperator_2._plot(save=True, name_cycle=SC2R.name, plot=True)
 
 
@@ -324,7 +319,7 @@ if full_details :
     SC2R.Evaporator_LT.Compute_Area()
     SC2R.Evaporator_MT.Compute_Area()
     SC2R.Condenser.Compute_Area()
-    #SC2R.Recuperator_1.Compute_Area()
+    SC2R.Recuperator_1.Compute_Area()
     SC2R.Recuperator_2.Compute_Area()
     print(SC2R.Evaporator_LT)
     print(SC2R.Evaporator_MT)
@@ -340,7 +335,7 @@ if full_details :
         f.write('\n' + str(SC2R.Evaporator_LT) + '\n')
         f.write('\n' + str(SC2R.Evaporator_MT) + '\n')
         f.write('\n' + str(SC2R.Condenser) + '\n')
-        #f.write('\n' + str(SC2R.Recuperator_1) + '\n')
+        f.write('\n' + str(SC2R.Recuperator_1) + '\n')
         f.write('\n' + str(SC2R.Recuperator_2) + '\n')
 
 
