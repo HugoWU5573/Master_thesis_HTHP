@@ -60,6 +60,7 @@ class Cycle():
 
         # COP
         self.COP = None
+        self.beta = None
 
         
 
@@ -194,7 +195,31 @@ class Cycle():
         else:
             cop_str = fmt(cop_val, unit_fmt="{:.3f}")
 
-        performance_str = f"+----------------+-------+\n| Performance    | Value |\n+----------------+-------+\n| COP            | {cop_str:<5} |\n+----------------+-------+"
+        # Beta (display as percent only if defined)
+        if self.beta is None:
+            performance_lines = [
+            "+----------------+-------+",
+            "| Performance    | Value |",
+            "+----------------+-------+",
+            f"| COP            | {cop_str:<5} |",
+            "+----------------+-------+",
+            ]
+        else:
+            try:
+                beta_percent = self.beta * 100.0
+                beta_str = f"{beta_percent:.2f} %"
+            except Exception:
+                beta_str = ""
+            performance_lines = [
+            "+----------------+-------------+",
+            "| Performance    | Value       |",
+            "+----------------+-------------+",
+            f"| COP            | {cop_str:<11} |",
+            f"| beta           | {beta_str:<11} |",
+            "+----------------+-------------+",
+            ]
+
+        performance_str = "\n".join(performance_lines)
 
         # ──────────────────────────────────────────────
         # 7️⃣ Build final output string

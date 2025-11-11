@@ -1,6 +1,4 @@
 
-""" TO BE MODIFIED + OPTIMIZED WITH NEW HEX MODEL """
-
 ############################################################
 # Import libraries and modules
 ############################################################
@@ -23,25 +21,23 @@ import numpy as np
 from scipy.optimize import fsolve, least_squares
 
 
-rapid_optimization = True  # Set to True for rapid optimization with less points
+rapid_optimization = True # Set to True for rapid optimization with less points
+
 ############################################################
 # Parameters
 ############################################################
 
 # Technological parameters
-T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
-T_sup = 3                       # Superheating at the compressor inlet [K]
-T_sub = 6                       # Subcooling at the condenser outlet [K]
-eta_v = 1                       # Volumetric efficiency
-eta_is_max = 0.7                # Maximum isentropic efficiency
-eta_elme = 0.95                 # Electrical-mechanical efficiency
-recuperator_effectiveness = 0.8 # Effectiveness of the recuperator
-
+T_pinch = 3                       # Minimum temperature difference in heat exchangers [K]
+eta_v = 1                         # Volumetric efficiency
+eta_is_max = 0.7                  # Maximum isentropic efficiency
+eta_elme = 0.95                   # Electrical-mechanical efficiency
+recuperator_effectiveness = 0.8   # Effectiveness of the recuperator
 
 # Cycle parameters
-working_fluid = 'R290'          # Working fluid
-Q = 30e3                        # Power output at the condenser [W]
-ratio_evaporators = 1         # Ratio of power between the two evaporators
+working_fluid = 'R290'            # Working fluid
+Q = 30e3                          # Power output at the condenser [W]
+ratio_evaporators = 1             # Ratio of power between the two evaporators
 
 # Heat sources parameters
 
@@ -64,18 +60,18 @@ external_fluid_HT = 'Water'     # External fluid in the heat sink
 T5_prime = 55 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_HT = 5                    # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
-p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p5_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Optimization parameters
 
 if rapid_optimization :
-    nb_points = 8
+    nb_points = 6
 else :
-    nb_points = 71
+    nb_points = 21
 
-T_sub = np.linspace(1,8, nb_points)      # Subcooling at the condenser outlet [K]
-T_sup_1 = np.linspace(1,8, nb_points)    # Superheating at the compressor inlet [K]
-T_sup_3 = np.linspace(1,8, nb_points)    # Superheating at the second evaporator outlet [K]
+T_sub = np.linspace(1,6, nb_points)      # Subcooling at the condenser outlet [K]
+T_sup_1 = np.linspace(1,6, nb_points)    # Superheating at the compressor inlet [K]
+T_sup_3 = np.linspace(1,6, nb_points)    # Superheating at the second evaporator outlet [K]
 
 
 ############################################################
@@ -96,7 +92,6 @@ SC2R.state_3_prime = State(HEOS_external_fluid_MT, T=T3_prime, p=p3_prime)
 SC2R.state_4_prime = State(HEOS_external_fluid_MT, T=T4_prime, p=p3_prime)
 SC2R.state_5_prime = State(HEOS_external_fluid_HT, T=T5_prime, p=p5_prime)
 SC2R.state_6_prime = State(HEOS_external_fluid_HT, T=T6_prime, p=p5_prime)
-
 
 # Compressors
 SC2R.Compressor_1 = Compressor_2_param(cycle=SC2R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
@@ -233,7 +228,6 @@ for i in range(len(T_sub)) :
             else : COP_matrix[i,j,k] = COP
 
             
-print(COP_matrix.flatten())
 best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
 T_sub_best = T_sub[best_index[0]]
 T_sup_best_1 = T_sup_1[best_index[1]]
@@ -244,8 +238,8 @@ p5_best = p_solution[best_index][2]
 
 print("\nBest cycle found with parameters :")
 print(f"  - Subcooling at condenser outlet : {T_sub_best:.2f} K")
-print(f"  - Superheating at compressor inlet 1 : {T_sup_best_1:.2f} K")
-print(f"  - Superheating at compressor inlet 3 : {T_sup_best_3:.2f} K")
+print(f"  - Superheating at point 1 : {T_sup_best_1:.2f} K")
+print(f"  - Superheating at point 3 : {T_sup_best_3:.2f} K")
 
 # Recompute the cycle with the best parameters
 iterative_process(np.array([p1_best, p3_best, p5_best]), T_sub_best, T_sup_best_1, T_sup_best_3)
@@ -272,6 +266,7 @@ SC2R.Recuperator_1.Solve_Recuperator()
 
 # Compute cycle performance
 SC2R.COP = SC2R.Condenser.Q / (SC2R.P_comp_top + SC2R.P_comp_bottom)
+SC2R.beta = SC2R.Evaporator_MT.Q / (SC2R.Evaporator_LT.Q + SC2R.Evaporator_MT.Q)
 print(f"  - Best cycle COP : {SC2R.COP:.2f}")
 print(f"  - Compressor power : {(SC2R.P_comp_top + SC2R.P_comp_bottom)/1e3:.2f} kW")
 
@@ -280,7 +275,7 @@ print(f"  - Compressor power : {(SC2R.P_comp_top + SC2R.P_comp_bottom)/1e3:.2f} 
 # Plot the results
 ############################################################
 
-full_details = True
+full_details = False
 
 # Define the transforms 
 SC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
@@ -298,7 +293,7 @@ SC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
 SC2R.Ts_diagram(n=100, plot=True)
 SC2R.ph_diagram(n=100, plot=True)
 
-if full_details :
+if full_details and not rapid_optimization:  # Plot full details only if not in rapid optimization mode
 
     # Plot energy and exergy charts
     SC2R.energy_chart(plot=True)
@@ -318,7 +313,7 @@ if full_details :
 
 print(SC2R)
 
-if full_details :
+if full_details and not rapid_optimization:  # Print full details only if not in rapid optimization mode
     SC2R.Evaporator_LT.Compute_Area()
     SC2R.Evaporator_MT.Compute_Area()
     SC2R.Condenser.Compute_Area()

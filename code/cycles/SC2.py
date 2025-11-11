@@ -1,6 +1,4 @@
 
-""" TO BE MODIFIED + OPTIMIZED WITH NEW HEX MODEL """
-
 ############################################################
 # Import libraries and modules
 ############################################################
@@ -23,6 +21,7 @@ import numpy as np
 from scipy.optimize import fsolve, least_squares
 
 rapid_optimization = True  # Set to True for rapid optimization with less points
+
 ############################################################
 # Parameters
 ############################################################
@@ -36,7 +35,7 @@ eta_elme = 0.95                 # Electrical-mechanical efficiency
 # Cycle parameters
 working_fluid = 'R290'          # Working fluid
 Q = 30e3                        # Power output at the condenser [W]
-ratio_evaporators = 0.5         # Ratio of power between the two evaporators
+ratio_evaporators = 1           # Ratio of power between the two evaporators
 
 # Heat sources parameters
 
@@ -56,21 +55,21 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+T5_prime = 55 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_HT = 5                    # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
-p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p5_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Optimization parameters
 
 if rapid_optimization :
     nb_points = 8
 else :
-    nb_points = 71
+    nb_points = 15
 
 T_sub = np.linspace(1, 8, nb_points)      # Subcooling at the condenser outlet [K]
-T_sup_1 = np.linspace(1, 8, nb_points)      # Superheating at the compressor inlet [K]
-T_sup_3 = np.linspace(1, 8, nb_points)  # Superheating at the second evaporator outlet [K]
+T_sup_1 = np.linspace(1, 8, nb_points)    # Superheating at the compressor inlet [K]
+T_sup_3 = np.linspace(5, 12, nb_points)    # Superheating at the second evaporator outlet [K]
 
 
 ############################################################
@@ -190,9 +189,14 @@ for i in range(len(T_sub)) :
             T_sup_current_3 = T_sup_3[k]
 
             # Find the pressures that satisfy the pinch constraints
-            p_solution[i,j,k, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 10e5, 20e5], [10e5, 20e5, 40e5]), args=(T_sub_current, T_sup_current_1, T_sup_current_3), xtol=1e-6).x
-            p3_solution = p_solution[i,j,k,1]
-            p5_solution = p_solution[i,j,k,2]
+            try :
+                p_solution[i,j,k, :] = fsolve(iterative_process, p_guess, args=(T_sub_current, T_sup_current_1, T_sup_current_3))
+                p3_solution = p_solution[i,j,k,1]
+                p5_solution = p_solution[i,j,k,2]
+            except :
+                COP_matrix[i,j,k] = 0
+                continue
+
             # Compute the COP for the current cycle
             Delta_h_Condenser = SC2.state_5.h - SC2.state_7.h
             SC2.mdot_wf_top = Q / Delta_h_Condenser
@@ -237,6 +241,7 @@ SC2.mdot_HT = SC2.Condenser.mdot_c
 
 # Compute cycle performance
 SC2.COP = SC2.Condenser.Q / (SC2.P_comp_top + SC2.P_comp_bottom)
+SC2.beta = SC2.Evaporator_MT.Q / (SC2.Evaporator_LT.Q + SC2.Evaporator_MT.Q)
 print(f"  - Best cycle COP : {SC2.COP:.2f}")
 print(f"  - Compressor power : {(SC2.P_comp_top + SC2.P_comp_bottom)/1e3:.2f} kW")
 
@@ -260,7 +265,7 @@ SC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
 SC2.Ts_diagram(n=100, plot=True)
 SC2.ph_diagram(n=100, plot=True)
 
-if full_details :
+if full_details and not rapid_optimization:  # Plot full details only if not in rapid optimization mode
 
     # Plot energy and exergy charts
     SC2.energy_chart(plot=True)
@@ -278,7 +283,7 @@ if full_details :
 
 print(SC2)
 
-if full_details :
+if full_details and not rapid_optimization:  # Print full details only if not in rapid optimization mode
     SC2.Evaporator_LT.Compute_Area()
     SC2.Evaporator_MT.Compute_Area()
     SC2.Condenser.Compute_Area()
