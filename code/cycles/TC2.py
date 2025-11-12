@@ -40,7 +40,7 @@ ratio_evaporators = 1           # Ratio of power between the two evaporators
 
     # 1. LT source
 external_fluid_LT = 'Water'     # External fluid in the heat source
-T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
+T1_prime = 15 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
 glide_LT = 5                    # Temperature glide of the external fluid in the heat source [K]
 T2_prime = T1_prime - glide_LT  # Outlet temperature of the external fluid in the heat source [K]
 p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
@@ -54,7 +54,7 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-T5_prime = 55 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_HT = 55                   # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
@@ -66,9 +66,9 @@ if rapid_optimization :
 else :
     nb_points = 15
 
-T_7 = np.linspace(335, 340, nb_points)    # GasCooler outlet temperature [K]
-T_sup_1 = np.linspace(1, 8, nb_points)    # Superheating at the compressor inlet [K]
-T_sup_3 = np.linspace(1, 8, nb_points)    # Superheating at the second evaporator outlet [K]
+T_7 = np.linspace(336.15, 340, nb_points)    # GasCooler outlet temperature [K]
+T_sup_1 = np.linspace(1, 8, nb_points)       # Superheating at the compressor inlet [K]
+T_sup_3 = np.linspace(5, 12, nb_points)      # Superheating at the second evaporator outlet [K]
 
 
 ############################################################
@@ -165,7 +165,7 @@ def iterative_process(p_gess, T_7_current, T_sup_current_1, T_sup_current_3) :
     # STEP 5 : Assemble the residuals
 
     residuals = np.array([res_evap_LT, res_evap_MT, res_cond])
-    #print(f"    Residuals : Evap_LT = {res_evap_LT:.4f} K, Evap_MT = {res_evap_MT:.4f} K, Gas Cooler = {res_cond:.4f} K")
+
     return residuals
 
 
@@ -178,7 +178,7 @@ p_solution = np.zeros((len(T_7), len(T_sup_1), len(T_sup_3), 3))
 COP_matrix = np.zeros((len(T_7), len(T_sup_1), len(T_sup_3)))
 
 for i in range(len(T_7)) :
-    print(f"Solving for T_sub = {T_7[i]:.2f} K ({i+1}/{len(T_7)})")
+    print(f"Solving for T_7 = {T_7[i]:.2f} K ({i+1}/{len(T_7)})")
     for j in range(len(T_sup_1)) :
         for k in range(len(T_sup_3)) :
 
@@ -206,9 +206,10 @@ for i in range(len(T_7)) :
             if TC2.GasCooler.Tpinch - T_pinch < -1e-4 : COP_matrix[i,j,k] = np.nan
             else : COP_matrix[i,j,k] = COP
 
-#print(COP_matrix.flatten())
-#print(p_solution.reshape(-1,3))
-best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
+if np.all(np.isnan(COP_matrix)):
+    raise ValueError("COP_matrix contains only NaNs; cannot determine best cycle.")
+flat_idx = np.nanargmax(COP_matrix)
+best_index = np.unravel_index(flat_idx, COP_matrix.shape)
 T_7_best = T_7[best_index[0]]
 T_sup_best_1 = T_sup_1[best_index[1]]
 T_sup_best_3 = T_sup_3[best_index[2]]
@@ -217,7 +218,7 @@ p3_best = p_solution[best_index][1]
 p5_best = p_solution[best_index][2]
 
 print("\nBest cycle found with parameters :")
-print(f"  - Subcooling at Gas Cooler outlet : {T_7_best:.2f} K")
+print(f"  - Best value for T7 : {T_7_best:.2f} K")
 print(f"  - Superheating at compressor inlet 1 : {T_sup_best_1:.2f} K")
 print(f"  - Superheating at compressor inlet 3 : {T_sup_best_3:.2f} K")
 
@@ -227,16 +228,13 @@ print(f"  - Low pressure (compressor 1 inlet) : {p1_best/1e5:.2f} bar")
 
 # Recompute the cycle with the best parameters
 iterative_process(np.array([p1_best, p3_best, p5_best]), T_7_best, T_sup_best_1, T_sup_best_3)
-#iterative_process(np.array([4.98e5, 11.18e5, 49e5]), 336.15, 1, 1)
 
 # Compute heat exchangers and compressor with dimensional mode
 Delta_h_GasCooler = TC2.state_5.h - TC2.state_7.h
 TC2.mdot_wf_top = Q / Delta_h_GasCooler
 TC2.P_comp_top = TC2.Compressor_2.Solve(p_ex=p5_best, state_in=TC2.state_3, mdot_wf=TC2.mdot_wf_top, mode="Dimensional")[0]
-#TC2.P_comp_top = TC2.Compressor_2.Solve(p_ex=49e5, state_in=TC2.state_3, mdot_wf=TC2.mdot_wf_top, mode="Dimensional")[0]
 TC2.mdot_wf_bottom = TC2.mdot_wf_top / (1 + ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (TC2.state_3_evap.h - TC2.state_8.h))
 TC2.P_comp_bottom = TC2.Compressor_1.Solve(p_ex=p3_best, state_in=TC2.state_1, mdot_wf=TC2.mdot_wf_bottom, mode="Dimensional")[0]
-#TC2.P_comp_bottom = TC2.Compressor_1.Solve(p_ex=11.18e5, state_in=TC2.state_1, mdot_wf=TC2.mdot_wf_bottom, mode="Dimensional")[0]
 TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, TC2.state_2_prime], mdot = [TC2.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional")
 TC2.Evaporator_LT.Compute_Pinch()
 TC2.mdot_LT = TC2.Evaporator_LT.mdot_h
@@ -257,7 +255,7 @@ print(f"  - Compressor power : {(TC2.P_comp_top + TC2.P_comp_bottom)/1e3:.2f} kW
 # Plot the results
 ############################################################
 
-full_details = True
+full_details = False
 
 # Define the transforms 
 TC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
@@ -273,7 +271,7 @@ TC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
 TC2.Ts_diagram(n=100, plot=True)
 TC2.ph_diagram(n=100, plot=True)
 
-if full_details :  # Plot full details only if not in rapid optimization mode
+if full_details and not rapid_optimization:  # Plot detailed charts only if not in rapid optimization mode
 
     # Plot energy and exergy charts
     TC2.energy_chart(plot=True)
@@ -291,7 +289,7 @@ if full_details :  # Plot full details only if not in rapid optimization mode
 
 print(TC2)
 
-if full_details :  # Print full details only if not in rapid optimization mode
+if full_details and not rapid_optimization:  # Print detailed results only if not in rapid optimization mode
     TC2.Evaporator_LT.Compute_Area()
     TC2.Evaporator_MT.Compute_Area()
     TC2.GasCooler.Compute_Area()

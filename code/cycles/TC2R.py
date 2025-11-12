@@ -57,21 +57,21 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-T5_prime = 55 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
-glide_HT = 65                    # Temperature glide in the gas cooler [K]
+T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+glide_HT = 55                    # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Optimization parameters
 
 if rapid_optimization :
-    nb_points = 6
+    nb_points = 8
 else :
-    nb_points = 21
+    nb_points = 15
 
-T_6 = np.linspace(336.15, 340, nb_points)    # GasCooler outlet temperature [K]
-T_sup_1 = np.linspace(1,10, nb_points)    # Superheating at the compressor inlet [K]
-T_sup_3 = np.linspace(1,10, nb_points)    # Superheating at the second evaporator outlet [K]
+T_6 = np.linspace(336.15, 340, nb_points)   # GasCooler outlet temperature [K]
+T_sup_1 = np.linspace(1,8, nb_points)       # Superheating at the compressor inlet [K]
+T_sup_3 = np.linspace(1,8, nb_points)       # Superheating at the second evaporator outlet [K]
 
 
 ############################################################
@@ -198,7 +198,7 @@ p_solution = np.zeros((len(T_6), len(T_sup_1), len(T_sup_3), 3))
 COP_matrix = np.zeros((len(T_6), len(T_sup_1), len(T_sup_3)))
 
 for i in range(len(T_6)) :
-    print(f"Solving for T_sub = {T_6[i]:.2f} K ({i+1}/{len(T_6)})")
+    print(f"Solving for T_6 = {T_6[i]:.2f} K ({i+1}/{len(T_6)})")
     for j in range(len(T_sup_1)) :
         for k in range(len(T_sup_3)) :
 
@@ -230,7 +230,6 @@ for i in range(len(T_6)) :
                 COP_matrix[i,j,k] = 0 
             else : COP_matrix[i,j,k] = COP
 
-            
 best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
 T_6_best = T_6[best_index[0]]
 T_sup_best_1 = T_sup_1[best_index[1]]
@@ -240,7 +239,7 @@ p3_best = p_solution[best_index][1]
 p5_best = p_solution[best_index][2]
 
 print("\nBest cycle found with parameters :")
-print(f"  - Subcooling at GasCooler outlet : {T_6_best:.2f} K")
+print(f"  - Best temperature for state 6 : {T_6_best:.2f} K")
 print(f"  - Superheating at point 1 : {T_sup_best_1:.2f} K")
 print(f"  - Superheating at point 3 : {T_sup_best_3:.2f} K")
 
@@ -278,7 +277,7 @@ print(f"  - Compressor power : {(TC2R.P_comp_top + TC2R.P_comp_bottom)/1e3:.2f} 
 # Plot the results
 ############################################################
 
-full_details = 1
+full_details = False
 
 # Define the transforms 
 TC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
@@ -296,7 +295,7 @@ TC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
 TC2R.Ts_diagram(n=100, plot=True)
 TC2R.ph_diagram(n=100, plot=True)
 
-if full_details :  # Plot full details only if not in rapid optimization mode
+if full_details and not rapid_optimization: 
 
     # Plot energy and exergy charts
     TC2R.energy_chart(plot=True)
@@ -316,7 +315,7 @@ if full_details :  # Plot full details only if not in rapid optimization mode
 
 print(TC2R)
 
-if full_details :  # Print full details only if not in rapid optimization mode
+if full_details and not rapid_optimization:
     TC2R.Evaporator_LT.Compute_Area()
     TC2R.Evaporator_MT.Compute_Area()
     TC2R.GasCooler.Compute_Area()
