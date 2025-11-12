@@ -1,6 +1,3 @@
-
-""" TO BE MODIFIED + OPTIMIZED WITH NEW HEX MODEL """
-
 ############################################################
 # Import libraries and modules
 ############################################################
@@ -20,8 +17,9 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import fsolve
+from scipy.optimize import fsolve, least_squares
 
+rapid_optimization = True  # Set to True for rapid optimization with less points
 
 ############################################################
 # Parameters
@@ -29,38 +27,48 @@ from scipy.optimize import fsolve
 
 # Technological parameters
 T_pinch = 3                     # Minimum temperature difference in heat exchangers [K]
-T_sup = 3                       # Superheating at the compressor inlet [K]
-glide = 55                      # Temperature glide in the gas cooler [K]
-eta_v = 0.8                     # Volumetric efficiency
+eta_v = 1                       # Volumetric efficiency
 eta_is_max = 0.7                # Maximum isentropic efficiency
 eta_elme = 0.95                 # Electrical-mechanical efficiency
 
 # Cycle parameters
 working_fluid = 'R290'          # Working fluid
-P_comp_1 = 2.5e3                # Electrical power of the first compressor [W]
-P_comp_2 = 7.5e3                # Electrical power of the second compressor [W]
+Q = 30e3                        # Power output at the GasCooler [W]
+ratio_evaporators = 1           # Ratio of power between the two evaporators
 
 # Heat sources parameters
 
     # 1. LT source
-external_fluid_LT = 'Water'     # External fluid in the LT source
-mdot_LT = 0.5                   # Mass flow rate of external fluid in the LT heat source [kg/s]
-T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the LT heat source [K]
-p1_prime = 1e5                  # Inlet pressure of the external fluid in LT the heat source [Pa]
+external_fluid_LT = 'Water'     # External fluid in the heat source
+T1_prime = 10 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
+glide_LT = 5                    # Temperature glide of the external fluid in the heat source [K]
+T2_prime = T1_prime - glide_LT  # Outlet temperature of the external fluid in the heat source [K]
+p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
 
     # 2. MT source
-external_fluid_MT = 'Water'     # External fluid in the MT source
-mdot_MT = 0.4                   # Mass flow rate of external fluid in the MT heat source [kg/s]
-T3_prime = 40 + 273.15          # Inlet temperature of the external fluid in the MT heat source [K]
-p3_prime = 1e5                  # Inlet pressure of the external fluid in MT the heat source [Pa]
+external_fluid_MT = 'Water'     # External fluid in the heat sink
+T3_prime = 45 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+glide_MT = 5                    # Temperature glide of the external fluid in the heat sink [K]
+T4_prime = T3_prime - glide_MT  # Outlet temperature of the external fluid in the heat sink [K]
+p3_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-mdot_HT = 0.13                  # Mass flow rate of external fluid in the heat sink [kg/s]
-T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+T5_prime = 55 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+glide_HT = 55                   # Temperature glide in the gas cooler [K]
+T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
-T6_prime = T5_prime + glide     # Outlet temperature of the external fluid in the heat sink [K]
-p6_prime = p5_prime             # Outlet pressure of the external fluid in the heat sink [Pa]
+
+# Optimization parameters
+
+if rapid_optimization :
+    nb_points = 8
+else :
+    nb_points = 15
+
+T_7 = np.linspace(335, 340, nb_points)    # GasCooler outlet temperature [K]
+T_sup_1 = np.linspace(1, 8, nb_points)    # Superheating at the compressor inlet [K]
+T_sup_3 = np.linspace(1, 8, nb_points)    # Superheating at the second evaporator outlet [K]
 
 
 ############################################################
@@ -76,16 +84,13 @@ HEOS_working_fluid = CoolProp.AbstractState("HEOS", working_fluid)
 # Cycle with its fixed states and mass flow rates
 TC2 = Cycle("TC2")
 TC2.state_1_prime = State(HEOS_external_fluid_LT, T=T1_prime, p=p1_prime)
+TC2.state_2_prime = State(HEOS_external_fluid_LT, T=T2_prime, p=p1_prime)
 TC2.state_3_prime = State(HEOS_external_fluid_MT, T=T3_prime, p=p3_prime)
+TC2.state_4_prime = State(HEOS_external_fluid_MT, T=T4_prime, p=p3_prime)
 TC2.state_5_prime = State(HEOS_external_fluid_HT, T=T5_prime, p=p5_prime)
-TC2.state_6_prime = State(HEOS_external_fluid_HT, T=T6_prime, p=p6_prime)
-TC2.mdot_LT = mdot_LT
-TC2.mdot_MT = mdot_MT
-TC2.mdot_HT = mdot_HT
+TC2.state_6_prime = State(HEOS_external_fluid_HT, T=T6_prime, p=p5_prime)
 
 # Compressors
-TC2.P_comp_bottom = P_comp_1
-TC2.P_comp_top = P_comp_2
 TC2.Compressor_1 = Compressor_2_param(cycle=TC2, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 TC2.Compressor_2 = Compressor_2_param(cycle=TC2, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
@@ -94,7 +99,7 @@ TC2.Compressor_2 = Compressor_2_param(cycle=TC2, eta_v=eta_v, eta_is_max=eta_is_
 # Solve the cycle to determine the unknown states
 ############################################################
 
-def iterative_process(p_gess) :
+def iterative_process(p_gess, T_7_current, T_sup_current_1, T_sup_current_3) :
     p1_guess = p_gess[0] ; p3_guess = p_gess[1] ; p5_guess = p_gess[2]
 
     # STEP 1 : Compute the states based on the guesses values
@@ -102,78 +107,157 @@ def iterative_process(p_gess) :
         # Compute guessed state 1 (first compressor inlet is superheated)
     HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p1_guess, 0.0)
     Tsat_1 = HEOS_working_fluid.T()
-    TC2.state_1 = State(HEOS_working_fluid, T=Tsat_1 + T_sup, p=p1_guess)
+    TC2.state_1 = State(HEOS_working_fluid, T=Tsat_1 + T_sup_current_1, p=p1_guess)
+
+        # Compute guessed state 3_comp (exit of first compressor)
+    T_3_comp = TC2.Compressor_1.Solve(p_ex=p3_guess, state_in=TC2.state_1, mode = 'Non-Dimensional')[1]
+    TC2.state_3_comp = State(HEOS_working_fluid, T=T_3_comp, p=p3_guess)
 
         # Compute guessed state 3 (second compressor inlet is superheated)
     HEOS_working_fluid.update(CoolProp.PQ_INPUTS, p3_guess, 0.0)
     Tsat_3 = HEOS_working_fluid.T()
-    TC2.state_3 = State(HEOS_working_fluid, T=Tsat_3 + T_sup, p=p3_guess)
-
-        # Compute guessed state 3_comp (exit of first compressor)
-    TC2.mdot_wf_bottom, T_3_comp = TC2.Compressor_1.Solve(P_el=P_comp_1, p_ex=p3_guess, state_in=TC2.state_1)
-    TC2.state_3_comp = State(HEOS_working_fluid, T=T_3_comp, p=p3_guess)
+    TC2.state_3 = State(HEOS_working_fluid, T=Tsat_3 + T_sup_current_3, p=p3_guess)
 
         # Compute guessed state 5 (exit of second compressor)
-    TC2.mdot_wf_top, T_5 = TC2.Compressor_2.Solve(P_el=P_comp_2, p_ex=p5_guess, state_in=TC2.state_3)
+    T_5 = TC2.Compressor_2.Solve(p_ex=p5_guess, state_in=TC2.state_3, mode = 'Non-Dimensional')[1]
     TC2.state_5 = State(HEOS_working_fluid, T=T_5, p=p5_guess)
 
-    # STEP 2 : Compute the residual for the gas cooler
-    TC2.GasCooler = HEX_Design(states_in=[TC2.state_5_prime, TC2.state_5], states_out=[TC2.state_6_prime, None], mdot=[TC2.mdot_HT, TC2.mdot_wf_top], name="Gas Cooler")
-    Tpinch_real = TC2.GasCooler.Compute_Pinch()
-    TC2.state_7 = TC2.GasCooler.state_out_h
-    res_gas_cooler = Tpinch_real - T_pinch
+        # Compute guessed state 7 (GasCooler outlet is subcooled)
+    TC2.state_7 = State(HEOS_working_fluid, T=T_7_current, p=p5_guess)
+    TC2.state_9 = State(HEOS_working_fluid, T=T_7_current, p=p5_guess)  # States 7 and 9 are the same in this configuration
 
-    # STEP 3 : Compute the residual for the first evaporator
-        
         # Compute guessed state 8
     h8 = TC2.state_7.h
     TC2.state_8 = State(HEOS_working_fluid, h=h8, p=p3_guess)
-
-        # Compute guessed state 9 (same as state 7)
-    TC2.state_9 = State(HEOS_working_fluid, h=TC2.state_7.h, p=TC2.state_7.p)
 
         # Compute guessed state 10
     h10 = TC2.state_9.h
     TC2.state_10 = State(HEOS_working_fluid, h=h10, p=p1_guess)
 
-        # Compute the residual for the first evap
-    TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, None], mdot=[TC2.mdot_wf_bottom, TC2.mdot_LT], name="Evaporator_LT")
+    # STEP 2 : Compute the residual for the first evaporator
+
+    TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, TC2.state_2_prime], name="Evaporator_LT", mode="Non-Dimensional")
     Tpinch_real = TC2.Evaporator_LT.Compute_Pinch()
-    TC2.state_2_prime = TC2.Evaporator_LT.state_out_h
     res_evap_LT = Tpinch_real - T_pinch
 
-    # STEP 4 : Compute the residual for the second evaporator
-    mdot_evap_MT = TC2.mdot_wf_top - TC2.mdot_wf_bottom  # Mass flow rate through the second evaporator
+    # STEP 3 : Compute the residual for the second evaporator
+        # Compute guessed state 3_evap
+    def objective_h3_evap(h3_evap) :
+        left = ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (h3_evap - TC2.state_8.h) * h3_evap + TC2.state_3_comp.h
+        right = (1 + ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (h3_evap - TC2.state_8.h)) * TC2.state_3.h 
+        return left - right
+    
+    h3_evap_guess = (TC2.state_8.h + TC2.state_3.h) / 2
+    h3_evap = fsolve(objective_h3_evap, h3_evap_guess)[0]
+    TC2.state_3_evap = State(HEOS_working_fluid, h=h3_evap, p=p3_guess)
 
-        # We first make a power balance to find state 3_evap (exit of the second evaporator) based on states 3 and 3_comp
-    h_3_evap = (TC2.mdot_wf_top * TC2.state_3.h - TC2.mdot_wf_bottom * TC2.state_3_comp.h) / mdot_evap_MT
-    TC2.state_3_evap = State(HEOS_working_fluid, h=h_3_evap, p=p3_guess)
-
-        # We can now compute the residual for the second evaporator
-    TC2.Evaporator_MT = HEX_Design(states_in=[TC2.state_8, TC2.state_3_prime], states_out=[TC2.state_3_evap, None], mdot=[mdot_evap_MT, TC2.mdot_MT], name="Evaporator_MT")
+    
+    TC2.Evaporator_MT = HEX_Design(states_in=[TC2.state_8, TC2.state_3_prime], states_out=[TC2.state_3_evap, TC2.state_4_prime], name="Evaporator_MT", mode="Non-Dimensional")
     Tpinch_real = TC2.Evaporator_MT.Compute_Pinch()
-    TC2.state_4_prime = TC2.Evaporator_MT.state_out_h
     res_evap_MT = Tpinch_real - T_pinch
-  
+
+    # STEP 4 : Compute the residual for the GasCooler
+
+    TC2.GasCooler = HEX_Design(states_in=[TC2.state_5_prime, TC2.state_5], states_out=[TC2.state_6_prime, TC2.state_7], name="Gas Cooler", mode="Non-Dimensional")
+    Tpinch_real = TC2.GasCooler.Compute_Pinch()
+    res_cond = Tpinch_real - T_pinch
+
     # STEP 5 : Assemble the residuals
-    residuals = np.array([res_evap_LT, res_evap_MT, res_gas_cooler])
+
+    residuals = np.array([res_evap_LT, res_evap_MT, res_cond])
+    #print(f"    Residuals : Evap_LT = {res_evap_LT:.4f} K, Evap_MT = {res_evap_MT:.4f} K, Gas Cooler = {res_cond:.4f} K")
     return residuals
 
 
 # Initial guesses
-p1_guess = 5e5 ; p3_guess = 10e5 ; p5_guess = 50e5
+p1_guess = 3e5 ; p3_guess = 10e5 ; p5_guess = 45e5
 p_guess = np.array([p1_guess, p3_guess, p5_guess])
 
-# Compute the solution
-fsolve(iterative_process, p_guess)
-TC2.COP = TC2.GasCooler.Q / (TC2.P_comp_top + TC2.P_comp_bottom)
+# Compute the solution for each combination of (T_sub, T_sup_1, T_sup_3)
+p_solution = np.zeros((len(T_7), len(T_sup_1), len(T_sup_3), 3))
+COP_matrix = np.zeros((len(T_7), len(T_sup_1), len(T_sup_3)))
 
+for i in range(len(T_7)) :
+    print(f"Solving for T_sub = {T_7[i]:.2f} K ({i+1}/{len(T_7)})")
+    for j in range(len(T_sup_1)) :
+        for k in range(len(T_sup_3)) :
+
+            T_sub_current = T_7[i]
+            T_sup_current_1 = T_sup_1[j]
+            T_sup_current_3 = T_sup_3[k]
+
+            # Find the pressures that satisfy the pinch constraints
+            try :
+                p_solution[i,j,k, :] = fsolve(iterative_process, p_guess, args=(T_sub_current, T_sup_current_1, T_sup_current_3))
+                p3_solution = p_solution[i,j,k,1]
+                p5_solution = p_solution[i,j,k,2]
+            except :
+                COP_matrix[i,j,k] = 0
+                continue
+
+            # Compute the COP for the current cycle
+            Delta_h_GasCooler = TC2.state_5.h - TC2.state_7.h
+            TC2.mdot_wf_top = Q / Delta_h_GasCooler
+            TC2.P_comp_top = TC2.Compressor_2.Solve(p_ex=p5_solution, state_in=TC2.state_3, mdot_wf=TC2.mdot_wf_top, mode="Dimensional")[0]
+
+            TC2.mdot_wf_bottom = TC2.mdot_wf_top / (1 + ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (TC2.state_3_evap.h - TC2.state_8.h))
+            TC2.P_comp_bottom = TC2.Compressor_1.Solve(p_ex=p3_solution, state_in=TC2.state_1, mdot_wf=TC2.mdot_wf_bottom, mode="Dimensional")[0]
+            COP = Q / (TC2.P_comp_top + TC2.P_comp_bottom)
+            if TC2.GasCooler.Tpinch - T_pinch < -1e-4 : COP_matrix[i,j,k] = np.nan
+            else : COP_matrix[i,j,k] = COP
+
+#print(COP_matrix.flatten())
+#print(p_solution.reshape(-1,3))
+best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
+T_7_best = T_7[best_index[0]]
+T_sup_best_1 = T_sup_1[best_index[1]]
+T_sup_best_3 = T_sup_3[best_index[2]]
+p1_best = p_solution[best_index][0]
+p3_best = p_solution[best_index][1]
+p5_best = p_solution[best_index][2]
+
+print("\nBest cycle found with parameters :")
+print(f"  - Subcooling at Gas Cooler outlet : {T_7_best:.2f} K")
+print(f"  - Superheating at compressor inlet 1 : {T_sup_best_1:.2f} K")
+print(f"  - Superheating at compressor inlet 3 : {T_sup_best_3:.2f} K")
+
+print(f"  - High pressure (compressor 2 outlet) : {p5_best/1e5:.2f} bar")
+print(f"  - Medium pressure (compressor 1 outlet) : {p3_best/1e5:.2f} bar")
+print(f"  - Low pressure (compressor 1 inlet) : {p1_best/1e5:.2f} bar")
+
+# Recompute the cycle with the best parameters
+iterative_process(np.array([p1_best, p3_best, p5_best]), T_7_best, T_sup_best_1, T_sup_best_3)
+#iterative_process(np.array([4.98e5, 11.18e5, 49e5]), 336.15, 1, 1)
+
+# Compute heat exchangers and compressor with dimensional mode
+Delta_h_GasCooler = TC2.state_5.h - TC2.state_7.h
+TC2.mdot_wf_top = Q / Delta_h_GasCooler
+TC2.P_comp_top = TC2.Compressor_2.Solve(p_ex=p5_best, state_in=TC2.state_3, mdot_wf=TC2.mdot_wf_top, mode="Dimensional")[0]
+#TC2.P_comp_top = TC2.Compressor_2.Solve(p_ex=49e5, state_in=TC2.state_3, mdot_wf=TC2.mdot_wf_top, mode="Dimensional")[0]
+TC2.mdot_wf_bottom = TC2.mdot_wf_top / (1 + ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (TC2.state_3_evap.h - TC2.state_8.h))
+TC2.P_comp_bottom = TC2.Compressor_1.Solve(p_ex=p3_best, state_in=TC2.state_1, mdot_wf=TC2.mdot_wf_bottom, mode="Dimensional")[0]
+#TC2.P_comp_bottom = TC2.Compressor_1.Solve(p_ex=11.18e5, state_in=TC2.state_1, mdot_wf=TC2.mdot_wf_bottom, mode="Dimensional")[0]
+TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, TC2.state_2_prime], mdot = [TC2.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional")
+TC2.Evaporator_LT.Compute_Pinch()
+TC2.mdot_LT = TC2.Evaporator_LT.mdot_h
+TC2.Evaporator_MT = HEX_Design(states_in=[TC2.state_8, TC2.state_3_prime], states_out=[TC2.state_3_evap, TC2.state_4_prime],mdot = [TC2.mdot_wf_top - TC2.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional")
+TC2.Evaporator_MT.Compute_Pinch()
+TC2.mdot_MT = TC2.Evaporator_MT.mdot_h
+TC2.GasCooler = HEX_Design(states_in=[TC2.state_5_prime, TC2.state_5], states_out=[TC2.state_6_prime, TC2.state_7], mdot=[None, TC2.mdot_wf_top], name="Gas Cooler", mode="Dimensional")
+TC2.GasCooler.Compute_Pinch()
+TC2.mdot_HT = TC2.GasCooler.mdot_c
+
+# Compute cycle performance
+TC2.COP = TC2.GasCooler.Q / (TC2.P_comp_top + TC2.P_comp_bottom)
+TC2.beta = TC2.Evaporator_MT.Q / (TC2.Evaporator_LT.Q + TC2.Evaporator_MT.Q)
+print(f"  - Best cycle COP : {TC2.COP:.2f}")
+print(f"  - Compressor power : {(TC2.P_comp_top + TC2.P_comp_bottom)/1e3:.2f} kW")
 
 ############################################################
 # Plot the results
 ############################################################
 
-full_details = False
+full_details = True
 
 # Define the transforms 
 TC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
@@ -185,11 +269,11 @@ TC2.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
                   Transform('hex', '8', '3_evap',TC2.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
                   Transform('hex', '10', '1',TC2.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime')]
 
-
 # Plot T-s diagram with saturation curve
 TC2.Ts_diagram(n=100, plot=True)
+TC2.ph_diagram(n=100, plot=True)
 
-if full_details :
+if full_details :  # Plot full details only if not in rapid optimization mode
 
     # Plot energy and exergy charts
     TC2.energy_chart(plot=True)
@@ -207,7 +291,7 @@ if full_details :
 
 print(TC2)
 
-if full_details :
+if full_details :  # Print full details only if not in rapid optimization mode
     TC2.Evaporator_LT.Compute_Area()
     TC2.Evaporator_MT.Compute_Area()
     TC2.GasCooler.Compute_Area()
