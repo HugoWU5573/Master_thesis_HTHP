@@ -207,7 +207,7 @@ class Cycle():
         else:
             try:
                 beta_percent = self.beta * 100.0
-                beta_str = f"{beta_percent:.2f} %"
+                beta_str = f"{beta_percent:.0f} %"
             except Exception:
                 beta_str = ""
             performance_lines = [

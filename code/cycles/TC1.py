@@ -18,11 +18,13 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import least_squares, fsolve
-import matplotlib
-import matplotlib.pyplot as plt
+from scipy.optimize import fsolve, minimize
+from time import time
 
-rapid_optimization = True  # Set to True for rapid optimization with less points
+start = time()
+
+# Set verbosity
+verbose = False
 
 ############################################################
 # Parameters
@@ -52,17 +54,12 @@ glide_HT = 55                   # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
-# Optimization parameters
+# Bounds for the optimization parameters
 
-if rapid_optimization :
-    nb_points_1 = 8
-    nb_points_2 = 11
-else :
-    nb_points_1 = 36
-    nb_points_2 = 51
-
-T_sup = np.linspace(2, 5.5, nb_points_1)      # Superheating at the compressor inlet [K]
-T_7 = np.linspace(335, 340, nb_points_2)    # Subcooling at the condenser outlet [K]
+T_sup_min = 2                   # Minimum superheating at the compressor inlet [K]
+T_sup_max = 7                   # Maximum superheating at the compressor inlet [K]
+T_7_min = T5_prime + T_pinch    # Minimum outlet temperature of the gas cooler [K]
+T_7_max = 338                   # Maximum outlet temperature of the gas cooler [K]
 
 
 ############################################################
@@ -70,9 +67,12 @@ T_7 = np.linspace(335, 340, nb_points_2)    # Subcooling at the condenser outlet
 ############################################################
 
 # CoolProp low-level interface for all the fluids
-HEOS_external_fluid_MT = CoolProp.AbstractState("HEOS", external_fluid_MT)
-HEOS_external_fluid_HT = CoolProp.AbstractState("HEOS", external_fluid_HT)
-HEOS_working_fluid = CoolProp.AbstractState("HEOS", working_fluid)
+
+HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+
+HEOS_external_fluid_MT = CoolProp.AbstractState(HEOS_type, external_fluid_MT)
+HEOS_external_fluid_HT = CoolProp.AbstractState(HEOS_type, external_fluid_HT)
+HEOS_working_fluid = CoolProp.AbstractState(HEOS_type, working_fluid)
 
 # Cycle with its fixed states and mass flow rates
 TC1 = Cycle("TC1")
@@ -86,7 +86,7 @@ TC1.Compressor = Compressor_2_param(cycle=TC1, eta_v=eta_v, eta_is_max=eta_is_ma
 
 
 ############################################################
-# Solve the cycle to determine the unknown states
+# Define the functions for the optimization
 ############################################################
 
 def iterative_process(p_gess, T_sup_current, T_7_current) :
@@ -130,77 +130,86 @@ def iterative_process(p_gess, T_sup_current, T_7_current) :
     return residuals
 
 
-# Initial guesses
-p3_guess = 10e5 ; p5_guess = 45e5
-p_guess = np.array([p3_guess, p5_guess])
+def objective_function(optimization_vars) :
 
-# Compute the solution for each combination of (T_sup, T_7)
-p_solution = np.zeros((len(T_sup), len(T_7), 2))
-COP_matrix = np.zeros((len(T_sup), len(T_7)))
+    # Unpack optimization variables
+    T_sup_current = optimization_vars[0]
+    T_7_current = optimization_vars[1]
 
-for i in range(len(T_sup)) :
-    print(f"Solving for T_sup = {T_sup[i]:.2f} K ({i+1}/{len(T_sup)})")
-    for j in range(len(T_7)) :
+    # Initial guesses for pressures
+    p3_guess = 10e5 ; p5_guess = 45e5
+    p_guess = np.array([p3_guess, p5_guess])
 
-        T_sup_current = T_sup[i]
-        T_7_current = T_7[j]
+    # Find the pressures that satisfy the pinch constraints
+    try :
+        p_solution = fsolve(iterative_process, p_guess, args=(T_sup_current, T_7_current))
+        p5_solution = p_solution[1]
+    except :
+        return 1e6  # Return a large penalty value if fsolve fails
+    
+    # Compute the COP for the current cycle
+    Delta_h_Condenser = TC1.state_5.h - TC1.state_7.h
+    TC1.mdot_wf_top = Q / Delta_h_Condenser
+    TC1.P_comp_top = TC1.Compressor.Solve(p_ex=p5_solution, state_in=TC1.state_3, mdot_wf=TC1.mdot_wf_top, mode="Dimensional")[0]
+    COP = Q / TC1.P_comp_top
 
-        # Find the pressures that satisfy the pinch constraints
-        p_solution[i,j, :] = fsolve(iterative_process, p_guess, args=(T_sup_current, T_7_current))
-        # p_solution[i,j, :] = least_squares(iterative_process, p_guess, bounds=([1e5, 35e5], [20e5, 47e5]), args=(T_sup_current, T_7_current), xtol=1e-4).x
-        p5_solution = p_solution[i,j,1]
+    # Print the current cycle performance if verbose
+    if verbose:
+        print(f"  - Current cycle with T_sup = {T_sup_current:.2f} K and T_7 = {T_7_current:.2f} K has COP = {COP:.4f}")
 
-        # Detect unphysical solutions and set COP to NaN
-        if TC1.GasCooler.Tpinch - T_pinch < -1e-4 :
-            COP = np.nan
-        else :
-            # Compute the COP for the current cycle
-            Delta_h_Condenser = TC1.state_5.h - TC1.state_7.h
-            TC1.mdot_wf_top = Q / Delta_h_Condenser
-            TC1.P_comp_top = TC1.Compressor.Solve(p_ex=p5_solution, state_in=TC1.state_3, mdot_wf=TC1.mdot_wf_top, mode="Dimensional")[0]
-            COP = Q / TC1.P_comp_top
-            COP_matrix[i,j] = COP
-        
-        COP_matrix[i,j] = COP
+    # We want to maximize the COP, so we minimize its negative value
+    return -COP
 
-# Determine the best cycle
 
-# Select best index ignoring NaNs
-if np.all(np.isnan(COP_matrix)):
-    raise ValueError("COP_matrix contains only NaNs; cannot determine best cycle.")
-flat_idx = np.nanargmax(COP_matrix)
-best_index = np.unravel_index(flat_idx, COP_matrix.shape)
-T_sup_best = T_sup[best_index[0]]
-T_7_best = T_7[best_index[1]]
-p3_best = p_solution[best_index][0]
-p5_best = p_solution[best_index][1]
+############################################################
+# Optimization procedure
+############################################################
 
+# Initial guess and bounds for optimization variables
+optimization_vars_guess = [(T_sup_min + T_sup_max) / 2.0, (T_7_min + T_7_max) / 2.0]
+bounds = [(T_sup_min, T_sup_max), (T_7_min, T_7_max)]
+
+result = minimize(objective_function, optimization_vars_guess, bounds=bounds, method="Powell", options={'maxiter': 20})
+
+# Extract the best parameters
+T_sup_best = result.x[0]
+T_7_best = result.x[1]
 print("\nBest cycle found with parameters :")
 print(f"  - Superheating at compressor inlet : {T_sup_best:.2f} K")
-print(f"  - Outlet temperature of gas cooler : {T_7_best:.0f} K")
+print(f"  - Outlet temperature of gas cooler : {T_7_best:.2f} K")
 
-# Recompute the best cycle states
-iterative_process(np.array([p3_best, p5_best]), T_sup_best, T_7_best)
+# Recompute the best cycle states (for safety)
+p3_guess = 10e5 ; p5_guess = 45e5
+p_guess = np.array([p3_guess, p5_guess])
+p_best = fsolve(iterative_process, p_guess, args=(T_sup_best, T_7_best))
+p3_best = p_best[0]
+p5_best = p_best[1]
 
 # Compute heat exchangers and compressor with dimensional mode
 Delta_h_Condenser = TC1.state_5.h - TC1.state_7.h
 TC1.mdot_wf_top = Q / Delta_h_Condenser
 TC1.P_comp_top = TC1.Compressor.Solve(p_ex=p5_best, state_in=TC1.state_3, mdot_wf=TC1.mdot_wf_top, mode="Dimensional")[0]
 TC1.Evaporator = HEX_Design(states_in=[TC1.state_8, TC1.state_3_prime], states_out=[TC1.state_3, TC1.state_4_prime], mdot=[TC1.mdot_wf_top, None], name="Evaporator", mode="Dimensional")
-TC1.Evaporator.Compute_Pinch()
+T_pinch_evap = TC1.Evaporator.Compute_Pinch()
 TC1.mdot_MT = TC1.Evaporator.mdot_h
 TC1.GasCooler = HEX_Design(states_in=[TC1.state_5_prime, TC1.state_5], states_out=[TC1.state_6_prime, TC1.state_7], mdot=[None, TC1.mdot_wf_top], name="Gas Cooler", mode="Dimensional")
-TC1.GasCooler.Compute_Pinch()
+T_pinch_gas_cooler = TC1.GasCooler.Compute_Pinch()
 TC1.mdot_HT = TC1.GasCooler.mdot_c
 
 # Compute cycle performance
 TC1.COP = TC1.GasCooler.Q / TC1.P_comp_top
-print(f"  - Best cycle COP : {TC1.COP:.2f}")
-print(f"  - Compressor power : {TC1.P_comp_top/1e3:.2f} kW")
 
 # Limit the highest pressure of the cycle to 50 bars
 if TC1.state_5.p > 5e6 :
     raise ValueError("The highest pressure of the cycle exceeds 50 bars. Please adjust the input parameters.")
+
+# Raise error if pinch points are not satisfied
+if not (np.isclose(T_pinch_evap, T_pinch, atol=1e-4) and np.isclose(T_pinch_gas_cooler, T_pinch, atol=1e-4)):
+    raise ValueError("Pinch point constraints not satisfied in the best cycle found.")
+
+end = time()
+print(f"\nOptimization completed in {end - start:.2f} seconds.\n")
+
 
 ############################################################
 # Plot the results
@@ -208,18 +217,17 @@ if TC1.state_5.p > 5e6 :
 
 full_details = False
 
-# Define the transforms 
-TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), 
-                  Transform('hex', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
-                  Transform('adex', '7', '8', None), 
-                  Transform('hex', '8', '3', TC1.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
+if full_details:
 
-# Plot T-s diagram with saturation curve
-TC1.Ts_diagram(n=100, plot=True)
-# Plot p-h diagram with saturation curve
-TC1.ph_diagram(n=100, plot=True)
+    # Define the transforms 
+    TC1.transforms = [Transform('comp', '3', '5', TC1.Compressor), 
+                    Transform('hex', '5', '7',TC1.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'), 
+                    Transform('adex', '7', '8', None), 
+                    Transform('hex', '8', '3', TC1.Evaporator, label_in_secondary='3_prime', label_out_secondary='4_prime')]
 
-if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
+    # Plot T-s and p-h diagrams with saturation curve
+    TC1.Ts_diagram(n=100, plot=True)
+    TC1.ph_diagram(n=100, plot=True)
 
     # Plot energy and exergy charts
     TC1.energy_chart(plot=True)
@@ -229,54 +237,6 @@ if full_details and not rapid_optimization:   # Full details only available for 
     TC1.Evaporator._plot(save=True, name_cycle=TC1.name, plot=True)
     TC1.GasCooler._plot(save=True, name_cycle=TC1.name, plot=True)
 
-    # Plot the results of the optimization as a color map
-    X, Y = np.meshgrid(T_sup, T_7)
-    Z = COP_matrix.T   
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    # Mask NaNs so they plot as the "bad" color (white)
-    masked_Z = np.ma.masked_invalid(Z)
-
-    # Create a colormap and set NaNs to white
-    try:
-        cmap = matplotlib.colormaps.get_cmap('jet').copy()
-    except Exception:
-        cmap = matplotlib.colormaps.get_cmap('jet')
-    cmap.set_bad('white')
-
-    # Determine vmin/vmax from non-NaN values (handle all-NaN or vmin==vmax cases)
-    if np.all(masked_Z.mask):
-        vmin, vmax = 0.0, 1.0
-    else:
-        vmin = np.nanmin(Z)
-        vmax = np.nanmax(Z)
-        if vmin == vmax:
-            vmin -= 1e-6
-            vmax += 1e-6
-
-    contour = ax.contourf(X, Y, masked_Z, levels=50, cmap=cmap, vmin=vmin, vmax=vmax)
-    cbar = fig.colorbar(contour, ax=ax, orientation='vertical')
-    cbar.set_label(r'$COP$ [-]', rotation=0, labelpad=55, fontsize=12, loc='top')
-
-    cbar_ticks = np.array([vmin, (vmin + vmax) / 2.0, vmax])
-    cbar.set_ticks(cbar_ticks)
-    cbar.set_ticklabels([f"{tick:.2f}" for tick in cbar_ticks])
-
-    ax.set_xlabel(r'$T_{sup}$ [K]', labelpad=10, fontsize=12)
-    ax.set_ylabel(r'$T_{7}$ [K]', rotation=0, labelpad=30, fontsize=12)
-
-    # Mark best point
-    ax.scatter(T_sup_best, T_7_best, color='black', marker='x', s=100, linewidths=2, label=f'Best COP = {TC1.COP:.2f}', clip_on=False)
-
-    # Mark the physical limit on T7 due to pinch point constraint
-    T_7_min = T5_prime + T_pinch
-    ax.axhline(y=T_7_min, color='black', linestyle='--', linewidth=2, label=r'$T_{7,min}$ (physical limit due to pinch)')
-
-    ax.legend(loc='upper right')
-    plt.tight_layout()
-    plt.savefig("code/Figures/" + TC1.name + "/" + TC1.name + "_optimization.png", dpi=600)
-    plt.show()
-
 
 ############################################################
 # Print the results
@@ -284,7 +244,7 @@ if full_details and not rapid_optimization:   # Full details only available for 
 
 print(TC1)
 
-if full_details and not rapid_optimization:   # Full details only available for non-rapid (i.e. full) optimization
+if full_details:
     TC1.Evaporator.Compute_Area()
     TC1.GasCooler.Compute_Area()
     print(TC1.Evaporator)

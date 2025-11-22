@@ -667,10 +667,8 @@ class HEX_Design():
         result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
         if self.A == None:
             result += "Heat exchanger area: Not calculated yet\n"
-        elif self.A > 0.1:
-            result += f"Heat exchanger area: {self.A:.2f} m2\n"
         else :
-            result += f"Heat exchanger area: {self.A:.4f} m2\n"
+            result += f"Heat exchanger area: {self.A:.2f} m2\n"
         result += "===================================================================================="
 
         return result
@@ -731,42 +729,45 @@ class HEX_Design():
     """
     def _determine_unknown_outlet_states(self):
 
-        Delta_T_in = self.state_in_h.T - self.state_in_c.T
-
-        # First estimate of cp_min based on the inlet states
-        self.HEOS_cold.update(CoolProp.PT_INPUTS, self.state_in_c.p, self.state_in_c.T)
-        cp_c = self.HEOS_cold.cpmass()
-        self.HEOS_hot.update(CoolProp.PT_INPUTS, self.state_in_h.p, self.state_in_h.T)
-        cp_h = self.HEOS_hot.cpmass()
-        cp_min = min(cp_c, cp_h)
-
-        # First estimate of state_out_c and state_out_h based on epsilon
-        hout_h = self.state_in_h.h - self.epsilon * cp_min * Delta_T_in
-        self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
-        hout_c = self.state_in_c.h + self.epsilon * cp_min * Delta_T_in
-        self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
-
-        cp_min_old = 0.0
-        cp_min_new = cp_min
-
-        while not np.isclose(cp_min_old, cp_min_new, atol=1e-2):
-            cp_min_old = cp_min_new
-
-            # Compute cp_c and cp_h by averaging between inlet and outlet temperatures
-            cp_c = self._Cp_average(self.state_in_c.heos, self.state_in_c.T, self.state_out_c.T)
-            cp_h = self._Cp_average(self.state_in_h.heos, self.state_in_h.T, self.state_out_h.T)
-            cp_min_new = min(cp_c, cp_h)
-
-            # Update outlet States based on new cp_min
-            hout_h = self.state_in_h.h - self.epsilon * cp_min_new * Delta_T_in
-            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
-            hout_c = self.state_in_c.h + self.epsilon * cp_min_new * Delta_T_in
-            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
-        
         if self.mode == "Non-Dimensional":
+
+            Delta_T_in = self.state_in_h.T - self.state_in_c.T
+
+            # First estimate of cp_min based on the inlet states
+            self.HEOS_cold.update(CoolProp.PT_INPUTS, self.state_in_c.p, self.state_in_c.T)
+            cp_c = self.HEOS_cold.cpmass()
+            self.HEOS_hot.update(CoolProp.PT_INPUTS, self.state_in_h.p, self.state_in_h.T)
+            cp_h = self.HEOS_hot.cpmass()
+            cp_min = min(cp_c, cp_h)
+
+            # First estimate of state_out_c and state_out_h based on epsilon
+            hout_h = self.state_in_h.h - self.epsilon * cp_min * Delta_T_in
+            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+            hout_c = self.state_in_c.h + self.epsilon * cp_min * Delta_T_in
+            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+
+            cp_min_old = 0.0
+            cp_min_new = cp_min
+
+            while not np.isclose(cp_min_old, cp_min_new, atol=1e-3):
+                cp_min_old = cp_min_new
+
+                # Compute cp_c and cp_h by averaging between inlet and outlet temperatures
+                cp_c = self._Cp_average(self.state_in_c.heos, self.state_in_c.T, self.state_out_c.T)
+                cp_h = self._Cp_average(self.state_in_h.heos, self.state_in_h.T, self.state_out_h.T)
+                cp_min_new = min(cp_c, cp_h)
+
+                # Update outlet States based on new cp_min
+                hout_h = self.state_in_h.h - self.epsilon * cp_min_new * Delta_T_in
+                self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+                hout_c = self.state_in_c.h + self.epsilon * cp_min_new * Delta_T_in
+                self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+
             self.Q = 1 # In non-dimensional mode, we set Q = 1 W as a reference value
         
-        else :
+        elif self.mode == "Dimensional" :
+            # In the "Dimensional" mode, the outlet states are already known -> we only compute Q
+
             Q_h = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
             Q_c = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
             if not np.isclose(Q_h, Q_c, atol=1e-3):
@@ -1022,6 +1023,10 @@ class HEX_Design():
 
     """
     def Compute_Area(self):
+
+        # Switch to HEOS instead of TTSE&HEOS for better accuracy in heat transfer calculations
+        self.HEOS_cold = CoolProp.AbstractState("HEOS", self.state_in_c.fluid)
+        self.HEOS_hot = CoolProp.AbstractState("HEOS", self.state_in_h.fluid)
 
         Arequired_list = np.zeros(self.N)
 
@@ -1355,7 +1360,7 @@ class HEX_Design():
         xticks = np.array([0, 1]) 
         
         # Create the plot
-        plt.figure()
+        plt.figure(self.name)
         plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c - 273.15, marker='o', color="blue", clip_on=False)
         plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h - 273.15, marker='o', color="red", clip_on=False)
         plt.xlabel(r"$\hat{h}$ [-]", fontsize=12)

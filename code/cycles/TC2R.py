@@ -18,10 +18,13 @@ from components.HEX import HEX_Design
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import fsolve, least_squares, root 
+from scipy.optimize import fsolve, minimize
+from time import time
 
+start = time()
 
-rapid_optimization = True # Set to True for rapid optimization with less points
+# Set verbosity
+verbose = False
 
 ############################################################
 # Parameters
@@ -37,7 +40,7 @@ recuperator_effectiveness = 0.8   # Effectiveness of the recuperator
 # Cycle parameters
 working_fluid = 'R290'            # Working fluid
 Q = 30e3                          # Power output at the Gas Cooler [W]
-ratio_evaporators = 1             # Ratio of power between the two evaporators
+beta = 0.5                        # beta = Q_evap_MT / (Q_evap_LT + Q_evap_MT) [-]
 
 # Heat sources parameters
 
@@ -62,16 +65,14 @@ glide_HT = 55                    # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
 p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
-# Optimization parameters
+# Bounds for the optimization parameters
 
-if rapid_optimization :
-    nb_points = 8
-else :
-    nb_points = 15
-
-T_6 = np.linspace(336.15, 340, nb_points)   # GasCooler outlet temperature [K]
-T_sup_1 = np.linspace(1,8, nb_points)       # Superheating at the compressor inlet [K]
-T_sup_3 = np.linspace(1,8, nb_points)       # Superheating at the second evaporator outlet [K]
+T_6_min = T5_prime + T_pinch    # Minimum outlet temperature of the gas cooler [K]
+T_6_max = 338                   # Maximum outlet temperature of the gas cooler [K]
+T_sup_1_min = 1                 # Minimum superheating at point 1 [K]
+T_sup_1_max = 6                 # Maximum superheating at point 1 [K]
+T_sup_3_min = 1                 # Minimum superheating at point 3 [K]
+T_sup_3_max = 6                # Maximum superheating at point 3 [K]
 
 
 ############################################################
@@ -79,10 +80,13 @@ T_sup_3 = np.linspace(1,8, nb_points)       # Superheating at the second evapora
 ############################################################
 
 # CoolProp low-level interface for all the fluids
-HEOS_external_fluid_LT = CoolProp.AbstractState("HEOS", external_fluid_LT)
-HEOS_external_fluid_MT = CoolProp.AbstractState("HEOS", external_fluid_MT)
-HEOS_external_fluid_HT = CoolProp.AbstractState("HEOS", external_fluid_HT)
-HEOS_working_fluid = CoolProp.AbstractState("HEOS", working_fluid)
+
+HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+
+HEOS_external_fluid_LT = CoolProp.AbstractState(HEOS_type, external_fluid_LT)
+HEOS_external_fluid_MT = CoolProp.AbstractState(HEOS_type, external_fluid_MT)
+HEOS_external_fluid_HT = CoolProp.AbstractState(HEOS_type, external_fluid_HT)
+HEOS_working_fluid = CoolProp.AbstractState(HEOS_type, working_fluid)
 
 # Cycle with its fixed states and mass flow rates
 TC2R = Cycle("TC2R")
@@ -97,9 +101,13 @@ TC2R.state_6_prime = State(HEOS_external_fluid_HT, T=T6_prime, p=p5_prime)
 TC2R.Compressor_1 = Compressor_2_param(cycle=TC2R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 TC2R.Compressor_2 = Compressor_2_param(cycle=TC2R, eta_v=eta_v, eta_is_max=eta_is_max, fluid=working_fluid, eta_elme=eta_elme)
 
+# Ratio between the two evaporators
+TC2R.beta = beta
+ratio_evaporators = beta / (1 - beta)
+
 
 ############################################################
-# Solve the cycle to determine the unknown states
+# Define the functions for the optimization
 ############################################################
 
 def iterative_process(p_gess, T_6_current, T_sup_current_1, T_sup_current_3): 
@@ -189,62 +197,75 @@ def iterative_process(p_gess, T_6_current, T_sup_current_1, T_sup_current_3):
     return residuals
 
 
-# Initial guesses
-p1_guess = 5e5 ; p3_guess = 10e5 ; p5_guess = 42e5
-p_guess = np.array([p1_guess, p3_guess, p5_guess])
+def objective_function(optimization_vars):
 
-# Compute the solution for each combination of (T_sub, T_sup_1, T_sup_3)
-p_solution = np.zeros((len(T_6), len(T_sup_1), len(T_sup_3), 3))
-COP_matrix = np.zeros((len(T_6), len(T_sup_1), len(T_sup_3)))
+    # Unpack optimization variables
+    T_6_current = optimization_vars[0]
+    T_sup_current_1 = optimization_vars[1]
+    T_sup_current_3 = optimization_vars[2]
 
-for i in range(len(T_6)) :
-    print(f"Solving for T_6 = {T_6[i]:.2f} K ({i+1}/{len(T_6)})")
-    for j in range(len(T_sup_1)) :
-        for k in range(len(T_sup_3)) :
+    # Initial guesses for the pressures
+    p1_guess = 5e5 ; p3_guess = 10e5 ; p5_guess = 42e5
+    p_guess = np.array([p1_guess, p3_guess, p5_guess])
 
-            T_6_current = T_6[i]
-            T_sup_current_1 = T_sup_1[j]
-            T_sup_current_3 = T_sup_3[k]
+    # Find the pressures that satisfy the pinch constraints
+    try :
+        p_solution = fsolve(iterative_process, p_guess, args=(T_6_current, T_sup_current_1, T_sup_current_3))
+        p3_solution = p_solution[1]
+        p5_solution = p_solution[2]
+    except :
+        if verbose:
+            print("Fsolve failed for the current set of optimization variables.")
+        return 1e6  # Return a large penalty if fsolve fails
 
-            # Find the pressures that satisfy the pinch constraints
-            try :
-                p_solution[i,j,k, :] = fsolve(iterative_process, p_guess, args=(T_6_current, T_sup_current_1, T_sup_current_3) )
-                p3_solution = p_solution[i,j,k,1]
-                p5_solution = p_solution[i,j,k,2]
-            except :
-                COP_matrix[i,j,k] = 0
-                continue
+    # Compute the COP for the current cycle
+    Delta_h_GasCooler = TC2R.state_5.h - TC2R.state_6.h
+    TC2R.mdot_wf_top = Q / Delta_h_GasCooler
+    TC2R.P_comp_top = TC2R.Compressor_2.Solve(p_ex=p5_solution, state_in=TC2R.state_4, mdot_wf=TC2R.mdot_wf_top, mode="Dimensional")[0]
 
-            # Compute the COP for the current cycle
-            Delta_h_GasCooler = TC2R.state_5.h - TC2R.state_6.h
-            TC2R.mdot_wf_top = Q / Delta_h_GasCooler
-            TC2R.P_comp_top = TC2R.Compressor_2.Solve(p_ex=p5_solution, state_in=TC2R.state_4, mdot_wf=TC2R.mdot_wf_top, mode="Dimensional")[0]
+    TC2R.mdot_wf_bottom = TC2R.mdot_wf_top / (1 + ratio_evaporators * (TC2R.state_1.h - TC2R.state_10.h) / (TC2R.state_3_evap.h - TC2R.state_8.h))
+    TC2R.P_comp_bottom = TC2R.Compressor_1.Solve(p_ex=p3_solution, state_in=TC2R.state_2, mdot_wf=TC2R.mdot_wf_bottom, mode="Dimensional")[0]
+    COP = Q / (TC2R.P_comp_top + TC2R.P_comp_bottom)
 
-            TC2R.mdot_wf_bottom = TC2R.mdot_wf_top / (1 + ratio_evaporators * (TC2R.state_1.h - TC2R.state_10.h) / (TC2R.state_3_evap.h - TC2R.state_8.h))
-            TC2R.P_comp_bottom = TC2R.Compressor_1.Solve(p_ex=p3_solution, state_in=TC2R.state_2, mdot_wf=TC2R.mdot_wf_bottom, mode="Dimensional")[0]
-            COP = Q / (TC2R.P_comp_top + TC2R.P_comp_bottom)
+    if TC2R.P_comp_top < 0 or TC2R.P_comp_bottom < 0 :
+        return 1e6  # Return a large penalty if any compressor power are negative
 
-            T_critical = HEOS_working_fluid.T_critical()
+    # Print the current cycle performance if verbose
+    if verbose:
+        print(f"  - Current cycle with T6={T_6_current:.2f} K, T_sup1={T_sup_current_1:.2f} K, T_sup3={T_sup_current_3:.2f} K has COP = {COP:.4f}")
 
-            if TC2R.GasCooler.Tpinch - T_pinch < -1e-4  :
-                COP_matrix[i,j,k] = 0 
-            else : COP_matrix[i,j,k] = COP
+    # We want to maximize the COP, so we minimize its negative value
+    return -COP    
 
-best_index = np.unravel_index(np.argmax(COP_matrix, axis=None), COP_matrix.shape)
-T_6_best = T_6[best_index[0]]
-T_sup_best_1 = T_sup_1[best_index[1]]
-T_sup_best_3 = T_sup_3[best_index[2]]
-p1_best = p_solution[best_index][0]
-p3_best = p_solution[best_index][1]
-p5_best = p_solution[best_index][2]
 
+############################################################
+# Optimization procedure
+############################################################  
+
+# Initial guess and bounds for optimization variables
+optimization_vars_guess = np.array([(T_6_min + T_6_max) / 2, (T_sup_1_min + T_sup_1_max) / 2, (T_sup_3_min + T_sup_3_max) / 2])
+bounds = [(T_6_min, T_6_max), (T_sup_1_min, T_sup_1_max), (T_sup_3_min, T_sup_3_max)]
+
+result = minimize(objective_function, optimization_vars_guess, bounds=bounds, method="Powell", options={'maxiter': 20})
+
+print(TC2R)
+
+# Extract the best parameters
+T_6_best = result.x[0]
+T_sup_best_1 = result.x[1]
+T_sup_best_3 = result.x[2]
 print("\nBest cycle found with parameters :")
-print(f"  - Best temperature for state 6 : {T_6_best:.2f} K")
+print(f"  - Outlet temperature of gas cooler : {T_6_best:.2f} K")
 print(f"  - Superheating at point 1 : {T_sup_best_1:.2f} K")
 print(f"  - Superheating at point 3 : {T_sup_best_3:.2f} K")
 
-# Recompute the cycle with the best parameters
-iterative_process(np.array([p1_best, p3_best, p5_best]), T_6_best, T_sup_best_1, T_sup_best_3)
+# Recompute the best cycle states (for safety)
+p1_guess = 5e5 ; p3_guess = 10e5 ; p5_guess = 42e5
+p_guess = np.array([p1_guess, p3_guess, p5_guess])
+p_best = fsolve(iterative_process, p_guess, args=(T_6_best, T_sup_best_1, T_sup_best_3))
+p1_best = p_best[0]
+p3_best = p_best[1]
+p5_best = p_best[2]
 
 # Compute heat exchangers and compressor with dimensional mode
 Delta_h_GasCooler = TC2R.state_5.h - TC2R.state_6.h
@@ -253,13 +274,13 @@ TC2R.P_comp_top = TC2R.Compressor_2.Solve(p_ex=p5_best, state_in=TC2R.state_4, m
 TC2R.mdot_wf_bottom = TC2R.mdot_wf_top / (1 + ratio_evaporators * (TC2R.state_1.h - TC2R.state_10.h) / (TC2R.state_3_evap.h - TC2R.state_8.h))
 TC2R.P_comp_bottom = TC2R.Compressor_1.Solve(p_ex=p3_best, state_in=TC2R.state_2, mdot_wf=TC2R.mdot_wf_bottom, mode="Dimensional")[0]
 TC2R.Evaporator_LT = HEX_Design(states_in=[TC2R.state_10, TC2R.state_1_prime], states_out=[TC2R.state_1, TC2R.state_2_prime], mdot = [TC2R.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional")
-TC2R.Evaporator_LT.Compute_Pinch()
+T_pinch_evap_LT = TC2R.Evaporator_LT.Compute_Pinch()
 TC2R.mdot_LT = TC2R.Evaporator_LT.mdot_h
 TC2R.Evaporator_MT = HEX_Design(states_in=[TC2R.state_8, TC2R.state_3_prime], states_out=[TC2R.state_3_evap, TC2R.state_4_prime],mdot = [TC2R.mdot_wf_top - TC2R.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional")
-TC2R.Evaporator_MT.Compute_Pinch()
+T_pinch_evap_MT = TC2R.Evaporator_MT.Compute_Pinch()
 TC2R.mdot_MT = TC2R.Evaporator_MT.mdot_h
 TC2R.GasCooler = HEX_Design(states_in=[TC2R.state_5_prime, TC2R.state_5], states_out=[TC2R.state_6_prime, TC2R.state_6], mdot=[None, TC2R.mdot_wf_top], name="GasCooler", mode="Dimensional")
-TC2R.GasCooler.Compute_Pinch()
+T_pinch_gas_cooler = TC2R.GasCooler.Compute_Pinch()
 TC2R.mdot_HT = TC2R.GasCooler.mdot_c
 TC2R.Recuperator_2 = HEX_Design(states_in=[TC2R.state_3, TC2R.state_6], states_out=[TC2R.state_4, TC2R.state_7], mdot=[TC2R.mdot_wf_top, TC2R.mdot_wf_top], name="Recuperator_1", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness)
 TC2R.Recuperator_2.Solve_Recuperator()
@@ -268,9 +289,17 @@ TC2R.Recuperator_1.Solve_Recuperator()
 
 # Compute cycle performance
 TC2R.COP = TC2R.GasCooler.Q / (TC2R.P_comp_top + TC2R.P_comp_bottom)
-TC2R.beta = TC2R.Evaporator_MT.Q / (TC2R.Evaporator_LT.Q + TC2R.Evaporator_MT.Q)
-print(f"  - Best cycle COP : {TC2R.COP:.2f}")
-print(f"  - Compressor power : {(TC2R.P_comp_top + TC2R.P_comp_bottom)/1e3:.2f} kW")
+
+# Limit the highest pressure of the cycle to 50 bars
+if TC2R.state_5.p > 5e6 :
+    raise ValueError("The highest pressure of the cycle exceeds 50 bars. Please adjust the input parameters.")
+
+# Raise error if pinch points are not satisfied
+if not (np.isclose(T_pinch_evap_LT, T_pinch, atol=1e-4) and np.isclose(T_pinch_evap_MT, T_pinch, atol=1e-4) and np.isclose(T_pinch_gas_cooler, T_pinch, atol=1e-4)):
+    raise ValueError("Pinch point constraints not satisfied in the best cycle found.")
+
+end = time()
+print(f"\nOptimization completed in {end - start:.2f} seconds.\n")
 
 
 ############################################################
@@ -279,23 +308,23 @@ print(f"  - Compressor power : {(TC2R.P_comp_top + TC2R.P_comp_bottom)/1e3:.2f} 
 
 full_details = False
 
-# Define the transforms 
-TC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
-                  Transform('comp', '2', '3_comp', TC2R.Compressor_1),
-                  Transform('comp', '4', '5', TC2R.Compressor_2),
-                  Transform('hex', '5', '6', TC2R.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'),
-                  Transform('adex', '7', '8', None),
-                  Transform('adex', '9', '10', None),
-                  Transform('hex', '8', '3_evap',TC2R.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
-                  Transform('hex', '10', '1',TC2R.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime'),
-                  Transform('hex', '3', '4',TC2R.Recuperator_2, label_in_secondary='6', label_out_secondary='7'),
-                  Transform('hex', '1', '2',TC2R.Recuperator_1, label_in_secondary='7', label_out_secondary='9')]
+if full_details:
 
-# Plot T-s diagram with saturation curve
-TC2R.Ts_diagram(n=100, plot=True)
-TC2R.ph_diagram(n=100, plot=True)
+    # Define the transforms 
+    TC2R.transforms = [Transform('isobaric_mixing', '3_comp', '3_evap', None),
+                    Transform('comp', '2', '3_comp', TC2R.Compressor_1),
+                    Transform('comp', '4', '5', TC2R.Compressor_2),
+                    Transform('hex', '5', '6', TC2R.GasCooler, label_in_secondary='5_prime', label_out_secondary='6_prime'),
+                    Transform('adex', '7', '8', None),
+                    Transform('adex', '9', '10', None),
+                    Transform('hex', '8', '3_evap',TC2R.Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
+                    Transform('hex', '10', '1',TC2R.Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime'),
+                    Transform('hex', '3', '4',TC2R.Recuperator_2, label_in_secondary='6', label_out_secondary='7'),
+                    Transform('hex', '1', '2',TC2R.Recuperator_1, label_in_secondary='7', label_out_secondary='9')]
 
-if full_details and not rapid_optimization: 
+    # Plot T-s diagram with saturation curve
+    TC2R.Ts_diagram(n=100, plot=True)
+    TC2R.ph_diagram(n=100, plot=True)
 
     # Plot energy and exergy charts
     TC2R.energy_chart(plot=True)
@@ -315,7 +344,7 @@ if full_details and not rapid_optimization:
 
 print(TC2R)
 
-if full_details and not rapid_optimization:
+if full_details:
     TC2R.Evaporator_LT.Compute_Area()
     TC2R.Evaporator_MT.Compute_Area()
     TC2R.GasCooler.Compute_Area()
