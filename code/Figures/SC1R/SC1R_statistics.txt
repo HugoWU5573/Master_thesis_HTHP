@@ -1,0 +1,17 @@
+Temperature ranges:
+  - T1' range: 12.0 C to 18.0 C (7 values)
+  - T4' range: 36.0 C to 42.0 C (7 values)
+  - Total number of operating conditions: 49
+
+Evaporator Areas:
+  - Mean: 0.2519 m2
+  - Standard Deviation: 0.0023 m2, which is 0.90% of the mean
+
+Condenser Areas:
+  - Mean: 1.2955 m2
+  - Standard Deviation: 0.0230 m2, which is 1.78% of the mean
+
+Recuperator Areas:
+  - Mean: 0.0422 m2
+  - Standard Deviation: 0.0005 m2, which is 1.17% of the mean
+

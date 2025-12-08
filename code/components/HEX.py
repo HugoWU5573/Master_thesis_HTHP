@@ -742,9 +742,9 @@ class HEX_Design():
 
             # First estimate of state_out_c and state_out_h based on epsilon
             hout_h = self.state_in_h.h - self.epsilon * cp_min * Delta_T_in
-            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+            self.state_out_h = State(self.HEOS_hot,h=hout_h, p=self.state_in_h.p)
             hout_c = self.state_in_c.h + self.epsilon * cp_min * Delta_T_in
-            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+            self.state_out_c = State(self.HEOS_cold,h=hout_c, p=self.state_in_c.p)
 
             cp_min_old = 0.0
             cp_min_new = cp_min
@@ -753,15 +753,15 @@ class HEX_Design():
                 cp_min_old = cp_min_new
 
                 # Compute cp_c and cp_h by averaging between inlet and outlet temperatures
-                cp_c = self._Cp_average(self.state_in_c.heos, self.state_in_c.T, self.state_out_c.T)
-                cp_h = self._Cp_average(self.state_in_h.heos, self.state_in_h.T, self.state_out_h.T)
+                cp_c = self._Cp_average(self.HEOS_cold, self.state_in_c.T, self.state_out_c.T)
+                cp_h = self._Cp_average(self.HEOS_hot, self.state_in_h.T, self.state_out_h.T)
                 cp_min_new = min(cp_c, cp_h)
 
                 # Update outlet States based on new cp_min
                 hout_h = self.state_in_h.h - self.epsilon * cp_min_new * Delta_T_in
-                self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
+                self.state_out_h = State(self.HEOS_hot,h=hout_h, p=self.state_in_h.p)
                 hout_c = self.state_in_c.h + self.epsilon * cp_min_new * Delta_T_in
-                self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
+                self.state_out_c = State(self.HEOS_cold,h=hout_c, p=self.state_in_c.p)
 
             self.Q = 1 # In non-dimensional mode, we set Q = 1 W as a reference value
         
@@ -1035,6 +1035,10 @@ class HEX_Design():
             Arequired_list[cell_index] = self._cell_analysis(cell_index, alpha_h, alpha_c)
 
         self.A = np.sum(Arequired_list)
+
+        # Switch back to TTSE&HEOS
+        self.HEOS_cold = self.state_in_c.heos
+        self.HEOS_hot = self.state_in_h.heos
 
         return self.A
 
