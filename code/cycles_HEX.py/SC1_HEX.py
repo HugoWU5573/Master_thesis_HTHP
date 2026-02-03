@@ -21,7 +21,7 @@ from scipy.optimize import fsolve, minimize
 import matplotlib.pyplot as plt
 
 # Set verbosity
-verbose = False
+verbose = True
 
 ############################################################
 # Parameters
@@ -60,9 +60,9 @@ T_sup_max = 8                   # Maximum superheating at the compressor inlet [
 ############################################################
 
 T1_prime_min = 10 + 273.15      # Minimum inlet temperature of the external fluid in the heat source [K]
-T1_prime_max = 20 + 273.15      # Maximum inlet temperature of the external fluid in the heat source [K]
-T4_prime_min = 35 + 273.15      # Minimum inlet temperature of the external fluid in the heat sink [K]
-T4_prime_max = 45 + 273.15      # Maximum inlet temperature of the external fluid in the heat sink [K]
+T1_prime_max = 30 + 273.15      # Maximum inlet temperature of the external fluid in the heat source [K]
+T4_prime_min = 30 + 273.15      # Minimum inlet temperature of the external fluid in the heat sink [K]
+T4_prime_max = 50 + 273.15      # Maximum inlet temperature of the external fluid in the heat sink [K]
 
 nb_steps = 11                   # Number of steps for each operating condition
 
@@ -93,7 +93,7 @@ for i in range(len(T1_prime_range)):
 
         # CoolProp low-level interface for all the fluids
 
-        HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+        HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
 
         HEOS_external_fluid_LT = CoolProp.AbstractState(HEOS_type, external_fluid_LT)
         HEOS_external_fluid_MT = CoolProp.AbstractState(HEOS_type, external_fluid_MT)
@@ -299,8 +299,8 @@ with open(output_file, 'w') as f:
 
 ## 1. Plot the evaporator areas distribution as a histogram
 
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.hist(Evaporators_areas_flat, bins=10, edgecolor='black', alpha=0.7, color='steelblue')
+fig, ax = plt.subplots()
+ax.hist(Evaporators_areas_flat, bins=12, edgecolor='black', alpha=0.7, color='steelblue')
 ax.set_xlabel(r'$Evaporator$ $HEX$ $Area$  $[m^2]$')
 ax.set_ylabel(r'$Frequency$')
 plt.tight_layout()
@@ -308,8 +308,8 @@ plt.show()
 
 ## 2. Plot the condenser areas distribution as a histogram
 
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.hist(Condenser_areas_flat, bins=10, edgecolor='black', alpha=0.7, color='coral')
+fig, ax = plt.subplots()
+ax.hist(Condenser_areas_flat, bins=12, edgecolor='black', alpha=0.7, color='coral')
 ax.set_xlabel(r'$Condenser$ $HEX$ $Area$  $[m^2]$')
 ax.set_ylabel(r'$Frequency$')
 plt.tight_layout()

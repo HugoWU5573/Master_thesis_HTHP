@@ -21,7 +21,7 @@ from scipy.optimize import fsolve, minimize
 import matplotlib.pyplot as plt
 
 # Set verbosity
-verbose = False
+verbose = True
 
 ############################################################
 # Parameters
@@ -60,12 +60,12 @@ T_sup_max = 8                   # Maximum superheating at the evaporator outlet 
 # Define the range of operating conditions
 ############################################################
 
-T1_prime_min = 12 + 273.15      # Minimum inlet temperature of the external fluid in the heat source [K]
-T1_prime_max = 18 + 273.15      # Maximum inlet temperature of the external fluid in the heat source [K]
-T4_prime_min = 36 + 273.15      # Minimum inlet temperature of the external fluid in the heat sink [K]
-T4_prime_max = 42 + 273.15      # Maximum inlet temperature of the external fluid in the heat sink [K]
+T1_prime_min = 10 + 273.15      # Minimum inlet temperature of the external fluid in the heat source [K]
+T1_prime_max = 30 + 273.15      # Maximum inlet temperature of the external fluid in the heat source [K]
+T4_prime_min = 30 + 273.15      # Minimum inlet temperature of the external fluid in the heat sink [K]
+T4_prime_max = 50 + 273.15      # Maximum inlet temperature of the external fluid in the heat sink [K]
 
-nb_steps = 7                   # Number of steps for each operating condition
+nb_steps = 11                   # Number of steps for each operating condition
 
 T1_prime_range = np.linspace(T1_prime_min, T1_prime_max, nb_steps)
 T4_prime_range = np.linspace(T4_prime_min, T4_prime_max, nb_steps)
@@ -93,7 +93,7 @@ for i in range(len(T1_prime_range)):
         # Instantiate objects
         ############################################################
 
-        HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+        HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
 
         # CoolProp low-level interface for all the fluids
         HEOS_external_fluid_LT = CoolProp.AbstractState(HEOS_type, external_fluid_LT)
@@ -323,7 +323,7 @@ with open(output_file, 'w') as f:
 
 ## 1. Plot the evaporator areas distribution as a histogram
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots()
 ax.hist(Evaporators_areas_flat, bins=10, edgecolor='black', alpha=0.7, color='steelblue')
 ax.set_xlabel(r'$Evaporator$ $HEX$ $Area$  $[m^2]$')
 ax.set_ylabel(r'$Frequency$')
@@ -332,7 +332,7 @@ plt.show()
 
 ## 2. Plot the condenser areas distribution as a histogram
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots()
 ax.hist(Condenser_areas_flat, bins=10, edgecolor='black', alpha=0.7, color='coral')
 ax.set_xlabel(r'$Condenser$ $HEX$ $Area$  $[m^2]$')
 ax.set_ylabel(r'$Frequency$')
@@ -341,7 +341,7 @@ plt.show()
 
 ## 3. Plot the recuperator areas distribution as a histogram
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots()
 ax.hist(Recuperator_areas_flat, bins=10, edgecolor='black', alpha=0.7, color='seagreen')
 ax.set_xlabel(r'$Recuperator$ $HEX$ $Area$  $[m^2]$')
 ax.set_ylabel(r'$Frequency$')

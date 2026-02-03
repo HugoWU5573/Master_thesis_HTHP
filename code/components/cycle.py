@@ -238,7 +238,7 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, plot = True, n=100) : 
+    def Ts_diagram(self, plot = True, n=100, save = True) : 
         # Generate saturation curve for working fluid
 
         T_points = []
@@ -367,11 +367,11 @@ class Cycle():
         #plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
+        if save == True : plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
         if plot == True : plt.show()
         return
     
-    def ph_diagram(self, plot = True, n=100) :
+    def ph_diagram(self, plot = True, n=100, save = True) :
         # Generate saturation curve for working fluid
 
         p_points = []
@@ -501,7 +501,7 @@ class Cycle():
         #plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/ph_diagram.png', dpi=600)
+        if save == True : plt.savefig(f'{fig_dir}/ph_diagram.png', dpi=600)
         if plot == True : plt.show()
         return
 

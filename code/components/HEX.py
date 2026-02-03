@@ -926,7 +926,7 @@ class HEX_Design():
         # Check if the hot stream is supercritical or not
         Tcrit_h = self.HEOS_hot.T_critical()
         pcrit_h = self.HEOS_hot.p_critical()
-        if (self.state_in_h.p > pcrit_h) or (self.state_in_h.T > Tcrit_h):
+        if (self.state_in_h.p > pcrit_h) and (self.state_in_h.T > Tcrit_h):
             self.supercritical_hot_stream = True
             
         self._cell_division(extra_cells=self.supercritical_hot_stream)
@@ -1059,8 +1059,10 @@ class HEX_Design():
         ## Cold stream
         hc_start = self.EnthalpyVector_c[cell_index]
         hc_end = self.EnthalpyVector_c[cell_index+1]
+        Tc_start = self.TemperatureVector_c[cell_index]
+        Tc_end = self.TemperatureVector_c[cell_index+1]
 
-        if self.state_in_c.p > self.HEOS_cold.p_critical():
+        if self.state_in_c.p > self.HEOS_cold.p_critical() and Tc_start > self.HEOS_cold.T_critical():
             # Cold stream is supercritical
             alpha_c = self._Supercritical_Correlation(cell_index, "cold")
         elif hc_end <= self.h_c_bub or hc_start >= self.h_c_dew: 
