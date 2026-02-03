@@ -2,6 +2,8 @@ import CoolProp
 import numpy as np
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI
+import CoolProp
+from scipy.optimize import fsolve
 
 class Compressor_3_params():
 
@@ -12,7 +14,7 @@ class Compressor_3_params():
         self.eta_elme = eta_elme
 
     
-    def Solve(self, P_el, p_ex, state_in):
+    def Solve(self, state_in, p_ex):
         """
         2-parameter model for compressor outlet state calculation.
         
@@ -41,14 +43,15 @@ class Compressor_3_params():
 
         # Isochoric compression with electrical power input
         w_ad_ex = v_ad * (p_ex - p_ad)                                             # Specific work for isentropic compression based on efficiency [J/kg]
+
+        # Scaling 
         w_tot = (w_ad_ex + w_su_ad) / self.eta_is_max                              # Total specific work based on efficiency [J/kg]
-        mdot_wf = P_el * self.eta_elme / (w_tot * self.eta_v)                      # Mass flow rate based on electrical power input [kg/s]
+        specific_work =  (w_tot * self.eta_v)/ self.eta_elme                       # Specific work based on volumetric and mechanical efficiency [J/kg] 
+        
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_ex)
+        T_ex = heos.T()                     # Mass flow rate based on electrical power input [kg/s]
 
-        w_real = w_tot * self.eta_v
-        heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_real, p_ex)
-        T_ex = heos.T()
-
-        return mdot_wf, T_ex 
+        return specific_work, T_ex, w_tot 
     
 
 class Compressor_2_param():
@@ -156,8 +159,9 @@ class Compressor_2_param():
 if __name__ == "__main__" :
     # Theoretical graph
     from state import State
-
     '''
+
+    
     T = 300
     p = PropsSI('P', 'T', T, 'Q', 1, 'R290')
     state_in = State(T=T+3, p=p, fluid='R290')
@@ -166,6 +170,7 @@ if __name__ == "__main__" :
     print(f'Mass flow rate: {mdot_wf} kg/s')
     print(f'Outlet temperature: {T_ex} K')
     print(PropsSI('Q', 'T', T_ex, 'P', 2*p, 'R290'))
+    '''
     '''
     heos = CoolProp.AbstractState("HEOS", "R290")
 
@@ -307,4 +312,165 @@ if __name__ == "__main__" :
     ax.spines['bottom'].set_position(('outward', 10))
     ax.spines['left'].set_position(('outward', 10))
     plt.show()
+    '''
+    heos = CoolProp.AbstractState("HEOS", "R290")
+    T_sup = 10
+    T_evap = np.array([273.15 + 10, 273.15 + 15, 273.15 + 20, 273.15 + 25])  # K
+    T_cond = np.linspace(273.15 + 25, 273.15 + 90, 40)  # K
+    p_evap = PropsSI('P', 'T', T_evap, 'Q', 1, 'R290')
+    p_cond = PropsSI('P', 'T', T_cond, 'Q', 0, 'R290')
+
+    BVR = 3
+    eta_is_max = 0.7
+    V_s = 8.5e-5
+    N = 25 
+
+    comp = Compressor_3_params(BVR=BVR, eta_v=None, eta_is_max=eta_is_max, eta_elme=1)
     
+    '''
+    P_el = np.zeros((len(T_cond), len(T_evap)))
+    T_2 = np.zeros((len(T_cond), len(T_evap)))
+    volume_ratio = np.zeros((len(T_cond), len(T_evap)))
+    pressure_ratio = np.zeros((len(T_cond), len(T_evap)))
+    eta_is_exp = np.zeros((len(T_cond), len(T_evap)))
+    m_dot = 10
+    w_tot = np.zeros((len(T_cond), len(T_evap)))
+    v_1 = np.zeros((len(T_cond), len(T_evap)))
+    pressure_ratio = np.zeros((len(T_cond), len(T_evap)))
+    p_ad = np.zeros(len(T_evap))
+
+    for i, T_c in enumerate(T_cond):
+        for j, T_e in enumerate(T_evap):
+            state_in = State(heos, T=T_e + T_sup, p=p_evap[j])
+            v_1[i,j] = 1/PropsSI('D', 'T', T_e + T_sup, 'P', p_evap[j], 'R290')
+            eta_v = (N * V_s) / (v_1[i,j] * m_dot)
+            comp.eta_v = eta_v
+            specific_work, T_2[i,j], w_tot[i,j] = comp.Solve(state_in=state_in, p_ex=p_cond[i])
+            P_el[i,j] = specific_work * m_dot
+            v_2 = 1/PropsSI('D', 'T', T_2[i,j], 'P', p_cond[i], 'R290')
+            volume_ratio[i,j] = v_1[i,j] / v_2
+            pressure_ratio[i,j] = p_cond[i] / p_evap[j]
+            h_1 = PropsSI('H', 'T', T_e + T_sup, 'P', p_evap[j], 'R290')
+            h_2 = PropsSI('H', 'T', T_2[i,j], 'P', p_cond[i], 'R290')
+            h_2is = PropsSI('H', 'P', p_cond[i], 'S', PropsSI('S', 'T', T_e + T_sup, 'P', p_evap[j], 'R290'), 'R290')
+            eta_is_exp[i,j] = (h_2is - h_1) / (h_2 - h_1)
+            pressure_ratio[i,j] = p_cond[i] / p_evap[j]
+            p_ad[j] = PropsSI('P', 'D', 1/(v_1[i,j]/BVR), 'S', PropsSI('S', 'T', T_e + T_sup, 'P', p_evap[j], 'R290'), 'R290')
+    
+    plt.figure()
+    for i in range(len(T_evap)):
+        plt.plot(volume_ratio[:,i], eta_is_exp[:,i], label='$T_{evap} =$ '+str(T_evap[i]-273.15)+'°C')
+        #plt.plot(pressure_ratio[:,i], eta_is_exp[:,i], label='T_evap = '+str(T_evap[i]-273.15)+'°C')
+    plt.axvline(x=BVR, color='black', linestyle='dotted', label='BVR')
+    plt.axhline(y=eta_is_max, color='black', linestyle='dashed', label='Max Isentropic Efficiency')
+    plt.xlabel(r'$v_1 / v_2$')
+    plt.ylabel(r'$\eta_{is, exp}$')
+    plt.legend()
+    plt.tight_layout()
+    #plt.show()
+
+    
+    plt.figure()
+    for i in range(len(T_evap)):
+        plt.plot(volume_ratio[:,i], P_el[:,i]/1e3, label='$T_{evap} =$ '+str(T_evap[i]-273.15)+'°C')
+        #plt.plot(v_2[:,i], label='v_2')
+    plt.xlabel(r'$v_1 / v_2$')
+    plt.ylabel(r'$P_{el}$ [kW]')
+    plt.legend()
+    plt.tight_layout()
+    #plt.show()
+    
+
+    plt.figure()
+    for i in range(len(T_evap)):
+        plt.plot(volume_ratio[:,i], T_2[:,i]-273.15, label='$T_{evap} =$ '+str(T_evap[i]-273.15)+'°C')
+        #plt.plot(v_2[:,i], label='v_2')
+    plt.xlabel(r'$v_1 / v_2$')
+    plt.ylabel(r'$T_2$ [°C]')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    '''
+    state_in = State(heos, T=300, p=5e5)
+    p_ex = np.linspace(6e5, 40e5, 100)
+    heos = state_in.heos
+    eta_is_max = 0.4
+    BVR = 3
+    w_su_ad = np.zeros(len(p_ex))
+    w_ad_ex = np.zeros(len(p_ex))
+    w_tot = np.zeros(len(p_ex))
+    ratio_volume = np.zeros(len(p_ex))
+    eta_is = np.zeros(len(p_ex))
+    w_is = np.zeros(len(p_ex))
+    p_ad = 0
+
+    for i in range(len(p_ex)) :
+
+        # Isentropic compression
+        heos.update(CoolProp.PT_INPUTS, state_in.p, state_in.T)
+        v_su = 1/heos.rhomass()                                                    # Specific volume at inlet [m^3/kg]
+        v_ad = v_su / BVR 
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)                # Specific volume at outlet assuming isentropic compression [m^3/kg]
+        h_ad = heos.hmass()                                                        # Enthalpy at outlet assuming isentropic compression [J/kg]
+        p_ad = heos.p()                                                            # Outlet pressure assuming isentropic compression [Pa]
+        w_su_ad[i] = h_ad - state_in.h                                                # Specific work for isentropic compression [J/kg]
+
+        # Isochoric compression with electrical power input
+        w_ad_ex[i] = v_ad * (p_ex[i] - p_ad)                                             # Specific work for isentropic compression based on efficiency [J/kg]
+
+        # Scaling 
+        w_tot[i] = (w_ad_ex[i] + w_su_ad[i]) / eta_is_max                              # Total specific work based on efficiency [J/kg]
+        
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot[i], p_ex[i])
+        T_ex = heos.T()                     # Mass flow rate based on electrical power input [kg/s]
+        v_ex = 1/heos.rhomass()
+        ratio_volume[i] = v_su / v_ex
+
+        heos.update(CoolProp.PSmass_INPUTS, p_ex[i], state_in.s)
+        hex_is = heos.hmass()
+        w_is[i] = hex_is - state_in.h
+        eta_is[i] = w_is[i] / w_tot[i]
+    
+    fig, axs = plt.subplots(2, 1, figsize=(6, 10), sharex=True)
+    axs[0].plot(ratio_volume, w_tot/1e3, label=r'$w_{tot}$')
+    axs[0].plot(ratio_volume, w_su_ad/1e3, label=r'$w_{su->ad}$')
+    axs[0].plot(ratio_volume, w_ad_ex/1e3, label=r'$w_{ad->ex}$')
+    axs[0].plot(ratio_volume, w_is/1e3, label=r'$w_{is}$')
+    axs[1].set_xlabel(r'$v_1 / v_2$')
+    axs[0].set_ylabel(r'$w$ [kJ/kg]')
+    axs[0].legend(frameon=False)
+    axs[0].axvline(x=BVR, color='black', linestyle='dotted', label='BVR')
+
+    axs[1].plot(ratio_volume, eta_is)
+    axs[1].set_ylabel(r'$\eta_{is,exp}$')
+    axs[1].axvline(x=BVR, color='black', linestyle='dotted', label='BVR')
+    axs[1].axhline(y=eta_is_max, color='black', linestyle='dashed', label='Max Isentropic Efficiency')
+    axs[1].legend(frameon=False)
+    plt.tight_layout()
+
+    fig, axs = plt.subplots(2, 1, figsize=(6, 10), sharex=True)
+
+    axs[0].plot(p_ex/state_in.p, w_tot/1e3, label=r'$w_{tot}$')
+    axs[0].plot(p_ex/state_in.p, w_su_ad/1e3, label=r'$w_{su->ad}$')
+    axs[0].plot(p_ex/state_in.p, w_ad_ex/1e3, label=r'$w_{ad->ex}$')
+    axs[0].plot(p_ex/state_in.p, w_is/1e3, label=r'$w_{is}$')
+    axs[1].set_xlabel(r'$p_2 / p_1$')
+    axs[0].set_ylabel(r'$w$ [kJ/kg]')
+    axs[0].legend(frameon=False)
+    axs[0].axvline(x=p_ad/state_in.p, color='black', linestyle='dotted', label=r'$p_{ad}/p_{in}$')
+    
+    axs[1].plot(p_ex/state_in.p, eta_is)
+    axs[1].set_ylabel(r'$\eta_{is,exp}$')
+    axs[1].axvline(x=p_ad/state_in.p, color='black', linestyle='dotted', label=r'$p_{ad}/p_{in}$')
+    axs[1].axhline(y=eta_is_max, color='black', linestyle='dashed', label='Max Isentropic Efficiency')
+    axs[1].legend(frameon=False)
+    plt.tight_layout()
+
+
+    #plt.grid()
+    plt.show()
+    
+
+
+
