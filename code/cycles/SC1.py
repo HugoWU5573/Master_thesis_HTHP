@@ -68,7 +68,7 @@ T_sup_max = 8                   # Maximum superheating at the compressor inlet [
 
 # CoolProp low-level interface for all the fluids
 
-HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
 
 HEOS_external_fluid_LT = CoolProp.AbstractState(HEOS_type, external_fluid_LT)
 HEOS_external_fluid_MT = CoolProp.AbstractState(HEOS_type, external_fluid_MT)

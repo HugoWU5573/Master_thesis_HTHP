@@ -67,7 +67,7 @@ T_sup_max = 8                   # Maximum superheating at the evaporator outlet 
 # Instantiate objects
 ############################################################
 
-HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
 
 # CoolProp low-level interface for all the fluids
 HEOS_external_fluid_LT = CoolProp.AbstractState(HEOS_type, external_fluid_LT)

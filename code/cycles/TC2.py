@@ -58,18 +58,18 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
-glide_HT = 55                   # Temperature glide in the gas cooler [K]
+T5_prime = 80 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+glide_HT = 40                   # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
-p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p5_prime = 5e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Bounds for the optimization parameters
 
 T_7_min = T5_prime + T_pinch    # Minimum outlet temperature of the gas cooler [K]
-T_7_max = 338                   # Maximum outlet temperature of the gas cooler [K]
+T_7_max = 380                   # Maximum outlet temperature of the gas cooler [K]
 T_sup_1_min = 1                 # Minimum superheating at point 1 [K]
 T_sup_1_max = 8                 # Maximum superheating at point 1 [K]
-T_sup_3_min = 8                 # Minimum superheating at point 3 [K]
+T_sup_3_min = 3                 # Minimum superheating at point 3 [K]
 T_sup_3_max = 12                # Maximum superheating at point 3 [K]
 
 
@@ -79,7 +79,7 @@ T_sup_3_max = 12                # Maximum superheating at point 3 [K]
 
 # CoolProp low-level interface for all the fluids
 
-HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
 
 HEOS_external_fluid_LT = CoolProp.AbstractState(HEOS_type, external_fluid_LT)
 HEOS_external_fluid_MT = CoolProp.AbstractState(HEOS_type, external_fluid_MT)
@@ -110,6 +110,12 @@ ratio_evaporators = beta / (1 - beta)
 
 def iterative_process(p_gess, T_7_current, T_sup_current_1, T_sup_current_3) :
     p1_guess = p_gess[0] ; p3_guess = p_gess[1] ; p5_guess = p_gess[2]
+
+    if p1_guess < 0 or p3_guess < 0 or p5_guess < 0 :
+        return np.array([1e6, 1e6, 1e6])  # Return large residuals if any pressure guess is negative
+    
+    if p1_guess > 200e5 or p3_guess > 200e5 or p5_guess > 200e5 :
+        return np.array([1e6, 1e6, 1e6])  # Return large residuals if any pressure guess is unreasonably high
 
     # STEP 1 : Compute the states based on the guesses values
 
@@ -150,14 +156,10 @@ def iterative_process(p_gess, T_7_current, T_sup_current_1, T_sup_current_3) :
     res_evap_LT = Tpinch_real - T_pinch
 
     # STEP 3 : Compute the residual for the second evaporator
-        # Compute guessed state 3_evap
-    def objective_h3_evap(h3_evap) :
-        left = ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (h3_evap - TC2.state_8.h) * h3_evap + TC2.state_3_comp.h
-        right = (1 + ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (h3_evap - TC2.state_8.h)) * TC2.state_3.h 
-        return left - right
+
+    r = ratio_evaporators * (TC2.state_1.h - TC2.state_10.h)
+    h3_evap = (r*TC2.state_3.h - TC2.state_8.h * (TC2.state_3.h - TC2.state_3_comp.h)) / (r + TC2.state_3_comp.h - TC2.state_3.h)
     
-    h3_evap_guess = (TC2.state_8.h + TC2.state_3.h) / 2
-    h3_evap = fsolve(objective_h3_evap, h3_evap_guess)[0]
     TC2.state_3_evap = State(HEOS_working_fluid, h=h3_evap, p=p3_guess)
 
     
@@ -263,9 +265,9 @@ TC2.mdot_HT = TC2.GasCooler.mdot_c
 # Compute cycle performance
 TC2.COP = TC2.GasCooler.Q / (TC2.P_comp_top + TC2.P_comp_bottom)
 
-# Limit the highest pressure of the cycle to 50 bars
-if TC2.state_5.p > 5e6 :
-    raise ValueError("The highest pressure of the cycle exceeds 50 bars. Please adjust the input parameters.")
+# Limit the highest pressure of the cycle to 55 bars
+if TC2.state_5.p > 5.5e6 :
+    raise ValueError("The highest pressure of the cycle exceeds 55 bars. Please adjust the input parameters.")
 
 # Raise error if pinch points are not satisfied
 if not (np.isclose(T_pinch_evap_LT, T_pinch, atol=1e-4) and np.isclose(T_pinch_evap_MT, T_pinch, atol=1e-4) and np.isclose(T_pinch_gas_cooler, T_pinch, atol=1e-4)):

@@ -668,7 +668,7 @@ class HEX_Design():
         if self.A == None:
             result += "Heat exchanger area: Not calculated yet\n"
         else :
-            result += f"Heat exchanger area: {self.A:.2f} m2\n"
+            result += f"Heat exchanger area: {self.A:.3f} m2\n"
         result += "===================================================================================="
 
         return result
@@ -753,8 +753,8 @@ class HEX_Design():
                 cp_min_old = cp_min_new
 
                 # Compute cp_c and cp_h by averaging between inlet and outlet temperatures
-                cp_c = self._Cp_average(self.HEOS_cold, self.state_in_c.T, self.state_out_c.T)
-                cp_h = self._Cp_average(self.HEOS_hot, self.state_in_h.T, self.state_out_h.T)
+                cp_c = self._Cp_average(self.HEOS_cold, self.state_in_c.p, self.state_in_c.T, self.state_out_c.T)
+                cp_h = self._Cp_average(self.HEOS_hot, self.state_in_h.p, self.state_in_h.T, self.state_out_h.T)
                 cp_min_new = min(cp_c, cp_h)
 
                 # Update outlet States based on new cp_min
@@ -790,11 +790,12 @@ class HEX_Design():
         self.EnthalpyVector_c = np.array([self.state_in_c.h, self.state_out_c.h])
 
         self.N = 1 # Initial number of cells
-        
 
         ## A. Insert phase transition enthalpies for the hot stream if applicable
 
-        if not self.supercritical_hot_stream:  # If the hot stream is supercritical, no phase change can occur in it
+        pcrit_h = self.HEOS_hot.p_critical()
+
+        if not (self.state_in_h.p > pcrit_h):  # If the hot stream pressure is higher than the critical pressure, no phase change can occur
 
             self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
             self.h_h_bub = self.HEOS_hot.hmass()
@@ -822,28 +823,32 @@ class HEX_Design():
         
         ## B. Insert phase transition enthalpies for the cold stream if applicable
 
-        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
-        self.h_c_bub = self.HEOS_cold.hmass()
-        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
-        self.h_c_dew = self.HEOS_cold.hmass()
+        pcrit_c = self.HEOS_cold.p_critical()
 
-            # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
-        if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
-            self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
-            self.EnthalpyVector_c.sort()
-            self.evaporation_start = True
-            self.N += 1
-        else :
-            self.evaporation_start = False
+        if not (self.state_in_c.p > pcrit_c):  # If the cold stream pressure is higher than the critical pressure, no phase change can occur
 
-            # 2. Check for potential phase transition 2 phase to Vapor (dew point)
-        if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
-            self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
-            self.EnthalpyVector_c.sort()
-            self.evaporation_end = True
-            self.N += 1
-        else :
-            self.evaporation_end = False
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
+            self.h_c_bub = self.HEOS_cold.hmass()
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
+            self.h_c_dew = self.HEOS_cold.hmass()
+
+                # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
+            if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
+                self.EnthalpyVector_c.sort()
+                self.evaporation_start = True
+                self.N += 1
+            else :
+                self.evaporation_start = False
+
+                # 2. Check for potential phase transition 2 phase to Vapor (dew point)
+            if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
+                self.EnthalpyVector_c.sort()
+                self.evaporation_end = True
+                self.N += 1
+            else :
+                self.evaporation_end = False
 
 
         ## C. Insert complementary phase transition enthalpies
@@ -906,7 +911,7 @@ class HEX_Design():
         ## E. Verify that both vectors have the same length
 
         if (len(self.EnthalpyVector_c) != len(self.EnthalpyVector_h)):
-            raise ValueError("Cell division algorithm failed: Enthalpy vectors have different lengths.")
+            raise ValueError(f"Cell division algorithm failed: Enthalpy vectors have different lengths, len(EnthalpyVector_c) = {len(self.EnthalpyVector_c)}, len(EnthalpyVector_h) = {len(self.EnthalpyVector_h)}.")
         
         if (len(self.EnthalpyVector_h) != (self.N+1)):
             raise ValueError("Size of enthalpy vectors does not match the expected number of cells.")
@@ -929,7 +934,7 @@ class HEX_Design():
         if (self.state_in_h.p > pcrit_h) and (self.state_in_h.T > Tcrit_h):
             self.supercritical_hot_stream = True
             
-        self._cell_division(extra_cells=self.supercritical_hot_stream)
+        self._cell_division(extra_cells = self.supercritical_hot_stream) 
 
         self.TemperatureVector_c = np.zeros(len(self.EnthalpyVector_c))
         self.TemperatureVector_h = np.zeros(len(self.EnthalpyVector_h))
@@ -1065,6 +1070,9 @@ class HEX_Design():
         if self.state_in_c.p > self.HEOS_cold.p_critical() and Tc_start > self.HEOS_cold.T_critical():
             # Cold stream is supercritical
             alpha_c = self._Supercritical_Correlation(cell_index, "cold")
+        elif self.state_in_c.p > self.HEOS_cold.p_critical() :
+            # No phase change can occur in cold stream
+            alpha_c = self._SinglePhase_Correlation(cell_index, "cold")
         elif hc_end <= self.h_c_bub or hc_start >= self.h_c_dew: 
             # Cold stream is single phase
             alpha_c = self._SinglePhase_Correlation(cell_index, "cold")
@@ -1079,6 +1087,9 @@ class HEX_Design():
         if self.supercritical_hot_stream:
             # Hot stream is supercritical
             alpha_h = self._Supercritical_Correlation(cell_index, "hot")
+        elif self.state_in_h.p > self.HEOS_hot.p_critical() :
+            # No phase change can occur in hot stream
+            alpha_h = self._SinglePhase_Correlation(cell_index, "hot")
         elif hh_end <= self.h_h_bub or hh_start >= self.h_h_dew:
             # Hot stream is single phase liquid
             alpha_h = self._SinglePhase_Correlation(cell_index, "hot")
@@ -1256,16 +1267,18 @@ class HEX_Design():
             Tb = Tb_h
             heos = self.HEOS_hot
             mdot = self.mdot_h
+            p = self.state_in_h.p
         else :
             Tb = Tb_c
             heos = self.HEOS_cold
             mdot = self.mdot_c
+            p = self.state_in_c.p
         
         # Wall temperature estimation
         Tw = (Tb_h + Tb_c) / 2
 
         # Average cp calculation between Tb and Tw
-        Cp_avg = self._Cp_average(heos, Tb, Tw)
+        Cp_avg = self._Cp_average(heos, p, Tb, Tw)
 
         # Fluid properties at Tb
         heos.update(CoolProp.PT_INPUTS, heos.p(), Tb)
@@ -1305,7 +1318,7 @@ class HEX_Design():
             - Cp_avg : average specific heat capacity [J/kg/K]
 
     """
-    def _Cp_average(self, heos, T1, T2):
+    def _Cp_average(self, heos, p, T1, T2):
 
         # Discretization of the temperature range
         N = 100
@@ -1314,7 +1327,7 @@ class HEX_Design():
         # Calculation of Cp at each temperature
         Cp_values = np.zeros(len(T_values))
         for i, T in enumerate(T_values):
-            heos.update(CoolProp.PT_INPUTS, heos.p(), T)
+            heos.update(CoolProp.PT_INPUTS, p, T)
             Cp_values[i] = heos.cpmass()
 
         # Numerical integration using the trapezoidal rule

@@ -268,10 +268,6 @@ std_evaporator_area = np.std(Evaporators_areas_flat)
 std_condenser_area = np.std(Condenser_areas_flat)
 std_recuperator_area = np.std(Recuperator_areas_flat)
 
-# Delete extreme outliers (beyond 5 standard deviations)
-Evaporators_areas_flat = Evaporators_areas_flat[np.abs(Evaporators_areas_flat - mean_evaporator_area) <= 5 * std_evaporator_area]
-Condenser_areas_flat = Condenser_areas_flat[np.abs(Condenser_areas_flat - mean_condenser_area) <= 5 * std_condenser_area]
-
 
 ############################################################
 # Print the results

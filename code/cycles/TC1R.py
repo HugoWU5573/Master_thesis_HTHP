@@ -50,17 +50,17 @@ p3_prime = 1e5                  # Inlet pressure of the external fluid in the he
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
-T5_prime = 60 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
-glide_HT = 55                   # Temperature glide in the gas cooler [K]
+T5_prime = 80 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
+glide_HT = 40                   # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
-p5_prime = 2e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p5_prime = 5e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Bounds for the optimization parameters
 
 T_sup_min = 2                   # Minimum superheating at the exit of the evaporator [K]
 T_sup_max = 8                   # Maximum superheating at the exit of the evaporator [K]
 T_6_min = T5_prime + T_pinch    # Minimum outlet temperature of the gas cooler [K]
-T_6_max = 338                   # Maximum outlet temperature of the gas cooler [K]
+T_6_max = 380                   # Maximum outlet temperature of the gas cooler [K]
 
 ############################################################
 # Instantiate objects
@@ -68,7 +68,7 @@ T_6_max = 338                   # Maximum outlet temperature of the gas cooler [
 
 # CoolProp low-level interface for all the fluids
 
-HEOS_type = "TTSE&HEOS"  # Choose from "HEOS", "TTSE&HEOS"
+HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
 
 HEOS_external_fluid_MT = CoolProp.AbstractState(HEOS_type, external_fluid_MT)
 HEOS_external_fluid_HT = CoolProp.AbstractState(HEOS_type, external_fluid_HT)
@@ -145,7 +145,7 @@ def objective_function(optimization_vars) :
     T_6_current = optimization_vars[1]
 
     # Initial guesses for the pressures
-    p3_guess = 10e5 ; p5_guess = 41e5
+    p3_guess = 10e5 ; p5_guess = 45e5
     p_guess = np.array([p3_guess, p5_guess])
 
     # Find the pressures that satisfy the pinch constraints
@@ -153,11 +153,13 @@ def objective_function(optimization_vars) :
         p_solution = fsolve(iterative_process, p_guess, args=(T_sup_current, T_6_current))
         p5_solution = p_solution[1]
     except :
+        if verbose:
+            print(f"  - fsolve failed for T_sup = {T_sup_current:.2f} K and T_6 = {T_6_current:.2f} K. Assigning a large penalty.")
         return 1e6 # Return a large penalty if fsolve fails
     
     # Compute the COP for the current cycle
-    Delta_h_Condenser = TC1R.state_5.h - TC1R.state_6.h
-    TC1R.mdot_wf_top = Q / Delta_h_Condenser
+    Delta_h_GasCooler = TC1R.state_5.h - TC1R.state_6.h
+    TC1R.mdot_wf_top = Q / Delta_h_GasCooler
     TC1R.P_comp_top = TC1R.Compressor.Solve(p_ex=p5_solution, state_in=TC1R.state_4, mdot_wf=TC1R.mdot_wf_top, mode="Dimensional")[0]
     COP = Q / TC1R.P_comp_top
 
@@ -187,15 +189,15 @@ print(f"  - Superheating at evaporator outlet : {T_sup_best:.2f} K")
 print(f"  - Outlet temperature of gas cooler : {T_6_best:.2f} K")
 
 # Recompute the best cycle states (for safety)
-p3_guess = 10e5 ; p5_guess = 41e5
+p3_guess = 10e5 ; p5_guess = 45e5
 p_guess = np.array([p3_guess, p5_guess])
 p_best = fsolve(iterative_process, p_guess, args=(T_sup_best, T_6_best))
 p3_best = p_best[0]
 p5_best = p_best[1]
 
 # Compute heat exchangers and compressor with dimensional mode
-Delta_h_Condenser = TC1R.state_5.h - TC1R.state_6.h
-TC1R.mdot_wf_top = Q / Delta_h_Condenser
+Delta_h_GasCooler = TC1R.state_5.h - TC1R.state_6.h
+TC1R.mdot_wf_top = Q / Delta_h_GasCooler
 TC1R.P_comp_top = TC1R.Compressor.Solve(p_ex=p5_best, state_in=TC1R.state_4, mdot_wf=TC1R.mdot_wf_top, mode="Dimensional")[0]
 TC1R.Evaporator = HEX_Design(states_in=[TC1R.state_8, TC1R.state_3_prime], states_out=[TC1R.state_3, TC1R.state_4_prime], mdot=[TC1R.mdot_wf_top, None], name="Evaporator", mode="Dimensional")
 T_pinch_evap = TC1R.Evaporator.Compute_Pinch()
@@ -209,13 +211,13 @@ TC1R.Recuperator.Solve_Recuperator()
 # Compute cycle performance
 TC1R.COP = TC1R.GasCooler.Q / TC1R.P_comp_top
 
-# Limit the highest pressure of the cycle to 50 bars
-if TC1R.state_5.p > 5e6 :
-    raise ValueError("The highest pressure of the cycle exceeds 50 bars. Please adjust the input parameters.")
+# Limit the highest pressure of the cycle to 55 bars
+if TC1R.state_5.p > 5.5e6 :
+    raise ValueError("The highest pressure of the cycle exceeds 55 bars. Please adjust the input parameters.")
 
 # Raise error if pinch points are not satisfied
 if not (np.isclose(T_pinch_evap, T_pinch, atol=1e-4) and np.isclose(T_pinch_gas_cooler, T_pinch, atol=1e-4)):
-    raise ValueError("Pinch point constraints not satisfied in the best cycle found.")
+    raise ValueError(f"Pinch point constraints not satisfied in the best cycle found : T_pinch_evap = {T_pinch_evap:.4f} K, T_pinch_gas_cooler = {T_pinch_gas_cooler:.4f} K.")
 
 end = time()
 print(f"\nOptimization completed in {end - start:.2f} seconds.\n")
