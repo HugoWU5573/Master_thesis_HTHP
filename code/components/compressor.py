@@ -14,7 +14,7 @@ class Compressor_3_params():
         self.eta_elme = eta_elme
 
     
-    def Solve(self, state_in, p_ex):
+    def Solve(self, state_in, p_ex, mdot_wf):
         """
         2-parameter model for compressor outlet state calculation.
         
@@ -46,12 +46,12 @@ class Compressor_3_params():
 
         # Scaling 
         w_tot = (w_ad_ex + w_su_ad) / self.eta_is_max                              # Total specific work based on efficiency [J/kg]
-        specific_work =  (w_tot * self.eta_v)/ self.eta_elme                       # Specific work based on volumetric and mechanical efficiency [J/kg] 
+        P_el = w_tot * mdot_wf / self.eta_elme / self.eta_v
         
         heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_ex)
         T_ex = heos.T()                     # Mass flow rate based on electrical power input [kg/s]
 
-        return specific_work, T_ex, w_tot 
+        return P_el, T_ex 
     
 
 class Compressor_2_param():
@@ -92,7 +92,7 @@ class Compressor_2_param():
         w_tot = h_ex - state_in.h
 
         if mode == "Dimensional" :
-            P_el =  mdot_wf * w_tot * self.eta_v / self.eta_elme
+            P_el =  mdot_wf * self.eta_v * w_tot / self.eta_elme
         elif mode == "Non-Dimensional" :
             P_el = None
 

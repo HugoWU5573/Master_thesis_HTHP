@@ -17,7 +17,11 @@ print("=================LP compressor characterisation=====================")
 
 T_cond = np.array([60, 55, 50, 45, 40, 35, 30]) + 273.15
 T_evap = np.array([7,12,17,18]) + 273.15
-T_sup = 10 
+T_sup = 10
+bore = 41e-3
+stroke = 39.3e-3
+n_cylinders = 4 
+V_s = bore**2 * np.pi/4 * stroke * n_cylinders
 
 p_cond = np.zeros_like(T_cond)
 p_evap = np.zeros_like(T_evap)
@@ -28,6 +32,8 @@ for i in range(len(T_cond)):
 for j in range(len(T_evap)):
     heos.update(CoolProp.QT_INPUTS, 0, T_evap[j])
     p_evap[j] = heos.p()
+
+N = [25, 50] 
 
 Q_I_25 = 1e3 * np.array([
     [5.4, 6.5, 7.8, 8.1],      # 60°C
@@ -109,10 +115,11 @@ T_2_50 = 273.15 + np.array([
 ])
 T_2 = np.array([T_2_25, T_2_50])
 
-N = np.zeros_like(T_2) + np.array([25, 50]).reshape(-1,1,1)
+
 T_1 = np.zeros_like(T_2)
 for i, T_e in enumerate(T_evap):
     T_1[:,:,i] = T_e + T_sup
+    
 p_1 = np.zeros_like(T_2)
 for j, p_e in enumerate(p_evap):
     p_1[:,:,j] = p_e
@@ -125,50 +132,61 @@ for i in range(len(T_1)) :
 p_2 = np.zeros_like(T_2)
 for i, p_c in enumerate(p_cond):
     p_2[:,i,:] = p_c
+
 inputs = (N, T_1, p_1, v_1, p_2, mdot)
 data = (P, T_2)
 
 #print(np.nanmax(0.8 * mdot * v_1 / N))
-eta_elme = 0.95
-compressor = Compressor_3_params(None, None, None, eta_elme = eta_elme)
+compressors = []
+for i in range(len(N)) :
+    compressor = Compressor_3_params(BVR = None, eta_v = None, eta_is_max = None, eta_elme = None)
+    compressors.append(compressor)
 
 def fitting(params, inputs, data, weights = (0.5, 0.5)) :
-    BVR, eta_is_max, V_s = params
     N, T_1, p_1, v_1, p_2, mdot = inputs
+    BVR = params[0]
+    eta_is_max = [params[1+i] for i in range(len(N))]
+    eta_elme = [params[1+len(N)+i] for i in range(len(N))]
     P_meas, T_2_meas = data
-    eta_v = V_s * N / (mdot * v_1)
-    I, J, K = N.shape
+    I, J, K = len(N), len(T_1[0]), len(T_1[0,0])
     sum_squared_errors_P = 0
     sum_squared_errors_T = 0
     T_2_meas_min, T_2_meas_max = np.nanmin(T_2_meas), np.nanmax(T_2_meas)
 
-    compressor.BVR = BVR
-    compressor.eta_is_max = eta_is_max
+    for i in range(len(N)) :
+            compressors[i].BVR = BVR
+            compressors[i].eta_is_max = eta_is_max[i]
+            compressors[i].eta_elme = eta_elme[i]
+    
     for i in range(I) :
         for j in range(J) :
             for k in range(K) :
                 if not np.isnan(T_2_meas[i,j,k]) :
-                    compressor.eta_v = eta_v[i,j,k]
+                    compressors[i].eta_v = (mdot[i,j,k] * v_1[i,j,k]) / (V_s * N[i]/2)
                     #print("Fitting point: N =", N[i,j,k], "T_1 =", T_1[i,j,k], "p_1 =", p_1[i,j,k], "p_2 =", p_2[i,j,k], "mdot =", mdot[i,j,k])
                     state_1 = State(heos, T = T_1[i,j,k], p = p_1[i,j,k])
-                    specific_work, T_2_calc = compressor.Solve(state_1, p_2[i,j,k])[0:2]
-                    P_calc = specific_work * mdot[i,j,k]
+                    P_calc, T_2_calc = compressors[i].Solve(state_1, p_2[i,j,k], mdot[i,j,k])
                     sum_squared_errors_P += ((P_calc - P_meas[i,j,k])/P_calc)**2
                     sum_squared_errors_T += ((T_2_calc - T_2_meas[i,j,k])/(T_2_meas_max - T_2_meas_min))**2
     
     objective = weights[0] * np.sqrt(sum_squared_errors_P) + weights[1] * np.sqrt(sum_squared_errors_T)
     return objective
 
-params_initial = [2.25, 0.8, 50e-6]  # Initial guesses for BVR, eta_is_max, V_s, eta_elme
+BVR_initial = 3
+eta_is_max_initial = 0.8
+eta_elme_initial = 0.8
+params_initial = [BVR_initial] + [eta_is_max_initial] * len(N) + [eta_elme_initial] * len(N)
 params_opt = minimize(fitting, x0 = params_initial, args = (inputs, data), method = 'Nelder-Mead').x #bounds=((2,2.5), (0.6,0.9), (None, None), (0.9, 1))).x
 print("Objective function value:", fitting(params_opt, inputs, data))
 print("Optimized parameters:")
 print("BVR:", params_opt[0])
-print("eta_is_max:", params_opt[1])
-print("V_s:", params_opt[2])
-print("eta_elme:", eta_elme)
-eta_v = params_opt[2] * N / (mdot * v_1)
-specific_work_calc = np.zeros_like(T_2)
+for i in range(len(N)) :
+    print(f"eta_is_max for N={N[i]} Hz:", params_opt[1+i])
+    print(f"eta_elme for N={N[i]} Hz:", params_opt[1+len(N)+i])
+    
+eta_is_max = [params_opt[1+i] for i in range(len(N))]
+eta_elme = [params_opt[1+len(N)+i] for i in range(len(N))]
+eta_v = np.zeros_like(T_2)
 T_2_calc = np.zeros_like(T_2)
 v_2_calc = np.zeros_like(T_2)
 P_calc = np.zeros_like(T_2)
@@ -178,11 +196,10 @@ for i in range(len(T_2)) :
     for j in range(len(T_2[0])) :
         for k in range(len(T_2[0,0])) :
             if not np.isnan(T_2[i,j,k]) :
-                compressor = Compressor_3_params(params_opt[0], eta_v[i,j,k], eta_is_max=params_opt[1], eta_elme = 0.95)
+                eta_v[i,j,k] = (mdot[i,j,k] * v_1[i,j,k]) / (V_s * N[i]/2)
+                compressor = Compressor_3_params(params_opt[0], eta_v[i,j,k], eta_is_max=eta_is_max[i], eta_elme = eta_elme[i])
                 state_1 = State(heos, T = T_1[i,j,k], p = p_1[i,j,k])
-                specific_work_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_1, p_2[i,j,k])[0:2]
-                P_calc[i,j,k] = specific_work_calc[i,j,k] * mdot[i,j,k]
-
+                P_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_1, p_2[i,j,k], mdot[i,j,k])
                 heos.update(CoolProp.PT_INPUTS, p_2[i,j,k], T_2_calc[i,j,k])
                 v_2_calc[i,j,k] = 1/heos.rhomass()
                 h_2_calc = heos.hmass()
@@ -190,7 +207,6 @@ for i in range(len(T_2)) :
                 h_2is = heos.hmass()
                 eta_is_calc[i,j,k] = (h_2is - state_1.h) / (h_2_calc - state_1.h)
             else :
-                specific_work_calc[i,j,k] = np.nan
                 T_2_calc[i,j,k] = np.nan
                 v_2_calc[i,j,k] = np.nan
                 P_calc[i,j,k] = np.nan
@@ -225,10 +241,9 @@ colors = color_palette("tab10", 4)
 error_P = 100 * np.abs(P_calc - P) / P
 error_T = 100 * np.abs(T_2_calc - T_2) / T_2
 plt.figure(figsize=(8,6))
-plt.plot(v_1[0,:,:].flatten()/v_2[0,:,:].flatten(), error_P[0,:,:].flatten(), 'o', color = colors[0], label = 'Power N=25 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2[1,:,:].flatten(), error_P[1,:,:].flatten(), 'o', color = colors[2], label = 'Power N=50 Hz')
-plt.plot(v_1[0,:,:].flatten()/v_2[0,:,:].flatten(), error_T[0,:,:].flatten(), 'x', color = colors[1], label = 'Temperature N=25 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2[1,:,:].flatten(), error_T[1,:,:].flatten(), 'x', color = colors[3], label = 'Temperature N=50 Hz')
+for i in range(len(N)) :
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), error_P[i,:,:].flatten(), 'o', color = colors[2*i], label = f'Power N={N[i]} Hz')
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), error_T[i,:,:].flatten(), 'x', color = colors[2*i+1], label = f'Temperature N={N[i]} Hz')
 plt.xlabel(r'$v_1 / v_2$')
 plt.ylabel(r'Relative error [%]')
 plt.legend()
@@ -236,10 +251,11 @@ plt.tight_layout()
 #plt.show()
 
 plt.figure(figsize=(8,6))
-plt.plot(v_1[0,:,:].flatten()/v_2[0,:,:].flatten(), eta_is[0,:,:].flatten(), 'o', color = colors[0], label='Measured data N=25 Hz')
-#plt.plot(v_1[0,:,:].flatten()/v_2_calc[0,:,:].flatten(), eta_is_calc[0,:,:].flatten(), 'x', label='Fitted data N=25 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2[1,:,:].flatten(), eta_is[1,:,:].flatten(), 'o', color = colors[2], label='Measured data N=50 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2_calc[1,:,:].flatten(), eta_is_calc[1,:,:].flatten(), 'x', color = colors[3], label='Fitted data')
+for i in range(len(N)) :
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
+    plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), eta_is_calc[i,:,:].flatten(), 'x', color = colors[2*i+1], label=f'Fitted data N={N[i]} Hz')
+
+'''
 plt.hlines(params_opt[1],
             xmin=np.nanmin(v_1[1,:,:].flatten()/v_2[1,:,:].flatten()),
             xmax=np.nanmax(v_1[1,:,:].flatten()/v_2[1,:,:].flatten()),
@@ -247,6 +263,7 @@ plt.hlines(params_opt[1],
             label=r'Fitted $\eta_{is,max}$' + f' = {params_opt[1]:.2f}')
 plt.vlines(params_opt[0], ymin=np.nanmin(eta_is[1,:,:].flatten()), ymax=np.nanmax(eta_is[0,:,:].flatten()), colors='black', 
            linestyles='dotted', label=r'Fitted BVR' + f' = {params_opt[0]:.2f}')
+'''
 plt.xlabel(r'$v_1 / v_2$')
 plt.ylabel(r'$\eta_{is}$')
 plt.legend()
@@ -254,10 +271,9 @@ plt.tight_layout()
 #plt.show()
 
 plt.figure(figsize=(8,6))
-plt.plot(v_1[0,:,:].flatten()/v_2[0,:,:].flatten(), P[0,:,:].flatten()/1000, 'o', color = colors[0], label='Measured data N=25 Hz')
-plt.plot(v_1[0,:,:].flatten()/v_2_calc[0,:,:].flatten(), P_calc[0,:,:].flatten()/1000, 'x', color = colors[1], label='Fitted data N=25 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2[1,:,:].flatten(), P[1,:,:].flatten()/1000, 'o', color = colors[2], label='Measured data N=50 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2_calc[1,:,:].flatten(), P_calc[1,:,:].flatten()/1000, 'x', color = colors[3], label='Fitted data N=50 Hz')
+for i in range(len(N)) :
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), P[i,:,:].flatten()/1000, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
+    plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), P_calc[i,:,:].flatten()/1000, 'x', color = colors[2*i+1], label=f'Fitted data N={N[i]} Hz')
 plt.xlabel(r'$v_1 / v_2$')
 plt.ylabel(r'$P$ [kW]')
 plt.legend()
@@ -266,10 +282,11 @@ plt.tight_layout()
 
 
 plt.figure(figsize=(8,6))
-plt.plot(v_1[0,:,:].flatten()/v_2[0,:,:].flatten(), T_2[0,:,:].flatten()-273.15, 'o', color = colors[0], label='Measured data N=25 Hz')
-#plt.plot(v_1[0,:,:].flatten()/v_2_calc[0,:,:].flatten(), T_2_calc[0,:,:].flatten()-273.15, 'x', color = colors[1], label='Fitted data N=25 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2[1,:,:].flatten(), T_2[1,:,:].flatten()-273.15, 'o', color = colors[2], label='Measured data N=50 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2_calc[1,:,:].flatten(), T_2_calc[1,:,:].flatten()-273.15, 'x', color = colors[3], label='Fitted data')
+
+for i in range(len(N)) :
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), T_2[i,:,:].flatten()-273.15, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
+    plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), T_2_calc[i,:,:].flatten()-273.15, 'x', color = colors[2*i+1], label=f'Fitted data N={N[i]} Hz')
+
 plt.xlabel(r'$v_1 / v_2$')
 plt.ylabel(r'$T_2$ [°C]')
 plt.legend()
@@ -277,15 +294,16 @@ plt.tight_layout()
 #plt.show()
 
 plt.figure(figsize=(8,6))
-plt.plot(v_1[0,:,:].flatten()/v_2[0,:,:].flatten(), eta_v[0,:,:].flatten()/eta_elme, 'o', color = colors[0], label='N=25 Hz')
-plt.plot(v_1[1,:,:].flatten()/v_2[1,:,:].flatten(), eta_v[1,:,:].flatten()/eta_elme, 'o', color = colors[2], label='N=50 Hz')
+for i in range(len(N)) :
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten() * eta_elme[i], 'o', color = colors[2*i], label=f'N={N[i]} Hz')
 plt.xlabel(r'$v_1 / v_2$')
-plt.ylabel(r'$\eta_{v}/\eta_{elme}$')
+plt.ylabel(r'$\eta_{v} \cdot \eta_{elme}$')
 plt.legend()
 plt.tight_layout()
 plt.show()
 #plt.close('all')
 
+'''
 ##################################################################################################################
 # HP compressor characterisation
 ##################################################################################################################
@@ -458,7 +476,7 @@ plt.ylabel(r'$T_2$ [°C]')
 plt.legend()
 plt.tight_layout()
 plt.show()
-
+'''
 
 
 
