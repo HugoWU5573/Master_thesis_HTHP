@@ -591,16 +591,26 @@ class HEX_Design():
     Creates a counter-flow heat exchanger object that will be modelled using the pinch model for design purposes.
     The parameters are:
         - states_in : list of State objects for the inlet states of both streams [State_c_in, State_h_in]
-        - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out] (one of the two can be None)
-        - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s]
+        - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out]
+        - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s] (see note below)
         - name : name of the heat exchanger (optional)
         - W : Width of the heat exchanger plates [m] (optional, default = 0.1 m)
         - w : Distance between two plates (channel gap) [m] (optional, default = 2e-3 m)
         - beta : Chevron angle of the plates [degrees] (optional, default = 60 degrees)
         - Rcond : thermal resistance of the heat exchanger wall [m²K/W] (optional, default = 0)
+        - mode : "Dimensional" or "Non-Dimensional" (optional, default = "Dimensional")
+        - type : "Recuperator" or None (optional, default = None)  (see note below)
+        - epsilon : Effectiveness of the heat exchanger (only for type = "Recuperator") (optional, default = None)
+    
+    Notes : 
+        - In the "Dimensional" mode, at least one of the two mass flow rates must be provided (the other can be None).
+        - In the "Non-Dimensional" mode, both mass flow rates must be set to None (default setting)
+        - In the "Recuperator" type, the heat exchanger is modelled using a constant effectiveness (epsilon) approach.
+        - In the "Recuperator" type, the mass flow rates and inlet states must be provided to calculate the outlet states.
+        - The dimensions are based on a Alfa Laval ACH40 model 
     
     """
-    def __init__(self, states_in, states_out, mdot, name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0):
+    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", L=0.33, W=0.12, w=1.5e-3, beta=60, Rcond=0, mode="Dimensional", type=None, epsilon=None):
 
         self.state_in_c = states_in[0]
         self.state_in_h = states_in[1]
@@ -615,11 +625,16 @@ class HEX_Design():
         self.name = name
         self.supercritical_hot_stream = False
         self.Rcond = Rcond
+        self.L = L
         self.W = W
         self.w = w
         self.Aflow = self.W * self.w    # Cross-sectional flow area for one channel [m2]
         self.beta = beta
         self.A = None
+        self.mode = mode
+        self.type = type
+        self.epsilon = epsilon
+        self.Nb_plates = None           # Number of plates in the heat exchanger (to be computed in the Compute_Area method)
 
 
     """
@@ -655,43 +670,115 @@ class HEX_Design():
         result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
         if self.A == None:
             result += "Heat exchanger area: Not calculated yet\n"
-        elif self.A > 0.1:
-            result += f"Heat exchanger area: {self.A:.2f} m2\n"
         else :
-            result += f"Heat exchanger area: {self.A:.4f} m2\n"
+            result += f"Heat exchanger area: {self.A:.3f} m2 ({self.Nb_plates} plates)\n"
         result += "===================================================================================="
 
         return result
     
 
     """
-    This method determines the unknown outlet state of the heat exchanger (either hot or cold stream) based
-    on an energy balance.
+    This method determines the unknown mass flow rate(s) based on an energy balance.
         - Output : Q (heat transfer rate) [W]
 
     """
-    def _determine_unknown_outlet_state(self):
-        if self.state_out_c == None :    # Cold outlet state is unknown
-            Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
-            hout_c = self.state_in_c.h + Qh / self.mdot_c
-            self.state_out_c = State(self.state_in_c.heos,h=hout_c, p=self.state_in_c.p)
-            self.Q = Qh 
+    def _determine_unknown_mass_flow(self):
 
-        elif self.state_out_h == None :  # Hot outlet state is unknown
-            Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
-            hout_h = self.state_in_h.h - Qc / self.mdot_h
-            self.state_out_h = State(self.state_in_h.heos,h=hout_h, p=self.state_in_h.p)
-            self.Q = Qc
+        if self.mode == "Non-Dimensional":
+            self.Q = 1 # In non-dimensional mode, we set Q = 1 W as a reference value
+            Delta_h_c = self.state_out_c.h - self.state_in_c.h
+            Delta_h_h = self.state_in_h.h - self.state_out_h.h
+            self.mdot_c = self.Q / Delta_h_c
+            self.mdot_h = self.Q / Delta_h_h
+        
+        elif self.mode == "Dimensional" :
 
-        else :                           # Both outlet states are known (not usual case)
-            Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
-            Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
-            if not np.isclose(Qc, Qh, atol=1e-3):
-                raise ValueError("Heat duty of both streams are not consistent.")
-            else :
-                self.Q = (Qc + Qh) / 2
+            if self.mdot_c == None and self.mdot_h == None :
+                raise ValueError("In 'Dimensional' mode, at least one mass flow rate must be provided.")
+
+            elif self.mdot_c == None :    # Mass flow rate of the cold stream is unknown
+                Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+                self.Q = Qh 
+                Delta_h_c = self.state_out_c.h - self.state_in_c.h
+                self.mdot_c = Qh / Delta_h_c
+
+            elif self.mdot_h == None :    # Mass flow rate of the hot stream is unknown
+                Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+                self.Q = Qc
+                Delta_h_h = self.state_in_h.h - self.state_out_h.h
+                self.mdot_h = Qc / Delta_h_h
+
+            else :                        # Both mass flow rates are known
+                Qc = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+                Qh = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+                if not np.isclose(Qc, Qh, atol=1e-3):
+                    raise ValueError("Heat duty of both streams are not consistent.")
+                else :
+                    self.Q = (Qc + Qh) / 2
+        
+        else :
+            raise ValueError("Invalid mode. Choose either 'Dimensional' or 'Non-Dimensional'.")
 
         return self.Q
+    
+
+    """
+    This method determines the unknow outlet states of the heat exchanger based on its effectiveness
+    using an iterative approach to accurately estimate cp_min.
+        - Outputs :
+            - state_out_c : outlet State of the cold stream
+            - state_out_h : outlet State of the hot stream
+
+    """
+    def _determine_unknown_outlet_states(self):
+
+        if self.mode == "Non-Dimensional":
+
+            Delta_T_in = self.state_in_h.T - self.state_in_c.T
+
+            # First estimate of cp_min based on the inlet states
+            self.HEOS_cold.update(CoolProp.PT_INPUTS, self.state_in_c.p, self.state_in_c.T)
+            cp_c = self.HEOS_cold.cpmass()
+            self.HEOS_hot.update(CoolProp.PT_INPUTS, self.state_in_h.p, self.state_in_h.T)
+            cp_h = self.HEOS_hot.cpmass()
+            cp_min = min(cp_c, cp_h)
+
+            # First estimate of state_out_c and state_out_h based on epsilon
+            hout_h = self.state_in_h.h - self.epsilon * cp_min * Delta_T_in
+            self.state_out_h = State(self.HEOS_hot,h=hout_h, p=self.state_in_h.p)
+            hout_c = self.state_in_c.h + self.epsilon * cp_min * Delta_T_in
+            self.state_out_c = State(self.HEOS_cold,h=hout_c, p=self.state_in_c.p)
+
+            cp_min_old = 0.0
+            cp_min_new = cp_min
+
+            while not np.isclose(cp_min_old, cp_min_new, atol=1e-3):
+                cp_min_old = cp_min_new
+
+                # Compute cp_c and cp_h by averaging between inlet and outlet temperatures
+                cp_c = self._Cp_average(self.HEOS_cold, self.state_in_c.p, self.state_in_c.T, self.state_out_c.T)
+                cp_h = self._Cp_average(self.HEOS_hot, self.state_in_h.p, self.state_in_h.T, self.state_out_h.T)
+                cp_min_new = min(cp_c, cp_h)
+
+                # Update outlet States based on new cp_min
+                hout_h = self.state_in_h.h - self.epsilon * cp_min_new * Delta_T_in
+                self.state_out_h = State(self.HEOS_hot,h=hout_h, p=self.state_in_h.p)
+                hout_c = self.state_in_c.h + self.epsilon * cp_min_new * Delta_T_in
+                self.state_out_c = State(self.HEOS_cold,h=hout_c, p=self.state_in_c.p)
+
+            self.Q = 1 # In non-dimensional mode, we set Q = 1 W as a reference value
+        
+        elif self.mode == "Dimensional" :
+            # In the "Dimensional" mode, the outlet states are already known -> we only compute Q
+
+            Q_h = self.mdot_h * (self.state_in_h.h - self.state_out_h.h)
+            Q_c = self.mdot_c * (self.state_out_c.h - self.state_in_c.h)
+            if not np.isclose(Q_h, Q_c, atol=1e-3):
+                raise ValueError("Heat duty of both streams are not consistent after iteration.")
+            else :
+                self.Q = (Q_h + Q_c) / 2
+
+        return self.state_out_c, self.state_out_h
 
 
     """
@@ -706,11 +793,12 @@ class HEX_Design():
         self.EnthalpyVector_c = np.array([self.state_in_c.h, self.state_out_c.h])
 
         self.N = 1 # Initial number of cells
-        
 
         ## A. Insert phase transition enthalpies for the hot stream if applicable
 
-        if not self.supercritical_hot_stream:  # If the hot stream is supercritical, no phase change can occur in it
+        pcrit_h = self.HEOS_hot.p_critical()
+
+        if not (self.state_in_h.p > pcrit_h):  # If the hot stream pressure is higher than the critical pressure, no phase change can occur
 
             self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
             self.h_h_bub = self.HEOS_hot.hmass()
@@ -738,28 +826,32 @@ class HEX_Design():
         
         ## B. Insert phase transition enthalpies for the cold stream if applicable
 
-        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
-        self.h_c_bub = self.HEOS_cold.hmass()
-        self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
-        self.h_c_dew = self.HEOS_cold.hmass()
+        pcrit_c = self.HEOS_cold.p_critical()
 
-            # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
-        if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
-            self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
-            self.EnthalpyVector_c.sort()
-            self.evaporation_start = True
-            self.N += 1
-        else :
-            self.evaporation_start = False
+        if not (self.state_in_c.p > pcrit_c):  # If the cold stream pressure is higher than the critical pressure, no phase change can occur
 
-            # 2. Check for potential phase transition 2 phase to Vapor (dew point)
-        if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
-            self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
-            self.EnthalpyVector_c.sort()
-            self.evaporation_end = True
-            self.N += 1
-        else :
-            self.evaporation_end = False
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
+            self.h_c_bub = self.HEOS_cold.hmass()
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
+            self.h_c_dew = self.HEOS_cold.hmass()
+
+                # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
+            if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
+                self.EnthalpyVector_c.sort()
+                self.evaporation_start = True
+                self.N += 1
+            else :
+                self.evaporation_start = False
+
+                # 2. Check for potential phase transition 2 phase to Vapor (dew point)
+            if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
+                self.EnthalpyVector_c.sort()
+                self.evaporation_end = True
+                self.N += 1
+            else :
+                self.evaporation_end = False
 
 
         ## C. Insert complementary phase transition enthalpies
@@ -822,7 +914,7 @@ class HEX_Design():
         ## E. Verify that both vectors have the same length
 
         if (len(self.EnthalpyVector_c) != len(self.EnthalpyVector_h)):
-            raise ValueError("Cell division algorithm failed: Enthalpy vectors have different lengths.")
+            raise ValueError(f"Cell division algorithm failed: Enthalpy vectors have different lengths, len(EnthalpyVector_c) = {len(self.EnthalpyVector_c)}, len(EnthalpyVector_h) = {len(self.EnthalpyVector_h)}.")
         
         if (len(self.EnthalpyVector_h) != (self.N+1)):
             raise ValueError("Size of enthalpy vectors does not match the expected number of cells.")
@@ -836,15 +928,16 @@ class HEX_Design():
     
     """
     def Compute_Pinch(self):
-        self._determine_unknown_outlet_state()
+        if self.type is None:
+            self._determine_unknown_mass_flow()
 
         # Check if the hot stream is supercritical or not
         Tcrit_h = self.HEOS_hot.T_critical()
         pcrit_h = self.HEOS_hot.p_critical()
-        if (self.state_in_h.p > pcrit_h) or (self.state_in_h.T > Tcrit_h):
+        if (self.state_in_h.p > pcrit_h) and (self.state_in_h.T > Tcrit_h):
             self.supercritical_hot_stream = True
             
-        self._cell_division(extra_cells=self.supercritical_hot_stream)
+        self._cell_division(extra_cells = self.supercritical_hot_stream) 
 
         self.TemperatureVector_c = np.zeros(len(self.EnthalpyVector_c))
         self.TemperatureVector_h = np.zeros(len(self.EnthalpyVector_h))
@@ -866,6 +959,27 @@ class HEX_Design():
 
         return self.Tpinch
     
+
+    """
+    This method computes the outlet states of both streams for a Recuperator type heat exchanger using
+    a constant effectiveness model.
+        - Outputs :
+            - state_out_c : State object for the outlet state of the cold stream
+            - state_out_h : State object for the outlet state of the hot stream
+
+    """
+    def Solve_Recuperator(self):
+
+        if self.type != "Recuperator":
+            raise ValueError("This method is only applicable for recuperator type heat exchangers.")
+        if self.epsilon is None:
+            raise ValueError("Effectiveness (epsilon) must be provided for recuperator type heat exchangers.")
+
+        self._determine_unknown_outlet_states()
+        self.Compute_Pinch()    # We call Compute_Pinch to set up the enthalpy and temperature vectors (the actual pinch is not relevant here)
+
+        return self.state_out_c, self.state_out_h
+
 
     """
     This method analyses a single cell of the heat exchanger and returns the required area for that cell.
@@ -913,20 +1027,37 @@ class HEX_Design():
     
     """
     This method computes the total heat exchanger area required to achieve the desired heat transfer.
-        - Output : A (total heat exchanger area) [m²]
+        - Output : A (total heat exchanger area) [m²], Nb_plates (number of plates required in the heat exchanger)
 
     """
     def Compute_Area(self):
 
-        Arequired_list = np.zeros(self.N)
+        self.Nb_plates = 11     # We set an initial number of plates to 11 -> 10 channels
+        self.A = 0              # We set the initial area to 0, it will be updated later
 
-        for cell_index in range(self.N):
-            alpha_c, alpha_h = self._alpha(cell_index)
-            Arequired_list[cell_index] = self._cell_analysis(cell_index, alpha_h, alpha_c)
+        previous_nb_plates = self.Nb_plates
+        new_nb_plates = 0
+        nb_iterations = 0
 
-        self.A = np.sum(Arequired_list)
+        while previous_nb_plates != new_nb_plates : # We iterate until the calculated area is consistent with the number of plates
 
-        return self.A
+            if nb_iterations > 50:
+                raise ValueError("Area calculation did not converge after 50 iterations. Please check the input parameters and the model assumptions.")
+
+            Arequired_list = np.zeros(self.N)
+
+            for cell_index in range(self.N):
+                alpha_c, alpha_h = self._alpha(cell_index)
+                Arequired_list[cell_index] = self._cell_analysis(cell_index, alpha_h, alpha_c)
+
+            self.A = np.sum(Arequired_list)
+            previous_nb_plates = self.Nb_plates
+            new_nb_plates  = int(np.ceil(self.A / (self.W * self.L)) + 2)
+            self.Nb_plates = new_nb_plates
+
+            nb_iterations += 1
+
+        return self.A, self.Nb_plates
 
 
     """
@@ -947,7 +1078,7 @@ class HEX_Design():
         hc_end = self.EnthalpyVector_c[cell_index+1]
 
         if self.state_in_c.p > self.HEOS_cold.p_critical():
-            # Cold stream is supercritical
+            # Cold stream is "supercritical"
             alpha_c = self._Supercritical_Correlation(cell_index, "cold")
         elif hc_end <= self.h_c_bub or hc_start >= self.h_c_dew: 
             # Cold stream is single phase
@@ -960,8 +1091,8 @@ class HEX_Design():
         hh_start = self.EnthalpyVector_h[cell_index]
         hh_end = self.EnthalpyVector_h[cell_index+1]
 
-        if self.supercritical_hot_stream:
-            # Hot stream is supercritical
+        if self.state_in_h.p > self.HEOS_hot.p_critical():
+            # Hot stream is "supercritical"
             alpha_h = self._Supercritical_Correlation(cell_index, "hot")
         elif hh_end <= self.h_h_bub or hh_start >= self.h_h_dew:
             # Hot stream is single phase liquid
@@ -1009,7 +1140,12 @@ class HEX_Design():
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
 
-        G = self.mdot_h / self.Aflow
+        # Number of channels for this stream
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+        Nb_channels_h = Nb_channels - Nb_channels_c
+
+        G = self.mdot_h / Nb_channels_h / self.Aflow
         Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
 
         Pr = (1-x_m)*Pr_l + x_m*Pr_g
@@ -1048,6 +1184,9 @@ class HEX_Design():
         T_end_c = self.HEOS_cold.T()
         T_avg_h = (T_start_h + T_end_h) / 2 ; T_avg_c = (T_start_c + T_end_c) / 2
         Tw = (T_avg_h + T_avg_c) / 2 
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+        Nb_channels_h = Nb_channels - Nb_channels_c
 
         if stream == "hot":
             pressure = self.state_in_h.p
@@ -1062,6 +1201,7 @@ class HEX_Design():
             k = self.HEOS_hot.conductivity()
             self.HEOS_hot.update(CoolProp.PT_INPUTS, pressure, Tw)
             mu_w = self.HEOS_hot.viscosity()
+            Nb_channels_stream = Nb_channels_h
         else :
             pressure = self.state_in_c.p
             fluid = self.state_in_c.fluid
@@ -1075,10 +1215,11 @@ class HEX_Design():
             k = self.HEOS_cold.conductivity()
             self.HEOS_cold.update(CoolProp.PT_INPUTS, pressure, Tw)
             mu_w = self.HEOS_cold.viscosity()
+            Nb_channels_stream = Nb_channels_c
 
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
-        G = mdot / self.Aflow
+        G = mdot / Nb_channels_stream / self.Aflow
         Re = Dh * G / mu
 
         Nu = (0.0161*self.beta/beta_max+0.1298)*Re**(0.198*self.beta/beta_max+0.6398)*Pr**(0.35)*(mu/mu_w)**(0.14)
@@ -1107,7 +1248,12 @@ class HEX_Design():
         # Calculation of Re_l
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
-        G = self.mdot_c / self.Aflow
+
+        # Number of channels for this stream
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+
+        G = self.mdot_c / Nb_channels_c / self.Aflow
         Re_l = Dh * G / mu_l
 
         # Calculation of h
@@ -1136,23 +1282,31 @@ class HEX_Design():
         T_end_c = self.TemperatureVector_c[cell_index+1]
         Tb_c = (T_start_c + T_end_c) / 2
 
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+        Nb_channels_h = Nb_channels - Nb_channels_c
+
         if stream == "hot":
             Tb = Tb_h
             heos = self.HEOS_hot
             mdot = self.mdot_h
+            p = self.state_in_h.p
+            Nb_channels_stream = Nb_channels_h
         else :
             Tb = Tb_c
             heos = self.HEOS_cold
             mdot = self.mdot_c
+            p = self.state_in_c.p
+            Nb_channels_stream = Nb_channels_c
         
         # Wall temperature estimation
         Tw = (Tb_h + Tb_c) / 2
 
         # Average cp calculation between Tb and Tw
-        Cp_avg = self._Cp_average(heos, Tb, Tw)
+        Cp_avg = self._Cp_average(heos, p, Tb, Tw)
 
         # Fluid properties at Tb
-        heos.update(CoolProp.PT_INPUTS, heos.p(), Tb)
+        heos.update(CoolProp.PT_INPUTS, p, Tb)
         rho_b = heos.rhomass()
         Cp_b = heos.cpmass()
         Pr = heos.Prandtl()
@@ -1160,14 +1314,20 @@ class HEX_Design():
         k = heos.conductivity()
 
         # Fluid properties at Tw
-        heos.update(CoolProp.PT_INPUTS, heos.p(), Tw)
+        heos.update(CoolProp.PT_INPUTS, p, Tw)
         rho_w = heos.rhomass()
 
         # Calculation of Re
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
-        G = mdot / self.Aflow
+        G = mdot / Nb_channels_stream / self.Aflow
         Re = Dh * G / mu_b
+
+        #if (Re < 800) or (Re > 4200) :
+        #    print("Warning: Reynolds number out of range for the Forooghi et al. correlation (supercritical), Re = {:.2f}".format(Re))
+        
+        #if (Pr < 3.2) or (Pr > 4.2) :
+        #    print("Warning: Prandtl number out of range for the Forooghi et al. correlation (supercritical), Pr = {:.2f}".format(Pr))
 
         if self.beta >= 45:
             Nu = 0.187 * Re**0.71 * Pr**0.35 * (Cp_avg / Cp_b)**0.5 * (rho_w / rho_b)**0.3
@@ -1180,29 +1340,29 @@ class HEX_Design():
 
 
     """
-    This method computes the average specific heat capacity of a fluid between the bulk and wall temperatures.
+    This method computes the average specific heat capacity of a fluid between two temperatures.
         - Inputs :
             - heos : CoolProp HEOS object of the fluid
-            - Tb : bulk temperature [K]
-            - Tw : wall temperature [K]
+            - T1 : first temperature [K]
+            - T2 : second temperature [K]
         - Output :
             - Cp_avg : average specific heat capacity [J/kg/K]
 
     """
-    def _Cp_average(self, heos, Tb, Tw):
+    def _Cp_average(self, heos, p, T1, T2):
 
         # Discretization of the temperature range
         N = 100
-        T_values = np.linspace(Tb, Tw, N)
+        T_values = np.linspace(T1, T2, N)
 
         # Calculation of Cp at each temperature
         Cp_values = np.zeros(len(T_values))
         for i, T in enumerate(T_values):
-            heos.update(CoolProp.PT_INPUTS, heos.p(), T)
+            heos.update(CoolProp.PT_INPUTS, p, T)
             Cp_values[i] = heos.cpmass()
 
         # Numerical integration using the trapezoidal rule
-        Cp_avg = np.trapz(Cp_values, T_values) / (Tw - Tb)
+        Cp_avg = np.trapz(Cp_values, T_values) / (T2 - T1)
 
         return Cp_avg
     
@@ -1250,7 +1410,7 @@ class HEX_Design():
         xticks = np.array([0, 1]) 
         
         # Create the plot
-        plt.figure()
+        plt.figure(self.name)
         plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c - 273.15, marker='o', color="blue", clip_on=False)
         plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h - 273.15, marker='o', color="red", clip_on=False)
         plt.xlabel(r"$\hat{h}$ [-]", fontsize=12)
@@ -1384,13 +1544,8 @@ if __name__=='__main__':
         GasCooler._plot()
 
 
-
-
-
 """
-    WHAT REMAINS TO BE DONE IN THE HEX_DESIGN CLASS :
-        - Add a calculation of the required heat exchanger area
-        - Add as parameters self.w and self.W and re-use the correlations from HEX_Simu to calculate alpha_h and alpha_c
-        - Add a new correlation for supercritical operation
+WHAT REMAINS TO BE DONE :
+    - Re-do the test section at the end of the file for the HEX_Design class !
 
 """

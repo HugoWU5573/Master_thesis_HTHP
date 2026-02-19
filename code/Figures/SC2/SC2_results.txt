@@ -62,7 +62,7 @@ Performance:
 
 Heat transfer rate: 11.63 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 0.160 m2
+Heat exchanger area: 0.092 m2 (5 plates - model: ACH30EQ)
 ====================================================================================
 
 
@@ -77,7 +77,7 @@ Heat exchanger area: 0.160 m2
 
 Heat transfer rate: 11.63 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 0.162 m2
+Heat exchanger area: 0.092 m2 (5 plates - model: ACH30EQ)
 ====================================================================================
 
 
@@ -92,5 +92,5 @@ Heat exchanger area: 0.162 m2
 
 Heat transfer rate: 30.00 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 1.369 m2
+Heat exchanger area: 0.514 m2 (10 plates - model: ACH65)
 ====================================================================================

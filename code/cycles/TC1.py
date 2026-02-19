@@ -189,10 +189,10 @@ p5_best = p_best[1]
 Delta_h_GasCooler = TC1.state_5.h - TC1.state_7.h
 TC1.mdot_wf_top = Q / Delta_h_GasCooler
 TC1.P_comp_top = TC1.Compressor.Solve(p_ex=p5_best, state_in=TC1.state_3, mdot_wf=TC1.mdot_wf_top, mode="Dimensional")[0]
-TC1.Evaporator = HEX_Design(states_in=[TC1.state_8, TC1.state_3_prime], states_out=[TC1.state_3, TC1.state_4_prime], mdot=[TC1.mdot_wf_top, None], name="Evaporator", mode="Dimensional")
+TC1.Evaporator = HEX_Design(states_in=[TC1.state_8, TC1.state_3_prime], states_out=[TC1.state_3, TC1.state_4_prime], mdot=[TC1.mdot_wf_top, None], name="Evaporator", mode="Dimensional", model="ACH30EQ")
 T_pinch_evap = TC1.Evaporator.Compute_Pinch()
 TC1.mdot_MT = TC1.Evaporator.mdot_h
-TC1.GasCooler = HEX_Design(states_in=[TC1.state_5_prime, TC1.state_5], states_out=[TC1.state_6_prime, TC1.state_7], mdot=[None, TC1.mdot_wf_top], name="Gas Cooler", mode="Dimensional")
+TC1.GasCooler = HEX_Design(states_in=[TC1.state_5_prime, TC1.state_5], states_out=[TC1.state_6_prime, TC1.state_7], mdot=[None, TC1.mdot_wf_top], name="Gas Cooler", mode="Dimensional", model="ACH65")
 T_pinch_gas_cooler = TC1.GasCooler.Compute_Pinch()
 TC1.mdot_HT = TC1.GasCooler.mdot_c
 

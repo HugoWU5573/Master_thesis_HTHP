@@ -1,7 +1,7 @@
 from CoolProp.CoolProp import PropsSI 
 import CoolProp
 import numpy as np
-from scipy.optimize import brentq  # Function used for iterative root finding 
+from scipy.optimize import brentq, root_scalar  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
 import os
 
@@ -594,6 +594,7 @@ class HEX_Design():
         - states_out : list of State objects for the outlet states of both streams [State_c_out, State_h_out]
         - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s] (see note below)
         - name : name of the heat exchanger (optional)
+        - L : Length of the heat exchanger plates [m] (optional, default = 0.3 m)
         - W : Width of the heat exchanger plates [m] (optional, default = 0.1 m)
         - w : Distance between two plates (channel gap) [m] (optional, default = 2e-3 m)
         - beta : Chevron angle of the plates [degrees] (optional, default = 60 degrees)
@@ -601,6 +602,7 @@ class HEX_Design():
         - mode : "Dimensional" or "Non-Dimensional" (optional, default = "Dimensional")
         - type : "Recuperator" or None (optional, default = None)  (see note below)
         - epsilon : Effectiveness of the heat exchanger (only for type = "Recuperator") (optional, default = None)
+        - model : None or "ACH65" or "ACK18" or "ACK16" or "ACH30EQ" (optional, default = None) to indicate a specific model of Alfa Laval plate heat exchanger
     
     Notes : 
         - In the "Dimensional" mode, at least one of the two mass flow rates must be provided (the other can be None).
@@ -609,7 +611,35 @@ class HEX_Design():
         - In the "Recuperator" type, the mass flow rates and inlet states must be provided to calculate the outlet states.
     
     """
-    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", W=0.1, w=2e-3, beta=60, Rcond=0, mode="Dimensional", type=None, epsilon=None):
+    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", L=0.3, W=0.1, w=2e-3, beta=60, Rcond=0, mode="Dimensional", type=None, epsilon=None, model=None):
+
+        if model == "ACH65":   # Channel gap is very small for this model -> useful for supercritical operation
+            L = 0.535
+            W = 0.120
+            w = 0.72e-3
+            min_nb_plates = 10
+            max_nb_plates = 120
+        elif model == "ACK18":
+            L = 0.315
+            W = 0.073
+            w = 1.63e-3
+            min_nb_plates = 4
+            max_nb_plates = 52
+        elif model == "ACK16":
+            L = 0.2095
+            W = 0.0735
+            w = 1.57e-3
+            min_nb_plates = 4
+            max_nb_plates = 60
+        elif model == "ACH30EQ" :
+            L = 0.323
+            W = 0.095
+            w = 0.91e-3
+            min_nb_plates = 4
+            max_nb_plates = 120
+        else :
+            min_nb_plates = 3
+            max_nb_plates = 1000
 
         self.state_in_c = states_in[0]
         self.state_in_h = states_in[1]
@@ -624,6 +654,7 @@ class HEX_Design():
         self.name = name
         self.supercritical_hot_stream = False
         self.Rcond = Rcond
+        self.L = L
         self.W = W
         self.w = w
         self.Aflow = self.W * self.w    # Cross-sectional flow area for one channel [m2]
@@ -632,6 +663,10 @@ class HEX_Design():
         self.mode = mode
         self.type = type
         self.epsilon = epsilon
+        self.Nb_plates = None           # Number of plates in the heat exchanger (to be computed in the Compute_Area method)
+        self.min_Nb_plates = min_nb_plates
+        self.max_Nb_plates = max_nb_plates
+        self.model = model
 
 
     """
@@ -667,8 +702,10 @@ class HEX_Design():
         result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
         if self.A == None:
             result += "Heat exchanger area: Not calculated yet\n"
+        elif self.model == None:
+            result += f"Heat exchanger area: {self.A:.3f} m2 ({self.Nb_plates} plates)\n"
         else :
-            result += f"Heat exchanger area: {self.A:.3f} m2\n"
+            result += f"Heat exchanger area: {self.A:.3f} m2 ({self.Nb_plates} plates - model: {self.model})\n"
         result += "===================================================================================="
 
         return result
@@ -1021,17 +1058,15 @@ class HEX_Design():
 
         return Aj
 
-    
-    """
-    This method computes the total heat exchanger area required to achieve the desired heat transfer.
-        - Output : A (total heat exchanger area) [m²]
 
     """
-    def Compute_Area(self):
+    This method implements the iterative procedure to compute the number of plates and total area required 
+    for the heat exchanger.
 
-        # Switch to HEOS instead of TTSE&HEOS for better accuracy in heat transfer calculations
-        self.HEOS_cold = CoolProp.AbstractState("HEOS", self.state_in_c.fluid)
-        self.HEOS_hot = CoolProp.AbstractState("HEOS", self.state_in_h.fluid)
+    """
+    def _area_residual(self, nb_plates_guess):
+
+        self.Nb_plates = nb_plates_guess
 
         Arequired_list = np.zeros(self.N)
 
@@ -1039,13 +1074,25 @@ class HEX_Design():
             alpha_c, alpha_h = self._alpha(cell_index)
             Arequired_list[cell_index] = self._cell_analysis(cell_index, alpha_h, alpha_c)
 
-        self.A = np.sum(Arequired_list)
+        A_required = np.sum(Arequired_list)
+        A_geom = (nb_plates_guess - 2) * self.W * self.L
 
-        # Switch back to TTSE&HEOS
-        self.HEOS_cold = self.state_in_c.heos
-        self.HEOS_hot = self.state_in_h.heos
+        return A_required - A_geom
 
-        return self.A
+    
+    """
+    This method computes the total heat exchanger area required to achieve the desired heat transfer.
+        - Output : A (total heat exchanger area) [m²], Nb_plates (number of plates required in the heat exchanger)
+
+    """
+    def Compute_Area(self):
+
+        solution = root_scalar(self._area_residual, bracket=[self.min_Nb_plates-1, self.max_Nb_plates+1], method='brentq')
+
+        self.Nb_plates = int(np.ceil(solution.root))
+        self.A = (self.Nb_plates - 2) * self.W * self.L
+
+        return self.A, self.Nb_plates
 
 
     """
@@ -1064,15 +1111,10 @@ class HEX_Design():
         ## Cold stream
         hc_start = self.EnthalpyVector_c[cell_index]
         hc_end = self.EnthalpyVector_c[cell_index+1]
-        Tc_start = self.TemperatureVector_c[cell_index]
-        Tc_end = self.TemperatureVector_c[cell_index+1]
 
-        if self.state_in_c.p > self.HEOS_cold.p_critical() and Tc_start > self.HEOS_cold.T_critical():
-            # Cold stream is supercritical
+        if self.state_in_c.p > self.HEOS_cold.p_critical():
+            # Cold stream is "supercritical"
             alpha_c = self._Supercritical_Correlation(cell_index, "cold")
-        elif self.state_in_c.p > self.HEOS_cold.p_critical() :
-            # No phase change can occur in cold stream
-            alpha_c = self._SinglePhase_Correlation(cell_index, "cold")
         elif hc_end <= self.h_c_bub or hc_start >= self.h_c_dew: 
             # Cold stream is single phase
             alpha_c = self._SinglePhase_Correlation(cell_index, "cold")
@@ -1084,12 +1126,9 @@ class HEX_Design():
         hh_start = self.EnthalpyVector_h[cell_index]
         hh_end = self.EnthalpyVector_h[cell_index+1]
 
-        if self.supercritical_hot_stream:
-            # Hot stream is supercritical
+        if self.state_in_h.p > self.HEOS_hot.p_critical():
+            # Hot stream is "supercritical"
             alpha_h = self._Supercritical_Correlation(cell_index, "hot")
-        elif self.state_in_h.p > self.HEOS_hot.p_critical() :
-            # No phase change can occur in hot stream
-            alpha_h = self._SinglePhase_Correlation(cell_index, "hot")
         elif hh_end <= self.h_h_bub or hh_start >= self.h_h_dew:
             # Hot stream is single phase liquid
             alpha_h = self._SinglePhase_Correlation(cell_index, "hot")
@@ -1136,7 +1175,12 @@ class HEX_Design():
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
 
-        G = self.mdot_h / self.Aflow
+        # Number of channels for this stream
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+        Nb_channels_h = Nb_channels - Nb_channels_c
+
+        G = self.mdot_h / Nb_channels_h / self.Aflow
         Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
 
         Pr = (1-x_m)*Pr_l + x_m*Pr_g
@@ -1175,6 +1219,9 @@ class HEX_Design():
         T_end_c = self.HEOS_cold.T()
         T_avg_h = (T_start_h + T_end_h) / 2 ; T_avg_c = (T_start_c + T_end_c) / 2
         Tw = (T_avg_h + T_avg_c) / 2 
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+        Nb_channels_h = Nb_channels - Nb_channels_c
 
         if stream == "hot":
             pressure = self.state_in_h.p
@@ -1189,6 +1236,7 @@ class HEX_Design():
             k = self.HEOS_hot.conductivity()
             self.HEOS_hot.update(CoolProp.PT_INPUTS, pressure, Tw)
             mu_w = self.HEOS_hot.viscosity()
+            Nb_channels_stream = Nb_channels_h
         else :
             pressure = self.state_in_c.p
             fluid = self.state_in_c.fluid
@@ -1202,10 +1250,11 @@ class HEX_Design():
             k = self.HEOS_cold.conductivity()
             self.HEOS_cold.update(CoolProp.PT_INPUTS, pressure, Tw)
             mu_w = self.HEOS_cold.viscosity()
+            Nb_channels_stream = Nb_channels_c
 
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
-        G = mdot / self.Aflow
+        G = mdot / Nb_channels_stream / self.Aflow
         Re = Dh * G / mu
 
         Nu = (0.0161*self.beta/beta_max+0.1298)*Re**(0.198*self.beta/beta_max+0.6398)*Pr**(0.35)*(mu/mu_w)**(0.14)
@@ -1234,7 +1283,12 @@ class HEX_Design():
         # Calculation of Re_l
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
-        G = self.mdot_c / self.Aflow
+
+        # Number of channels for this stream
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+
+        G = self.mdot_c / Nb_channels_c / self.Aflow
         Re_l = Dh * G / mu_l
 
         # Calculation of h
@@ -1263,16 +1317,22 @@ class HEX_Design():
         T_end_c = self.TemperatureVector_c[cell_index+1]
         Tb_c = (T_start_c + T_end_c) / 2
 
+        Nb_channels = self.Nb_plates - 1
+        Nb_channels_c = Nb_channels // 2
+        Nb_channels_h = Nb_channels - Nb_channels_c
+
         if stream == "hot":
             Tb = Tb_h
             heos = self.HEOS_hot
             mdot = self.mdot_h
             p = self.state_in_h.p
+            Nb_channels_stream = Nb_channels_h
         else :
             Tb = Tb_c
             heos = self.HEOS_cold
             mdot = self.mdot_c
             p = self.state_in_c.p
+            Nb_channels_stream = Nb_channels_c
         
         # Wall temperature estimation
         Tw = (Tb_h + Tb_c) / 2
@@ -1281,7 +1341,7 @@ class HEX_Design():
         Cp_avg = self._Cp_average(heos, p, Tb, Tw)
 
         # Fluid properties at Tb
-        heos.update(CoolProp.PT_INPUTS, heos.p(), Tb)
+        heos.update(CoolProp.PT_INPUTS, p, Tb)
         rho_b = heos.rhomass()
         Cp_b = heos.cpmass()
         Pr = heos.Prandtl()
@@ -1289,14 +1349,20 @@ class HEX_Design():
         k = heos.conductivity()
 
         # Fluid properties at Tw
-        heos.update(CoolProp.PT_INPUTS, heos.p(), Tw)
+        heos.update(CoolProp.PT_INPUTS, p, Tw)
         rho_w = heos.rhomass()
 
         # Calculation of Re
         P = 2*(self.w + self.W)
         Dh = 4 * self.Aflow / P
-        G = mdot / self.Aflow
+        G = mdot / Nb_channels_stream / self.Aflow
         Re = Dh * G / mu_b
+
+        #if (Re < 800) or (Re > 4200) :
+        #    print("Warning: Reynolds number out of range for the Forooghi et al. correlation (supercritical), Re = {:.2f}".format(Re))
+        
+        #if (Pr < 3.2) or (Pr > 4.2) :
+        #    print("Warning: Prandtl number out of range for the Forooghi et al. correlation (supercritical), Pr = {:.2f}".format(Pr))
 
         if self.beta >= 45:
             Nu = 0.187 * Re**0.71 * Pr**0.35 * (Cp_avg / Cp_b)**0.5 * (rho_w / rho_b)**0.3

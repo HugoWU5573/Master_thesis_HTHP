@@ -270,18 +270,18 @@ SC2R.mdot_wf_top = Q / Delta_h_Condenser
 SC2R.P_comp_top = SC2R.Compressor_2.Solve(p_ex=p5_best, state_in=SC2R.state_4, mdot_wf=SC2R.mdot_wf_top, mode="Dimensional")[0]
 SC2R.mdot_wf_bottom = SC2R.mdot_wf_top / (1 + ratio_evaporators * (SC2R.state_1.h - SC2R.state_10.h) / (SC2R.state_3_evap.h - SC2R.state_8.h))
 SC2R.P_comp_bottom = SC2R.Compressor_1.Solve(p_ex=p3_best, state_in=SC2R.state_2, mdot_wf=SC2R.mdot_wf_bottom, mode="Dimensional")[0]
-SC2R.Evaporator_LT = HEX_Design(states_in=[SC2R.state_10, SC2R.state_1_prime], states_out=[SC2R.state_1, SC2R.state_2_prime], mdot = [SC2R.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional")
+SC2R.Evaporator_LT = HEX_Design(states_in=[SC2R.state_10, SC2R.state_1_prime], states_out=[SC2R.state_1, SC2R.state_2_prime], mdot = [SC2R.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACH30EQ")
 T_pinch_evap_LT = SC2R.Evaporator_LT.Compute_Pinch()
 SC2R.mdot_LT = SC2R.Evaporator_LT.mdot_h
-SC2R.Evaporator_MT = HEX_Design(states_in=[SC2R.state_8, SC2R.state_3_prime], states_out=[SC2R.state_3_evap, SC2R.state_4_prime],mdot = [SC2R.mdot_wf_top - SC2R.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional")
+SC2R.Evaporator_MT = HEX_Design(states_in=[SC2R.state_8, SC2R.state_3_prime], states_out=[SC2R.state_3_evap, SC2R.state_4_prime],mdot = [SC2R.mdot_wf_top - SC2R.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACH30EQ")
 T_pinch_evap_MT = SC2R.Evaporator_MT.Compute_Pinch()
 SC2R.mdot_MT = SC2R.Evaporator_MT.mdot_h
-SC2R.Condenser = HEX_Design(states_in=[SC2R.state_5_prime, SC2R.state_5], states_out=[SC2R.state_6_prime, SC2R.state_6], mdot=[None, SC2R.mdot_wf_top], name="Condenser", mode="Dimensional")
+SC2R.Condenser = HEX_Design(states_in=[SC2R.state_5_prime, SC2R.state_5], states_out=[SC2R.state_6_prime, SC2R.state_6], mdot=[None, SC2R.mdot_wf_top], name="Condenser", mode="Dimensional", model="ACH65")
 T_pinch_cond = SC2R.Condenser.Compute_Pinch()
 SC2R.mdot_HT = SC2R.Condenser.mdot_c
-SC2R.Recuperator_2 = HEX_Design(states_in=[SC2R.state_3, SC2R.state_6], states_out=[SC2R.state_4, SC2R.state_7], mdot=[SC2R.mdot_wf_top, SC2R.mdot_wf_top], name="Recuperator_1", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness)
+SC2R.Recuperator_2 = HEX_Design(states_in=[SC2R.state_3, SC2R.state_6], states_out=[SC2R.state_4, SC2R.state_7], mdot=[SC2R.mdot_wf_top, SC2R.mdot_wf_top], name="Recuperator_1", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness, model="ACK16")
 SC2R.Recuperator_2.Solve_Recuperator()
-SC2R.Recuperator_1 = HEX_Design(states_in=[SC2R.state_1, SC2R.state_7], states_out=[SC2R.state_2, SC2R.state_9], mdot=[SC2R.mdot_wf_bottom, SC2R.mdot_wf_bottom], name="Recuperator_2", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness)
+SC2R.Recuperator_1 = HEX_Design(states_in=[SC2R.state_1, SC2R.state_7], states_out=[SC2R.state_2, SC2R.state_9], mdot=[SC2R.mdot_wf_bottom, SC2R.mdot_wf_bottom], name="Recuperator_2", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness, model="ACK16")
 SC2R.Recuperator_1.Solve_Recuperator()
 
 # Compute cycle performance

@@ -199,13 +199,13 @@ p5_best = p_best[1]
 Delta_h_GasCooler = TC1R.state_5.h - TC1R.state_6.h
 TC1R.mdot_wf_top = Q / Delta_h_GasCooler
 TC1R.P_comp_top = TC1R.Compressor.Solve(p_ex=p5_best, state_in=TC1R.state_4, mdot_wf=TC1R.mdot_wf_top, mode="Dimensional")[0]
-TC1R.Evaporator = HEX_Design(states_in=[TC1R.state_8, TC1R.state_3_prime], states_out=[TC1R.state_3, TC1R.state_4_prime], mdot=[TC1R.mdot_wf_top, None], name="Evaporator", mode="Dimensional")
+TC1R.Evaporator = HEX_Design(states_in=[TC1R.state_8, TC1R.state_3_prime], states_out=[TC1R.state_3, TC1R.state_4_prime], mdot=[TC1R.mdot_wf_top, None], name="Evaporator", mode="Dimensional",  model="ACH30EQ")
 T_pinch_evap = TC1R.Evaporator.Compute_Pinch()
 TC1R.mdot_MT = TC1R.Evaporator.mdot_h
-TC1R.GasCooler = HEX_Design(states_in=[TC1R.state_5_prime, TC1R.state_5], states_out=[TC1R.state_6_prime, TC1R.state_6], mdot=[None, TC1R.mdot_wf_top], name="Gas Cooler", mode="Dimensional")
+TC1R.GasCooler = HEX_Design(states_in=[TC1R.state_5_prime, TC1R.state_5], states_out=[TC1R.state_6_prime, TC1R.state_6], mdot=[None, TC1R.mdot_wf_top], name="Gas Cooler", mode="Dimensional", model="ACH65")
 T_pinch_gas_cooler = TC1R.GasCooler.Compute_Pinch()
 TC1R.mdot_HT = TC1R.GasCooler.mdot_c
-TC1R.Recuperator = HEX_Design(states_in=[TC1R.state_3, TC1R.state_6], states_out=[TC1R.state_4, TC1R.state_7], mdot=[TC1R.mdot_wf_top, TC1R.mdot_wf_top], name = 'Recuperator', mode="Dimensional", type="Recuperator",  epsilon=recuperator_effectiveness)
+TC1R.Recuperator = HEX_Design(states_in=[TC1R.state_3, TC1R.state_6], states_out=[TC1R.state_4, TC1R.state_7], mdot=[TC1R.mdot_wf_top, TC1R.mdot_wf_top], name = 'Recuperator', mode="Dimensional", type="Recuperator",  epsilon=recuperator_effectiveness, model="ACK16")
 TC1R.Recuperator.Solve_Recuperator()
 
 # Compute cycle performance
