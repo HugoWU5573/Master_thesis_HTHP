@@ -15,13 +15,14 @@ heos = CoolProp.AbstractState("HEOS&TTSE", fluid)
 ################################################################################################################
 print("=================LP compressor characterisation=====================")
 
-T_cond = np.array([60, 55, 50, 45, 40, 35, 30]) + 273.15
-T_evap = np.array([7,12,17,18]) + 273.15
-T_sup = 10
 bore = 41e-3
 stroke = 39.3e-3
 n_cylinders = 4 
 V_s = bore**2 * np.pi/4 * stroke * n_cylinders
+
+T_cond = np.array([60, 55, 50, 45, 40, 35, 30]) + 273.15
+T_evap = np.array([7,12,17,18]) + 273.15
+T_sup = 10
 
 p_cond = np.zeros_like(T_cond)
 p_evap = np.zeros_like(T_evap)
@@ -298,6 +299,15 @@ for i in range(len(N)) :
     plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten() * eta_elme[i], 'o', color = colors[2*i], label=f'N={N[i]} Hz')
 plt.xlabel(r'$v_1 / v_2$')
 plt.ylabel(r'$\eta_{v} \cdot \eta_{elme}$')
+plt.legend()
+plt.tight_layout()
+#plt.show()
+
+plt.figure(figsize=(8,6))
+for i in range(len(N)) :
+    plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'N={N[i]} Hz')
+plt.xlabel(r'$v_1 / v_2$')
+plt.ylabel(r'$\eta_{v}$')
 plt.legend()
 plt.tight_layout()
 plt.show()
