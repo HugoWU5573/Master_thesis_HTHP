@@ -48,21 +48,21 @@ external_fluid_LT = 'Water'     # External fluid in the heat source
 T1_prime = 15 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
 glide_LT = 5                    # Temperature glide of the external fluid in the heat source [K]
 T2_prime = T1_prime - glide_LT  # Outlet temperature of the external fluid in the heat source [K]
-p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
+p1_prime = 3e5                  # Inlet pressure of the external fluid in the heat source [Pa]
 
     # 2. MT source
 external_fluid_MT = 'Water'     # External fluid in the heat sink
 T3_prime = 40 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_MT = 5                    # Temperature glide of the external fluid in the heat sink [K]
 T4_prime = T3_prime - glide_MT  # Outlet temperature of the external fluid in the heat sink [K]
-p3_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p3_prime = 3e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
 T5_prime = 55 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_HT = 5                    # Temperature glide in the gas cooler [K]
 T6_prime = T5_prime + glide_HT  # Outlet temperature of the external fluid in the heat sink [K]
-p5_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p5_prime = 3e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Bounds for the optimization parameters
 
@@ -310,9 +310,9 @@ if full_details:
 print(SC2)
 
 if full_details:
-    SC2.Evaporator_LT.Compute_Area()
-    SC2.Evaporator_MT.Compute_Area()
-    SC2.Condenser.Compute_Area()
+    SC2.Evaporator_LT.Compute_Area(plot=True, save=True, name_cycle=SC2.name)
+    SC2.Evaporator_MT.Compute_Area(plot=True, save=True, name_cycle=SC2.name)
+    SC2.Condenser.Compute_Area(plot=True, save=True, name_cycle=SC2.name)
     print(SC2.Evaporator_LT)
     print(SC2.Evaporator_MT)
     print(SC2.Condenser)

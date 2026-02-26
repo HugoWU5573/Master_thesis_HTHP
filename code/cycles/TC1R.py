@@ -46,7 +46,7 @@ external_fluid_MT = 'Water'     # External fluid in the heat source
 T3_prime = 45 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
 glide_MT = 5                    # Temperature glide of the external fluid in the heat source [K]
 T4_prime = T3_prime - glide_MT  # Outlet temperature of the external fluid in the heat source [K]
-p3_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
+p3_prime = 3e5                  # Inlet pressure of the external fluid in the heat source [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
@@ -259,9 +259,9 @@ if full_details:
 print(TC1R)
 
 if full_details:
-    TC1R.Evaporator.Compute_Area()
-    TC1R.GasCooler.Compute_Area()
-    TC1R.Recuperator.Compute_Area()
+    TC1R.Evaporator.Compute_Area(plot=True, save=True, name_cycle=TC1R.name)
+    TC1R.GasCooler.Compute_Area(plot=True, save=True, name_cycle=TC1R.name)
+    TC1R.Recuperator.Compute_Area(plot=True, save=True, name_cycle=TC1R.name)
     print(TC1R.Evaporator)
     print(TC1R.GasCooler)
     print(TC1R.Recuperator)

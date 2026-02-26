@@ -47,14 +47,14 @@ external_fluid_LT = 'Water'     # External fluid in the heat source
 T1_prime = 15 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
 glide_LT = 5                    # Temperature glide of the external fluid in the heat source [K]
 T2_prime = T1_prime - glide_LT  # Outlet temperature of the external fluid in the heat source [K]
-p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
+p1_prime = 3e5                  # Inlet pressure of the external fluid in the heat source [Pa]
 
     # 2. MT source
 external_fluid_MT = 'Water'     # External fluid in the heat sink
 T3_prime = 45 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_MT = 5                    # Temperature glide of the external fluid in the heat sink [K]
 T4_prime = T3_prime - glide_MT  # Outlet temperature of the external fluid in the heat sink [K]
-p3_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p3_prime = 3e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Heat sink parameters
 external_fluid_HT = 'Water'     # External fluid in the heat sink
@@ -68,8 +68,8 @@ p5_prime = 5e5                  # Inlet pressure of the external fluid in the he
 T_7_min = T5_prime + T_pinch    # Minimum outlet temperature of the gas cooler [K]
 T_7_max = 380                   # Maximum outlet temperature of the gas cooler [K]
 T_sup_1_min = 1                 # Minimum superheating at point 1 [K]
-T_sup_1_max = 8                 # Maximum superheating at point 1 [K]
-T_sup_3_min = 3                 # Minimum superheating at point 3 [K]
+T_sup_1_max = 10                # Maximum superheating at point 1 [K]
+T_sup_3_min = 1                 # Minimum superheating at point 3 [K]
 T_sup_3_max = 12                # Maximum superheating at point 3 [K]
 
 
@@ -316,9 +316,9 @@ if full_details :
 print(TC2)
 
 if full_details:
-    TC2.Evaporator_LT.Compute_Area()
-    TC2.Evaporator_MT.Compute_Area()
-    TC2.GasCooler.Compute_Area()
+    TC2.Evaporator_LT.Compute_Area(plot=True, save=True, name_cycle=TC2.name)
+    TC2.Evaporator_MT.Compute_Area(plot=True, save=True, name_cycle=TC2.name)
+    TC2.GasCooler.Compute_Area(plot=True, save=True, name_cycle=TC2.name)
     print(TC2.Evaporator_LT)
     print(TC2.Evaporator_MT)
     print(TC2.GasCooler)

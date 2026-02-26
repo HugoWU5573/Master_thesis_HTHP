@@ -46,14 +46,14 @@ external_fluid_LT = 'Water'     # External fluid in the heat source
 T1_prime = 15 + 273.15          # Inlet temperature of the external fluid in the heat source [K]
 glide_LT = 5                    # Temperature glide of the external fluid in the heat source [K]
 T2_prime = T1_prime - glide_LT  # Outlet temperature of the external fluid in the heat source [K]
-p1_prime = 1e5                  # Inlet pressure of the external fluid in the heat source [Pa]
+p1_prime = 3e5                  # Inlet pressure of the external fluid in the heat source [Pa]
 
 # Heat sink parameters
 external_fluid_MT = 'Water'     # External fluid in the heat sink
 T4_prime = 40 + 273.15          # Inlet temperature of the external fluid in the heat sink [K]
 glide_MT = 5                    # Temperature glide of the external fluid in the heat sink [K]
 T3_prime = T4_prime + glide_MT  # Outlet temperature of the external fluid in the heat sink [K]
-p4_prime = 1e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
+p4_prime = 3e5                  # Inlet pressure of the external fluid in the heat sink [Pa]
 
 # Bounds for the optimization parameters
 
@@ -255,9 +255,9 @@ if full_details:
 print(SC1R)
 
 if full_details:
-    SC1R.Evaporator.Compute_Area()
-    SC1R.Condenser.Compute_Area()
-    SC1R.Recuperator.Compute_Area()
+    SC1R.Evaporator.Compute_Area(plot=True, save=True, name_cycle=SC1R.name)
+    SC1R.Condenser.Compute_Area(plot=True, save=True, name_cycle=SC1R.name)
+    SC1R.Recuperator.Compute_Area(plot=True, save=True, name_cycle=SC1R.name)
     print(SC1R.Evaporator)
     print(SC1R.Condenser)
     print(SC1R.Recuperator)
