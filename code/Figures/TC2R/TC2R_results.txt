@@ -14,7 +14,7 @@ State Properties:
 | 6      | 356.15       | 45.72        | 441.18            | 1737.34             | 136.19         | -1.0000     |
 | 7      | 334.43       | 45.72        | 368.00            | 1525.57             | 125.09         | -1.0000     |
 | 8      | 310.15       | 12.77        | 368.00            | 1556.33             | 116.07         | 0.2218      |
-| 9      | 309.26       | 45.72        | 295.40            | 1300.03             | 118.60         | -1.0000     |
+| 9      | 309.25       | 45.72        | 295.40            | 1300.03             | 118.60         | -1.0000     |
 | 10     | 280.15       | 5.84         | 295.40            | 1340.56             | 106.72         | 0.2130      |
 | 1'     | 288.15       | 3.00         | 63.27             | 224.42              | 0.38           | -1.0000     |
 | 2'     | 283.15       | 3.00         | 42.31             | 151.06              | 0.93           | -1.0000     |
@@ -65,10 +65,10 @@ Performance:
 
 Heat transfer rate: 9.63 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 1.399 m2 (40 plates - model: ACH30EQ)
+Heat exchanger area: 2.382 m2 (36 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 0.55 bar  (9.5 %)
-	 - Hot stream: 0.13 bar  (4.4 %)
+	 - Cold stream: 0.06 bar  (1.0 %)
+	 - Hot stream: 0.14 bar  (4.8 %)
 ====================================================================================
 
 
@@ -83,10 +83,10 @@ Pressure drops :
 
 Heat transfer rate: 9.63 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 0.957 m2 (28 plates - model: ACH30EQ)
+Heat exchanger area: 2.382 m2 (36 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 1.15 bar  (9.0 %)
-	 - Hot stream: 0.27 bar  (9.1 %)
+	 - Cold stream: 0.09 bar  (0.7 %)
+	 - Hot stream: 0.14 bar  (4.7 %)
 ====================================================================================
 
 
@@ -101,10 +101,10 @@ Pressure drops :
 
 Heat transfer rate: 30.00 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 2.003 m2 (28 plates - model: ACH65)
+Heat exchanger area: 3.083 m2 (46 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 0.47 bar  (9.3 %)
-	 - Hot stream: 0.32 bar  (0.7 %)
+	 - Cold stream: 0.01 bar  (0.2 %)
+	 - Hot stream: 0.34 bar  (0.8 %)
 ====================================================================================
 
 
@@ -113,16 +113,16 @@ Pressure drops :
 +--------+-----------+----------+----------+------------+------------+-------------+
 |Stream  |Fluid      |Tin [K]   |Tout [K]  |pin [bar]   |pout [bar]  |mdot [kg/s]  |
 +--------+-----------+----------+----------+------------+------------+-------------+
-| Hot    | n-Propane |   334.43 |   309.26 |      45.72 |      45.72 |       0.033 |
+| Hot    | n-Propane |   334.43 |   309.25 |      45.72 |      45.72 |       0.033 |
 | Cold   | n-Propane |   285.15 |   324.57 |       5.84 |       5.84 |       0.033 |
 +--------+-----------+----------+----------+------------+------------+-------------+
 
 Heat transfer rate: 2.36 kW,th
 Delta_T at pinch point: 9.86 K
-Heat exchanger area: 0.148 m2 (10 plates - model: ACK16)
+Heat exchanger area: 0.442 m2 (18 plates - model: ACK18)
 Pressure drops :
-	 - Cold stream: 0.03 bar  (0.5 %)
-	 - Hot stream: 0.65 bar  (1.4 %)
+	 - Cold stream: 0.28 bar  (4.8 %)
+	 - Hot stream: 0.73 bar  (1.6 %)
 ====================================================================================
 
 
@@ -137,8 +137,8 @@ Pressure drops :
 
 Heat transfer rate: 6.25 kW,th
 Delta_T at pinch point: 8.60 K
-Heat exchanger area: 0.296 m2 (18 plates - model: ACK16)
+Heat exchanger area: 0.552 m2 (22 plates - model: ACK18)
 Pressure drops :
-	 - Cold stream: 0.05 bar  (0.4 %)
-	 - Hot stream: 0.62 bar  (1.4 %)
+	 - Cold stream: 0.57 bar  (4.5 %)
+	 - Hot stream: 0.75 bar  (1.6 %)
 ====================================================================================

@@ -273,18 +273,18 @@ TC2R.mdot_wf_top = Q / Delta_h_GasCooler
 TC2R.P_comp_top = TC2R.Compressor_2.Solve(p_ex=p5_best, state_in=TC2R.state_4, mdot_wf=TC2R.mdot_wf_top, mode="Dimensional")[0]
 TC2R.mdot_wf_bottom = TC2R.mdot_wf_top / (1 + ratio_evaporators * (TC2R.state_1.h - TC2R.state_10.h) / (TC2R.state_3_evap.h - TC2R.state_8.h))
 TC2R.P_comp_bottom = TC2R.Compressor_1.Solve(p_ex=p3_best, state_in=TC2R.state_2, mdot_wf=TC2R.mdot_wf_bottom, mode="Dimensional")[0]
-TC2R.Evaporator_LT = HEX_Design(states_in=[TC2R.state_10, TC2R.state_1_prime], states_out=[TC2R.state_1, TC2R.state_2_prime], mdot = [TC2R.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACH30EQ")
+TC2R.Evaporator_LT = HEX_Design(states_in=[TC2R.state_10, TC2R.state_1_prime], states_out=[TC2R.state_1, TC2R.state_2_prime], mdot = [TC2R.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACP70X")
 T_pinch_evap_LT = TC2R.Evaporator_LT.Compute_Pinch()
 TC2R.mdot_LT = TC2R.Evaporator_LT.mdot_h
-TC2R.Evaporator_MT = HEX_Design(states_in=[TC2R.state_8, TC2R.state_3_prime], states_out=[TC2R.state_3_evap, TC2R.state_4_prime],mdot = [TC2R.mdot_wf_top - TC2R.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACH30EQ")
+TC2R.Evaporator_MT = HEX_Design(states_in=[TC2R.state_8, TC2R.state_3_prime], states_out=[TC2R.state_3_evap, TC2R.state_4_prime],mdot = [TC2R.mdot_wf_top - TC2R.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACP70X")
 T_pinch_evap_MT = TC2R.Evaporator_MT.Compute_Pinch()
 TC2R.mdot_MT = TC2R.Evaporator_MT.mdot_h
-TC2R.GasCooler = HEX_Design(states_in=[TC2R.state_5_prime, TC2R.state_5], states_out=[TC2R.state_6_prime, TC2R.state_6], mdot=[None, TC2R.mdot_wf_top], name="GasCooler", mode="Dimensional", model="ACH65")
+TC2R.GasCooler = HEX_Design(states_in=[TC2R.state_5_prime, TC2R.state_5], states_out=[TC2R.state_6_prime, TC2R.state_6], mdot=[None, TC2R.mdot_wf_top], name="GasCooler", mode="Dimensional", model="ACP70X")
 T_pinch_gas_cooler = TC2R.GasCooler.Compute_Pinch()
 TC2R.mdot_HT = TC2R.GasCooler.mdot_c
-TC2R.Recuperator_2 = HEX_Design(states_in=[TC2R.state_3, TC2R.state_6], states_out=[TC2R.state_4, TC2R.state_7], mdot=[TC2R.mdot_wf_top, TC2R.mdot_wf_top], name="Recuperator_1", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness, model="ACK16")
+TC2R.Recuperator_2 = HEX_Design(states_in=[TC2R.state_3, TC2R.state_6], states_out=[TC2R.state_4, TC2R.state_7], mdot=[TC2R.mdot_wf_top, TC2R.mdot_wf_top], name="Recuperator_1", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness, model="ACK18")
 TC2R.Recuperator_2.Solve_Recuperator()
-TC2R.Recuperator_1 = HEX_Design(states_in=[TC2R.state_1, TC2R.state_7], states_out=[TC2R.state_2, TC2R.state_9], mdot=[TC2R.mdot_wf_bottom, TC2R.mdot_wf_bottom], name="Recuperator_2", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness, model="ACK16")
+TC2R.Recuperator_1 = HEX_Design(states_in=[TC2R.state_1, TC2R.state_7], states_out=[TC2R.state_2, TC2R.state_9], mdot=[TC2R.mdot_wf_bottom, TC2R.mdot_wf_bottom], name="Recuperator_2", mode="Dimensional", type="Recuperator", epsilon=recuperator_effectiveness, model="ACK18")
 TC2R.Recuperator_1.Solve_Recuperator()
 
 # Compute cycle performance

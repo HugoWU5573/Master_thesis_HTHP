@@ -62,10 +62,10 @@ Performance:
 
 Heat transfer rate: 11.63 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 1.694 m2 (48 plates - model: ACH30EQ)
+Heat exchanger area: 2.943 m2 (44 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 0.55 bar  (9.4 %)
-	 - Hot stream: 0.19 bar  (6.5 %)
+	 - Cold stream: 0.08 bar  (1.4 %)
+	 - Hot stream: 0.14 bar  (4.6 %)
 ====================================================================================
 
 
@@ -80,10 +80,10 @@ Pressure drops :
 
 Heat transfer rate: 11.63 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 1.178 m2 (34 plates - model: ACH30EQ)
+Heat exchanger area: 2.943 m2 (44 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 1.11 bar  (9.8 %)
-	 - Hot stream: 0.21 bar  (7.1 %)
+	 - Cold stream: 0.06 bar  (0.6 %)
+	 - Hot stream: 0.14 bar  (4.5 %)
 ====================================================================================
 
 
@@ -98,8 +98,8 @@ Pressure drops :
 
 Heat transfer rate: 30.00 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 6.471 m2 (86 plates - model: ACH65)
+Heat exchanger area: 7.146 m2 (104 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 0.10 bar  (3.5 %)
-	 - Hot stream: 2.14 bar  (9.6 %)
+	 - Cold stream: 0.15 bar  (4.9 %)
+	 - Hot stream: 0.01 bar  (0.1 %)
 ====================================================================================

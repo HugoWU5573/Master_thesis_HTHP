@@ -48,7 +48,7 @@ class HEX_Design():
     """
     def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", L=0.3, W=0.1, w=2e-3, beta=60, phi=1.2, Rcond=0, mode="Dimensional", type=None, epsilon=None, model=None):
 
-        if model == "ACH65":   # Channel gap is very small for this model -> useful for supercritical operation
+        if model == "ACH65":
             L = 0.535
             W = 0.120
             w = 0.72e-3
@@ -80,6 +80,14 @@ class HEX_Design():
             phi = 1.2
             min_nb_plates = 4
             max_nb_plates = 120
+        elif model == "ACP70X":
+            L = 0.526 
+            W = 0.111
+            w = 1.63e-3
+            beta = 60
+            phi = 1.2
+            min_nb_plates = 4
+            max_nb_plates = 124
         else :
             min_nb_plates = 3
             max_nb_plates = 1000
@@ -609,9 +617,9 @@ class HEX_Design():
 
         # Default maximum pressure drop limits (10% of inlet pressure)
         if delta_P_hot_max is None:
-            delta_P_hot_max = 0.1 * self.state_in_h.p
+            delta_P_hot_max = 0.05 * self.state_in_h.p
         if delta_P_cold_max is None:
-            delta_P_cold_max = 0.1 * self.state_in_c.p
+            delta_P_cold_max = 0.05 * self.state_in_c.p
 
         # We initialize the heat flux per cell with a first guess based on the minimum number of plates
         A_min = (self.min_Nb_plates - 2) * self.W * self.L * self.phi
@@ -632,7 +640,7 @@ class HEX_Design():
         for Nplates in range(self.min_Nb_plates, self.max_Nb_plates +1, 2):
             
             # Evaluate design with current number of plates
-            A_req, A_geom, dP_h, dP_c = self._evaluate_design(Nplates)
+            A_req, A_geom, dP_c, dP_h = self._evaluate_design(Nplates)
 
             if plot:
                 N_list.append(Nplates)
@@ -829,12 +837,13 @@ class HEX_Design():
 
         # Calculation of Reynolds number
         G = mdot / Nb_channels_stream / self.Aflow
+        Re_Yang = G * self.Dh * self.phi / mu
         Re = self.Dh * G / mu
 
         # Calculation of h
         gamma = 0.6
-        Nu = (-1.342e-4 * self.beta**2 + 1.808e-2 * self.beta - 0.0075) * Re**(-7.956e-5 * self.beta**2 + 9.687e-3 * self.beta + 0.3155) * Re**(self.phi/self.beta) * Re**(gamma/self.beta) * Pr**(1/3) * (mu/mu_wall)**0.14
-        h = Nu * k / self.Dh
+        Nu = (-1.342e-4 * self.beta**2 + 1.808e-2 * self.beta - 0.0075) * Re_Yang**(-7.956e-5 * self.beta**2 + 9.687e-3 * self.beta + 0.3155) * Re_Yang**(self.phi/self.beta) * Re_Yang**(gamma/self.beta) * Pr**(1/3) * (mu/mu_wall)**0.14
+        h = Nu * k / (self.Dh * self.phi)
 
         # Calculation of friction factor 
         f = 4 * self.phi**4 * (0.6796 * self.phi * Re**(-0.0551) + 0.2)
@@ -928,7 +937,7 @@ class HEX_Design():
     """
     This method implements the Zendehboudi et al. (2021) correlation to estimate the convective heat transfer
     coefficient of supercritical fluid inside a brazed plate heat exchanger and the 
-    Kim and Park (2017) correlation to estimate the friction factor.
+    Lee et al. (2020) correlation to estimate the friction factor.
         - Inputs :
             - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
             - stream : "hot" or "cold" to indicate which stream we are considering
@@ -1006,7 +1015,14 @@ class HEX_Design():
         h = Nu * k_m / self.Dh
 
         # Calculation of f
-        f = 4 * self.phi**4 * (0.6796 * self.phi * Re_m**(-0.0551) + 0.2)
+        f1 = 2.332e7 * Re_m**(-1.537)
+        f2 = 1.129e6 * Re_m**(-1.075)
+        if Re_m < 5000 :
+            f = f1
+        elif Re_m > 6500 :
+            f = f2
+        else :
+            f = f1 + (f2 - f1) * (Re_m - 5000) / (6500 - 5000)  # Linear interpolation between the two regimes
 
         return h, f
 
@@ -1024,7 +1040,7 @@ class HEX_Design():
     def _Cp_average(self, heos, p, T1, T2):
 
         # Discretization of the temperature range
-        N = 100
+        N = 50
         T_values = np.linspace(T1, T2, N)
 
         # Calculation of Cp at each temperature
@@ -1106,7 +1122,7 @@ class HEX_Design():
         if save and (name_cycle is not None):
             fig_dir = f'code/Figures/{name_cycle}'
             os.makedirs(fig_dir, exist_ok=True)
-            plt.savefig(f'{fig_dir}/{self.name}.png', dpi=600)
+            plt.savefig(f'{fig_dir}/{self.name}.pdf')
 
         if plot : plt.show()
 
@@ -1156,9 +1172,9 @@ class HEX_Design():
         xticks = np.array([N_array[0], N_array[-1]])
 
         plt.figure(self.name + "_Design")
-        plt.plot(N_array, area_ratio, color="black", clip_on=False, label=r"$\frac{A_{\mathrm{geom}}}{A_{\mathrm{required}}}$")
-        plt.plot(N_array, dPh_ratio, color="red", clip_on=False, label=r"$\frac{\Delta p_{h}}{\Delta p_{h}^{\mathrm{max}}}$")
-        plt.plot(N_array, dPc_ratio,color="blue", clip_on=False, label=r"$\frac{\Delta p_{c}}{\Delta p_{c}^{\mathrm{max}}}$")
+        plt.plot(N_array, area_ratio, color="black",marker=".", clip_on=False, label=r"$\frac{A_{\mathrm{geom}}}{A_{\mathrm{required}}}$")
+        plt.plot(N_array, dPh_ratio, color="red",marker=".", clip_on=False, label=r"$\frac{\Delta p_{h}}{\Delta p_{h}^{\mathrm{max}}}$")
+        plt.plot(N_array, dPc_ratio,color="blue",marker=".", clip_on=False, label=r"$\frac{\Delta p_{c}}{\Delta p_{c}^{\mathrm{max}}}$")
 
         # Constraint line
         plt.axhline(1.0, linestyle='--', linewidth=1, color='gray')
@@ -1190,7 +1206,7 @@ class HEX_Design():
         if save and (name_cycle is not None):
             fig_dir = f'code/Figures/{name_cycle}'
             os.makedirs(fig_dir, exist_ok=True)
-            plt.savefig(f'{fig_dir}/{self.name}_Design.png', dpi=600)
+            plt.savefig(f'{fig_dir}/{self.name}_Design.pdf')
 
         plt.show()
 

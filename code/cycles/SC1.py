@@ -191,10 +191,10 @@ p3_best = p_best[1]
 Delta_h_Condenser = SC1.state_3.h - SC1.state_9.h
 SC1.mdot_wf_bottom = Q / Delta_h_Condenser
 SC1.P_comp_bottom = SC1.Compressor.Solve(p_ex=p3_best, state_in=SC1.state_1, mdot_wf=SC1.mdot_wf_bottom, mode="Dimensional")[0]
-SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, SC1.state_2_prime], mdot=[SC1.mdot_wf_bottom, None], name="Evaporator", mode="Dimensional", model="ACH30EQ")
+SC1.Evaporator = HEX_Design(states_in=[SC1.state_10, SC1.state_1_prime], states_out=[SC1.state_1, SC1.state_2_prime], mdot=[SC1.mdot_wf_bottom, None], name="Evaporator", mode="Dimensional", model="ACP70X")
 T_pinch_evap = SC1.Evaporator.Compute_Pinch()
 SC1.mdot_LT = SC1.Evaporator.mdot_h
-SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[SC1.state_3_prime, SC1.state_9], mdot=[None, SC1.mdot_wf_bottom], name="Condenser", mode="Dimensional", model="ACH65")
+SC1.Condenser = HEX_Design(states_in=[SC1.state_4_prime, SC1.state_3], states_out=[SC1.state_3_prime, SC1.state_9], mdot=[None, SC1.mdot_wf_bottom], name="Condenser", mode="Dimensional", model="ACP70X")
 T_pinch_cond = SC1.Condenser.Compute_Pinch()
 SC1.mdot_MT = SC1.Condenser.mdot_c
 

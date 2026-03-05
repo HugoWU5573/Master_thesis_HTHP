@@ -252,13 +252,13 @@ TC2.mdot_wf_top = Q / Delta_h_GasCooler
 TC2.P_comp_top = TC2.Compressor_2.Solve(p_ex=p5_best, state_in=TC2.state_3, mdot_wf=TC2.mdot_wf_top, mode="Dimensional")[0]
 TC2.mdot_wf_bottom = TC2.mdot_wf_top / (1 + ratio_evaporators * (TC2.state_1.h - TC2.state_10.h) / (TC2.state_3_evap.h - TC2.state_8.h))
 TC2.P_comp_bottom = TC2.Compressor_1.Solve(p_ex=p3_best, state_in=TC2.state_1, mdot_wf=TC2.mdot_wf_bottom, mode="Dimensional")[0]
-TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, TC2.state_2_prime], mdot = [TC2.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACH30EQ")
+TC2.Evaporator_LT = HEX_Design(states_in=[TC2.state_10, TC2.state_1_prime], states_out=[TC2.state_1, TC2.state_2_prime], mdot = [TC2.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACP70X")
 T_pinch_evap_LT = TC2.Evaporator_LT.Compute_Pinch()
 TC2.mdot_LT = TC2.Evaporator_LT.mdot_h
-TC2.Evaporator_MT = HEX_Design(states_in=[TC2.state_8, TC2.state_3_prime], states_out=[TC2.state_3_evap, TC2.state_4_prime],mdot = [TC2.mdot_wf_top - TC2.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACH30EQ")
+TC2.Evaporator_MT = HEX_Design(states_in=[TC2.state_8, TC2.state_3_prime], states_out=[TC2.state_3_evap, TC2.state_4_prime],mdot = [TC2.mdot_wf_top - TC2.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACP70X")
 T_pinch_evap_MT = TC2.Evaporator_MT.Compute_Pinch()
 TC2.mdot_MT = TC2.Evaporator_MT.mdot_h
-TC2.GasCooler = HEX_Design(states_in=[TC2.state_5_prime, TC2.state_5], states_out=[TC2.state_6_prime, TC2.state_7], mdot=[None, TC2.mdot_wf_top], name="Gas Cooler", mode="Dimensional", model="ACH65")
+TC2.GasCooler = HEX_Design(states_in=[TC2.state_5_prime, TC2.state_5], states_out=[TC2.state_6_prime, TC2.state_7], mdot=[None, TC2.mdot_wf_top], name="Gas Cooler", mode="Dimensional", model="ACP70X")
 T_pinch_gas_cooler = TC2.GasCooler.Compute_Pinch()
 TC2.mdot_HT = TC2.GasCooler.mdot_c
 

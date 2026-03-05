@@ -251,13 +251,13 @@ SC2.mdot_wf_top = Q / Delta_h_Condenser
 SC2.P_comp_top = SC2.Compressor_2.Solve(p_ex=p5_best, state_in=SC2.state_3, mdot_wf=SC2.mdot_wf_top, mode="Dimensional")[0]
 SC2.mdot_wf_bottom = SC2.mdot_wf_top / (1 + ratio_evaporators * (SC2.state_1.h - SC2.state_10.h) / (SC2.state_3_evap.h - SC2.state_8.h))
 SC2.P_comp_bottom = SC2.Compressor_1.Solve(p_ex=p3_best, state_in=SC2.state_1, mdot_wf=SC2.mdot_wf_bottom, mode="Dimensional")[0]
-SC2.Evaporator_LT = HEX_Design(states_in=[SC2.state_10, SC2.state_1_prime], states_out=[SC2.state_1, SC2.state_2_prime], mdot = [SC2.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACH30EQ")
+SC2.Evaporator_LT = HEX_Design(states_in=[SC2.state_10, SC2.state_1_prime], states_out=[SC2.state_1, SC2.state_2_prime], mdot = [SC2.mdot_wf_bottom, None], name="Evaporator_LT", mode="Dimensional", model="ACP70X")
 T_pinch_evap_LT = SC2.Evaporator_LT.Compute_Pinch()
 SC2.mdot_LT = SC2.Evaporator_LT.mdot_h
-SC2.Evaporator_MT = HEX_Design(states_in=[SC2.state_8, SC2.state_3_prime], states_out=[SC2.state_3_evap, SC2.state_4_prime],mdot = [SC2.mdot_wf_top - SC2.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACH30EQ")
+SC2.Evaporator_MT = HEX_Design(states_in=[SC2.state_8, SC2.state_3_prime], states_out=[SC2.state_3_evap, SC2.state_4_prime],mdot = [SC2.mdot_wf_top - SC2.mdot_wf_bottom, None], name="Evaporator_MT", mode="Dimensional", model="ACP70X")
 T_pinch_evap_MT = SC2.Evaporator_MT.Compute_Pinch()
 SC2.mdot_MT = SC2.Evaporator_MT.mdot_h
-SC2.Condenser = HEX_Design(states_in=[SC2.state_5_prime, SC2.state_5], states_out=[SC2.state_6_prime, SC2.state_7], mdot=[None, SC2.mdot_wf_top], name="Condenser", mode="Dimensional", model="ACH65")
+SC2.Condenser = HEX_Design(states_in=[SC2.state_5_prime, SC2.state_5], states_out=[SC2.state_6_prime, SC2.state_7], mdot=[None, SC2.mdot_wf_top], name="Condenser", mode="Dimensional", model="ACP70X")
 T_pinch_cond = SC2.Condenser.Compute_Pinch()
 SC2.mdot_HT = SC2.Condenser.mdot_c
 
