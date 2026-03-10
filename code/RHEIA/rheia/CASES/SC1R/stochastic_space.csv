@@ -1,0 +1,13 @@
+h_single_phase,relative,Gaussian,0.15   
+h_evaporation,relative,Gaussian,0.15
+h_condensation,relative,Gaussian,0.15
+f_single_phase,relative,Gaussian,0.15
+f_evaporation,relative,Gaussian,0.15
+f_condensation,relative,Gaussian,0.15
+beta,absolute,Uniform,15
+phi,absolute,Uniform,0.1
+gamma,absolute,Uniform,0.1
+eta_is,absolute,Uniform,0.05
+Q,absolute,Uniform,5000
+T1_prime,absolute,Uniform,10
+T4_prime,absolute,Uniform,10
