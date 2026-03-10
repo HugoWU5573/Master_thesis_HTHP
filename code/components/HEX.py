@@ -1,6 +1,5 @@
 import CoolProp
 import numpy as np
-from scipy.optimize import root_scalar  # Function used for iterative root finding 
 import matplotlib.pyplot as plt
 import os
 
@@ -32,12 +31,14 @@ class HEX_Design():
         - W : Width of the heat exchanger plates [m] (optional, default = 0.1 m)
         - w : Distance between two plates (channel gap) [m] (optional, default = 2e-3 m)
         - phi : Surface enlargement factor due to the corrugation of the plates (optional, default = 1.2)
-        - beta : Chevron angle of the plates [degrees] (optional, default = 60 degrees)
+        - beta : Chevron angle of the plates [degrees] (optional, default = 45 degrees)
+        - gamma : Aspect ratio of the corrugation (optional, default = 0.55)
         - Rcond : thermal resistance of the heat exchanger wall [m²K/W] (optional, default = 0)
         - mode : "Dimensional" or "Non-Dimensional" (optional, default = "Dimensional")
         - type : "Recuperator" or None (optional, default = None)  (see note below)
         - epsilon : Effectiveness of the heat exchanger (only for type = "Recuperator") (optional, default = None)
         - model : None or "ACH65" or "ACK18" or "ACK16" or "ACH30EQ" (optional, default = None) to indicate a specific model of Alfa Laval plate heat exchanger
+        - corr_factors : dictionary of correction factors for the heat transfer coefficients and friction factors in the different flow regimes (optional, default = None, only used in the sensitivity analysis)
     
     Notes : 
         - In the "Dimensional" mode, at least one of the two mass flow rates must be provided (the other can be None).
@@ -46,46 +47,37 @@ class HEX_Design():
         - In the "Recuperator" type, the mass flow rates and inlet states must be provided to calculate the outlet states.
     
     """
-    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", L=0.3, W=0.1, w=2e-3, beta=60, phi=1.2, Rcond=0, mode="Dimensional", type=None, epsilon=None, model=None):
+    def __init__(self, states_in, states_out, mdot=[None, None], name ="HEX", L=0.3, W=0.1, w=2e-3, 
+                 beta=45, phi=1.2, gamma=0.55, Rcond=0, mode="Dimensional", type=None, epsilon=None, model=None, corr_factors=None):
 
         if model == "ACH65":
             L = 0.535
             W = 0.120
             w = 0.72e-3
-            beta = 60
-            phi = 1.2
             min_nb_plates = 10
             max_nb_plates = 120
         elif model == "ACK18":
             L = 0.315
             W = 0.073
             w = 1.63e-3
-            beta = 60
-            phi = 1.2
             min_nb_plates = 4
             max_nb_plates = 52
         elif model == "ACK16":
             L = 0.2095
             W = 0.0735
             w = 1.57e-3
-            beta = 60
-            phi = 1.2
             min_nb_plates = 4
             max_nb_plates = 60
         elif model == "ACH30EQ" :
             L = 0.323
             W = 0.095
             w = 0.91e-3
-            beta = 60
-            phi = 1.2
             min_nb_plates = 4
             max_nb_plates = 120
         elif model == "ACP70X":
             L = 0.526 
             W = 0.111
             w = 1.63e-3
-            beta = 60
-            phi = 1.2
             min_nb_plates = 4
             max_nb_plates = 124
         else :
@@ -113,6 +105,7 @@ class HEX_Design():
         self.P = 2*(self.w + self.W)                  # Wetted perimeter for one channel [m]
         self.Dh = 4 * self.Aflow / self.P / self.phi  # Hydraulic diameter for one channel, corrected by the surface enlargement factor [m]
         self.beta = beta
+        self.gamma = gamma
         self.A = None
         self.mode = mode
         self.type = type
@@ -123,6 +116,20 @@ class HEX_Design():
         self.model = model
         self.pressure_drop_cold = None
         self.pressure_drop_hot = None
+        
+        if corr_factors is None:
+            self.corr_factors = {
+                "h_single_phase": 1.0,
+                "h_evaporation": 1.0,
+                "h_condensation": 1.0,
+                "h_supercritical": 1.0,
+                "f_single_phase": 1.0,
+                "f_evaporation": 1.0,
+                "f_condensation": 1.0,
+                "f_supercritical": 1.0,
+            }
+        else :
+            self.corr_factors = corr_factors
 
 
     """
@@ -615,11 +622,11 @@ class HEX_Design():
     """
     def Compute_Area(self, plot = False, save = False, name_cycle=None, delta_P_hot_max = None, delta_P_cold_max = None):
 
-        # Default maximum pressure drop limits (10% of inlet pressure)
+        # Default maximum pressure drop limits
         if delta_P_hot_max is None:
-            delta_P_hot_max = 0.05 * self.state_in_h.p
+            delta_P_hot_max = np.min([0.5e5, 0.1 * self.state_in_h.p])   # Maximum pressure drop is 10% of the inlet pressure by default (with a maximum set to 0.5 bar)
         if delta_P_cold_max is None:
-            delta_P_cold_max = 0.05 * self.state_in_c.p
+            delta_P_cold_max = np.min([0.5e5, 0.1 * self.state_in_c.p])
 
         # We initialize the heat flux per cell with a first guess based on the minimum number of plates
         A_min = (self.min_Nb_plates - 2) * self.W * self.L * self.phi
@@ -657,9 +664,25 @@ class HEX_Design():
                 # Feasible design found for the first time, we store the results
                 feasible_design_found = True
                 self.Nb_plates = Nplates
-                self.A = A_geom
                 self.pressure_drop_hot = dP_h
                 self.pressure_drop_cold = dP_c
+
+                # We evaluate once again the design with two plates less to determine a continuous area value (useful for the PCE used for sensitivity analysis)
+
+                if Nplates - 2 < self.min_Nb_plates:
+                    self.A = A_geom
+                else :
+                    A_req_previous, A_geom_previous, dP_c_previous, dP_h_previous = self._evaluate_design(Nplates - 2)
+                    c1_prevous = A_req_previous/A_geom_previous ; c1_current = A_req/A_geom
+                    c2_previous = dP_h_previous/delta_P_hot_max ; c2_current = dP_h/delta_P_hot_max
+                    c3_previous = dP_c_previous/delta_P_cold_max ; c3_current = dP_c/delta_P_cold_max
+                    
+                    g_previous = max(c1_prevous, c2_previous, c3_previous)
+                    g_current = max(c1_current, c2_current, c3_current)
+                    t = (g_previous - 1) / (g_previous - g_current)
+                    t = max(0, min(1, t))  # Ensure that t is between 0 and 1
+
+                    self.A = (1-t) * A_geom_previous + t * A_geom
 
                 if not plot:
                     # Do not break the loop immediately if plotting is enable to see the full curves
@@ -778,9 +801,11 @@ class HEX_Design():
         # Calculation of h
 
         h = 0.4703 * Re_eq**0.5221 * Pr_l**(1/3) * Bd**0.1674 * (rho_star)**(0.2126) * k_l / self.Dh
+        h *= self.corr_factors["h_condensation"]
 
         # Calculation of friction factor
         f =  11557.62 * Re_eq**(-1.0041) * Bd**0.3002 * (rho_star)**(-0.4268) 
+        f *= self.corr_factors["f_condensation"]
 
         return h, f
 
@@ -841,12 +866,13 @@ class HEX_Design():
         Re = self.Dh * G / mu
 
         # Calculation of h
-        gamma = 0.6
-        Nu = (-1.342e-4 * self.beta**2 + 1.808e-2 * self.beta - 0.0075) * Re_Yang**(-7.956e-5 * self.beta**2 + 9.687e-3 * self.beta + 0.3155) * Re_Yang**(self.phi/self.beta) * Re_Yang**(gamma/self.beta) * Pr**(1/3) * (mu/mu_wall)**0.14
+        Nu = (-1.342e-4 * self.beta**2 + 1.808e-2 * self.beta - 0.0075) * Re_Yang**(-7.956e-5 * self.beta**2 + 9.687e-3 * self.beta + 0.3155) * Re_Yang**(self.phi/self.beta) * Re_Yang**(self.gamma/self.beta) * Pr**(1/3) * (mu/mu_wall)**0.14
         h = Nu * k / (self.Dh * self.phi)
+        h *= self.corr_factors["h_single_phase"]
 
         # Calculation of friction factor 
         f = 4 * self.phi**4 * (0.6796 * self.phi * Re**(-0.0551) + 0.2)
+        f *= self.corr_factors["f_single_phase"]
 
         return h,f
 
@@ -928,8 +954,11 @@ class HEX_Design():
         else :
             h = 18.495 * (kl / self.Dh) * (self.beta/beta_max)**0.248 * Re_v**0.135 * Re_lo**0.351 * Bd**0.235 * Bo**0.198 * rho_star**(-0.223)
 
+        h *= self.corr_factors["h_evaporation"]
+
         # Calculation of f
         f = 4 * C * 15.698 * We_m**(-0.475) * Bd**(0.255) * rho_star**(-0.571)
+        f *= self.corr_factors["f_evaporation"]
 
         return h, f
     
@@ -1013,6 +1042,7 @@ class HEX_Design():
         # Calculation of Nu and h
         Nu = 0.33 * Re_m**(0.804) * Pr_m**0.1 * (rho_w/rho_m)**(-0.1) * (cp_bar/Cp_m)**0.093 * (Gr/Re_m**2.7)**0.1 
         h = Nu * k_m / self.Dh
+        h *= self.corr_factors["h_supercritical"]
 
         # Calculation of f
         f1 = 2.332e7 * Re_m**(-1.537)
@@ -1023,6 +1053,8 @@ class HEX_Design():
             f = f2
         else :
             f = f1 + (f2 - f1) * (Re_m - 5000) / (6500 - 5000)  # Linear interpolation between the two regimes
+
+        f *= self.corr_factors["f_supercritical"]
 
         return h, f
 
@@ -1082,6 +1114,10 @@ class HEX_Design():
     
     """
     def _plot(self, save=False, name_cycle=None, plot=True):
+        
+        if plot is False and save is False:
+            return
+
         self._get_Normalized_EnthalpyVectors()
 
         # Compute the yticks in °C

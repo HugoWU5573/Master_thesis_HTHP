@@ -4,11 +4,11 @@ import numpy as np
 
 def COP(T_H, T_C):
     COP_Carnot = T_H / (T_H - T_C)
-    return COP_Carnot * 0.62
+    return COP_Carnot*0.6
 
 # Constants
 T_LT = 273.15 + 15              # Low temp source
-T_HT = 273.15 + 115             # High temp sink
+T_HT = 273.15 + 120             # High temp sink
 COP_ref = COP(T_HT, T_LT)       # COP of the reference cycle (one evaporator)
 
 # Medium temperature source range
@@ -60,15 +60,15 @@ COP_vs_beta_th = COP_mult_evap_matrix[:, idx_45]
 
     # Actual results from TC2 cycle simulation
 beta_range = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-COP_vs_beta_TC2 = [2.415, 2.485, 2.57, 2.665, 2.773, 2.894, 3.018, 3.172, 3.334, 3.443, 3.636]
+COP_vs_beta_TC2R = [2.293, 2.348, 2.413, 2.486, 2.566, 2.654, 2.754, 2.865, 2.943, 3.088, 3.157]
 
 # Plot COP ratio vs beta
 plt.figure()
 plt.plot(beta, COP_vs_beta_th, label=r"$Carnot$-$based$ $model$", color='blue', zorder=3)
-plt.scatter(beta_range, COP_vs_beta_TC2, color='red', label=r"$Simulation$ $results$", marker="o", zorder =4)
+plt.scatter(beta_range, COP_vs_beta_TC2R, color='red', label=r"$Simulation$ $results$", marker="o", zorder =4)
 plt.xlabel(r'$\beta$  $[-]$', fontsize=12)
 plt.xlim(0, 1)
-plt.ylim(2, 4)
+plt.ylim(2, 3.5)
 ax = plt.gca()
 ax.tick_params(axis='both', which='major')
 ax.set_title(r'$COP$  $[-]$', loc='left', fontsize=12)
@@ -77,9 +77,9 @@ ax.spines['right'].set_visible(False)
 ax.spines['bottom'].set_position(('outward', 20))
 ax.spines['left'].set_position(('outward', 15))
 ax.set_xticks(np.arange(0, 1.1, 0.2))
-ax.set_yticks(np.arange(2, 4.5, 1))
+ax.set_yticks(np.arange(2, 3.6, 0.5))
 plt.tick_params(axis='x', rotation=0)
 plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
-plt.legend(frameon=False, fontsize=10, loc="lower right")
+plt.legend(frameon=False, fontsize=12, loc="lower right")
 plt.tight_layout()
 plt.show()

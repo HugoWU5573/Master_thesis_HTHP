@@ -241,6 +241,9 @@ class Cycle():
     def Ts_diagram(self, plot = True, n=100, save = True) : 
         # Generate saturation curve for working fluid
 
+        if plot is False and save is False :
+            return
+
         T_points = []
         s_points = []
         states = {}
@@ -367,12 +370,15 @@ class Cycle():
         #plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        if save == True : plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
-        if plot == True : plt.show()
+        if save : plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
+        if plot : plt.show()
         return
     
     def ph_diagram(self, plot = True, n=100, save = True) :
         # Generate saturation curve for working fluid
+
+        if plot is False and save is False :
+            return
 
         p_points = []
         h_points = []
@@ -501,18 +507,16 @@ class Cycle():
         #plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        if save == True : plt.savefig(f'{fig_dir}/ph_diagram.png', dpi=600)
-        if plot == True : plt.show()
+        if save : plt.savefig(f'{fig_dir}/ph_diagram.png', dpi=600)
+        if plot : plt.show()
         return
 
-    
 
+    def energy_chart(self, plot=True, save=True):
 
+        if plot is False and save is False :
+            return
 
-        plt.show()
-
-
-    def energy_chart(self, plot=True) :
         if self.mdot_wf_bottom is None : 
             self.mdot_wf_bottom = 0
         if self.mdot_wf_top is None :
@@ -647,12 +651,16 @@ class Cycle():
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/energy_chart.png', dpi=600)
-        if plot == True : plt.show()
+        if save : plt.savefig(f'{fig_dir}/energy_chart.png', dpi=600)
+        if plot : plt.show()
 
         return 
     
-    def exergy_chart(self, T0, p0, plot = True, losses = 'per_type') :
+    def exergy_chart(self, T0, p0, plot = True, save = True, losses = 'per_type') :
+
+        if plot is False and save is False :
+            return
+
         if self.mdot_wf_bottom is None : 
             self.mdot_wf_bottom = 0
         if self.mdot_wf_top is None :
@@ -912,30 +920,7 @@ class Cycle():
 
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        plt.savefig(f'{fig_dir}/exergy_chart.png', dpi=600)
-        if plot == True : plt.show()
+        if save : plt.savefig(f'{fig_dir}/exergy_chart.png', dpi=600)
+        if plot : plt.show()
 
         return 
-            
-
-        
-
-
-
-
-
-
-'''
-cycle = Cycle("TwoStage_R290")
-
-# Example of state objects (each one could be an instance of your State class)
-state1 = State(T=280, p=4e5, fluid='R290')
-state2 = State(T=320, p=1e6, fluid='R290')
-
-cycle.state_1 = state1
-cycle.state_2 = state2
-cycle.mdot_wf = 0.25
-cycle.mdot_HT = 0.12
-
-print(cycle)
-'''
