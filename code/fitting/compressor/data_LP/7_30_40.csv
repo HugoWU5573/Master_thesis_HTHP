@@ -1,0 +1,48 @@
+﻿************************************************************
+BITZER Software v7.1.4 rev6
+(c) 2026, BITZER, Germany. All data subject to change.
+Monday 9. March 2026 9:17:21 PM
+************************************************************
+
+Compressor Selection: Semi-hermetic Reciprocating Compressors
+------------------------------------------------------------
+Input Values:
+
+Compressor model;;;4FESP-5Z
+Mode;;;Refrigeration and air conditioning
+Refrigerant;;;R290
+Reference temperature;;;Dew point temp.
+Evaporating SST;;;7,00 °C
+Condensing SDT;;;30,0 °C
+Liq. subc. (in condenser);;;0 K
+Suct. gas superheat;;;10,00 K
+Operating mode;;;Auto
+Power supply;;;400V-3-50Hz
+Useful superheat;;;100%
+
+------------------------------------------------------------
+Result
+
+Compressor;;;4FESP-5Z-40S;;;
+Compressor frequency;;;40,0 Hz;;
+Cooling capacity;;;14,27; kW;
+Cooling capacity *;;;14,30; kW;
+Evaporator capacity;;;14,27; kW;
+Power input;;;2,15; kW;
+Current (320V);;;5,88; A;
+Condenser capacity;;;16,42; kW;
+COP/EER;;;6,64;;
+COP/EER *;;;6,66;;
+Mass flow;;;159,8; kg/h;
+min. cooling capacity;;;8,53 kW (25 Hz);;
+max. cooling capacity;;;25,1 kW (70 Hz);;
+Discharge gas temp. w/o cooling;;;51,1; °C;
+;;;;;
+
+------------------------------------------------------------
+Tentative Data.
+Compressor available with individual agreement with BITZER.
+Consider national standards for the use of flammable refrigerants.
+Power consumption at compressor inlet.
+------------------------------------------------------------
+
