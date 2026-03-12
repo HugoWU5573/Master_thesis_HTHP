@@ -1,1 +1,17 @@
-To, be, completed
+h_single_phase,par,1.0
+h_evaporation,par,1.0
+h_condensation,par,1.0
+h_supercritical,par,1.0
+f_single_phase,par,1.0
+f_evaporation,par,1.0
+f_condensation,par,1.0
+f_supercritical,par,1.0
+beta,par,45.0
+phi,par,1.2
+gamma,par,0.55
+eta_is,par,0.65
+Q,par,25000
+alpha,par,0.5
+T1_prime,par,288.75
+T3_prime,par,318.15
+T5_prime,par,358.15

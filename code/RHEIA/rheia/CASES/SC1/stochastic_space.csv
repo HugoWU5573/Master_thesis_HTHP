@@ -7,7 +7,7 @@ f_condensation,relative,Gaussian,0.15
 beta,absolute,Uniform,15
 phi,absolute,Uniform,0.1
 gamma,absolute,Uniform,0.1
-eta_is,absolute,Uniform,0.05
+eta_is,absolute,Uniform,0.1
 Q,absolute,Uniform,5000
 T1_prime,absolute,Uniform,10
 T4_prime,absolute,Uniform,10

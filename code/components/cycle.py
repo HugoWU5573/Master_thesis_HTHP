@@ -60,7 +60,7 @@ class Cycle():
 
         # COP
         self.COP = None
-        self.beta = None
+        self.alpha = None
 
         
 
@@ -195,8 +195,8 @@ class Cycle():
         else:
             cop_str = fmt(cop_val, unit_fmt="{:.3f}")
 
-        # Beta (display as percent only if defined)
-        if self.beta is None:
+        # Alpha (display as percent only if defined)
+        if self.alpha is None:
             performance_lines = [
             "+----------------+-------+",
             "| Performance    | Value |",
@@ -206,16 +206,16 @@ class Cycle():
             ]
         else:
             try:
-                beta_percent = self.beta * 100.0
-                beta_str = f"{beta_percent:.0f} %"
+                alpha_percent = self.alpha * 100.0
+                alpha_str = f"{alpha_percent:.0f} %"
             except Exception:
-                beta_str = ""
+                alpha_str = ""
             performance_lines = [
             "+----------------+-------------+",
             "| Performance    | Value       |",
             "+----------------+-------------+",
             f"| COP            | {cop_str:<11} |",
-            f"| beta           | {beta_str:<11} |",
+            f"| alpha          | {alpha_str:<11} |",
             "+----------------+-------------+",
             ]
 

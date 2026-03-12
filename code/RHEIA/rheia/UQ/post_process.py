@@ -14,7 +14,7 @@ def plot_results(dict_uq, save_figs=False, cycle_name=None):
     ### 1. LOO error
     ###################################
 
-    print("The LOO error for objective ", objective, " is: ", my_post_process_uq.get_loo(result_dir, objective))
+    print("The LOO error for objective ", objective, " is: ", np.round(my_post_process_uq.get_loo(result_dir, objective), 4))
     
     ###################################
     ### 2. PDF
@@ -54,7 +54,7 @@ def plot_results(dict_uq, save_figs=False, cycle_name=None):
             objective_name += "_LT"
         elif "MT" in objective:
             objective_name += "_MT"
-    elif "gas" in objective:
+    elif "Gas" in objective:
         objective_name = "GasCooler_UQ"
 
         # Convert to numpy arrays

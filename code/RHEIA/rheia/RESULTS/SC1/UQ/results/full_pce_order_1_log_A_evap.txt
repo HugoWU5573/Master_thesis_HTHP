@@ -1,4 +1,4 @@
-                      LOO                  0.155960 
+                      LOO                  0.150743 
              sparse basis                 14.000000 
-                     mean                  1.220766 
-                std. dev.                  0.236626 
+                     mean                  1.219647 
+                std. dev.                  0.236915 
