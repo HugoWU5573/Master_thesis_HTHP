@@ -305,7 +305,7 @@ print(f"\nOptimization completed in {end - start:.2f} seconds.\n")
 ############################################################
 # Plot the results
 ############################################################
-
+print(TC2R.state_3_comp)
 full_details = False
 
 if full_details:
