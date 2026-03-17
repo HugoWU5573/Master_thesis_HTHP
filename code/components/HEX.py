@@ -2,9 +2,8 @@ import CoolProp
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-
-if not __name__ == '__main__':
-    from components.state import State
+from scipy.optimize import brentq  # Function used for iterative root finding 
+from state import State
 
 
 """  
@@ -621,16 +620,21 @@ class HEX_Design():
 
     """
     def Compute_Area(self, plot = False, save = False, name_cycle=None, delta_P_hot_max = None, delta_P_cold_max = None):
-
-        # Default maximum pressure drop limits
-        if delta_P_hot_max is None:
-            delta_P_hot_max = np.min([0.5e5, 0.1 * self.state_in_h.p])   # Maximum pressure drop is 10% of the inlet pressure by default (with a maximum set to 0.5 bar)
-        if delta_P_cold_max is None:
-            delta_P_cold_max = np.min([0.5e5, 0.1 * self.state_in_c.p])
+        
+        # Default maximum pressure drops limit
+        if self.state_in_c.fluid == "Water" and delta_P_cold_max is None and delta_P_hot_max is None:
+            delta_P_cold_max = 1e5
+            delta_P_hot_max = 0.5e5
+        elif self.state_in_h.fluid == "Water" and delta_P_hot_max is None and delta_P_cold_max is None:
+            delta_P_hot_max = 1e5
+            delta_P_cold_max = 0.5e5
+        elif delta_P_hot_max is None and delta_P_cold_max is None:  # Useful for the recuperators, where both streams are non water fluids
+            delta_P_hot_max = 0.1 * self.state_in_h.p
+            delta_P_cold_max = 0.5e5
 
         # We initialize the heat flux per cell with a first guess based on the minimum number of plates
         A_min = (self.min_Nb_plates - 2) * self.W * self.L * self.phi
-        q_prime_prime_first_guess = self.Q / (self.N * A_min)
+        q_prime_prime_first_guess = self.Q / A_min
         self.q_prime_prime_per_cell = np.ones(self.N) * q_prime_prime_first_guess
 
         # Preparation of some lists to store the convergence process if plot = True
@@ -1275,3 +1279,1208 @@ class HEX_Design():
         }
 
         return dict_exergy
+
+
+
+"""  
+
+MAIN ASSUMPTIONS :
+    - Both streams are in counter-flow configuration
+    - No fouling resistance
+    - No wall resistance (Rcond = t (wall thickness) /k (conductive heat transfer coeff))
+    - Impact of lubricant in the refrigerant is neglected
+    - The singular pressure drops at the ports of the HEX are neglected (less than 2% of the overall DeltaP according to Kim and Park (2016))
+
+"""
+
+class HEX_Operational():
+
+    """
+    Creates a counter-flow heat exchanger object based on the following inputs :
+    The parameters are:
+        - states_in : list of State objects for the inlet states of both streams [State_c_in, State_h_in]
+        - mdot : list of mass flow rates for both streams [mdot_c, mdot_h] [kg/s]
+        - name : name of the heat exchanger (optional)
+        - L : Length of the heat exchanger plates [m] (optional, default = 0.3 m)
+        - W : Width of the heat exchanger plates [m] (optional, default = 0.1 m)
+        - w : Distance between two plates (channel gap) [m] (optional, default = 1.5e-3 m)
+        - phi : Surface enlargement factor due to the corrugation of the plates (optional, default = 1.2)
+        - beta : Chevron angle of the plates [degrees] (optional, default = 45 degrees)
+        - gamma : Aspect ratio of the corrugation (optional, default = 0.55)
+        - N : Number of plates (optional, default = 30)
+        - model : None or "ACK18" or "ACP70X" (optional, default = None) to indicate a specific model of Alfa Laval plate heat exchanger
+
+    """
+    def __init__(self, states_in, mdot, name ="HEX", L=0.3, W=0.1, w=2e-3, 
+                 beta=45, phi=1.2, gamma=0.55, N=30, model=None):
+        
+        if model == "ACK18":
+            L = 0.315
+            W = 0.073
+            w = 1.63e-3
+        elif model == "ACP70X":
+            L = 0.526 
+            W = 0.111
+            w = 1.63e-3
+
+        self.state_in_c = states_in[0]
+        self.state_in_h = states_in[1]
+        self.mdot_c = mdot[0]
+        self.mdot_h = mdot[1]
+        self.HEOS_cold = self.state_in_c.heos
+        self.HEOS_hot = self.state_in_h.heos
+        self.name = name
+        self.L = L
+        self.W = W
+        self.w = w
+        self.phi = phi
+        self.gamma = gamma
+        self.beta = beta
+        self.Nb_plates = N
+        self.A = self.W * self.L * (self.Nb_plates - 2) * self.phi  # Heat transfer area (the two outermost plates are not used for heat transfer) [m2]
+    
+        self.Aflow = self.W * self.w                  # Cross-sectional flow area for one channel [m2]
+        self.P = 2*(self.w + self.W)                  # Wetted perimeter for one channel [m]
+        self.Dh = 4 * self.Aflow / self.P / self.phi  # Hydraulic diameter for one channel, corrected by the surface enlargement factor [m]
+        self.model = model
+
+        # Results to be computed
+        self.state_out_c = None
+        self.state_out_h = None
+        self.Tpinch = None
+        self.Q = None
+        self.pressure_drop_cold = None
+        self.pressure_drop_hot = None
+
+
+    """
+    This method returns a string representation of the heat exchanger object.
+
+    """ 
+    def __str__(self):
+        result = "\n=================================== {:<12} ===================================\n".format(self.name)
+
+        # Streams summary table with all information
+        stream_header = "+--------+-----------+----------+----------+------------+------------+-------------+"
+        stream_table = [
+            stream_header,
+            "|Stream  |Fluid      |Tin [K]   |Tout [K]  |pin [bar]   |pout [bar]  |mdot [kg/s]  |",
+            stream_header,
+            "| Hot    | {:<9} | {:8.2f} | {:8.2f} | {:10.2f} | {:10.2f} | {:11.3f} |".format(
+            self.state_in_h.fluid,
+            self.state_in_h.T, self.state_out_h.T,
+            self.state_in_h.p / 1e5, self.state_out_h.p / 1e5,
+            self.mdot_h
+            ),
+            "| Cold   | {:<9} | {:8.2f} | {:8.2f} | {:10.2f} | {:10.2f} | {:11.3f} |".format(
+            self.state_in_c.fluid,
+            self.state_in_c.T, self.state_out_c.T,
+            self.state_in_c.p / 1e5, self.state_out_c.p / 1e5,
+            self.mdot_c
+            ),
+            stream_header,
+        ]
+        result += "\n" + "\n".join(stream_table) + "\n"
+        # Summary of heat duty and pinch
+        result += f"\nHeat transfer rate: {self.Q/1000:.2f} kW,th\n"
+        result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
+        result += f"Heat exchanger area: {self.A:.3f} m2 ({self.Nb_plates} plates - model: {self.model})\n"
+        if self.pressure_drop_hot is not None and self.pressure_drop_cold is not None:
+            result += f"Pressure drops :\n"
+            result += f"\t - Cold stream: {self.pressure_drop_cold/1e5:.2f} bar  ({self.pressure_drop_cold*100/self.state_in_c.p:.1f} %)\n"
+            result += f"\t - Hot stream: {self.pressure_drop_hot/1e5:.2f} bar  ({self.pressure_drop_hot*100/self.state_in_h.p:.1f} %)\n"
+        result += "===================================================================================="
+
+        return result
+
+    
+    """
+    This method calculates the maximum heat transfer rate based on an external pinching analysis and 
+    assuming no pressure drop in the heat exchanger.
+
+    """
+    def _Qmax_ext(self):
+
+        self.HEOS_hot.update(CoolProp.PT_INPUTS, self.state_in_h.p, self.state_in_c.T)
+        hout_h = self.HEOS_hot.hmass()
+
+        self.HEOS_cold.update(CoolProp.PT_INPUTS, self.state_in_c.p, self.state_in_h.T)
+        hout_c = self.HEOS_cold.hmass()
+
+        Qmax_h = self.mdot_h * (self.state_in_h.h - hout_h)
+        Qmax_c = self.mdot_c * (hout_c - self.state_in_c.h)
+        Qmax_ext = min(Qmax_h, Qmax_c)
+
+        self.Qmax_ext = Qmax_ext
+
+        return self.Qmax_ext
+
+    """
+    This method implements the cell division algorithm to find the Enthalpy Vectors of both streams assuming no pressure drops.
+        - Input : 
+            - Q : Guessed value for the heat transfer rate [W]
+            - extra_cells (boolean to indicate if we want to add extra cells for better accuracy, especially useful for supercritical operation)
+        - Output : 
+            - [EnthalpyVector_c, EnthalpyVector_h] (enthalpy vectors of both streams)
+            - [TemperatureVector_c, TemperatureVector_h] (temperature vectors of both streams)
+            - [PressureVector_c, PressureVector_h] (pressure vectors of both streams, which are constant in this case)
+
+    """
+    def _cell_division(self, Q, extra_cells = False):
+
+        self.EnthalpyVector_h = np.array([self.state_in_h.h - Q/self.mdot_h, self.state_in_h.h])
+        self.EnthalpyVector_c = np.array([self.state_in_c.h, self.state_in_c.h + Q/self.mdot_c])
+
+        extra_extra_cells = False
+
+        self.N = 1 # Initial number of cells
+
+        ## A. Insert phase transition enthalpies for the hot stream if applicable
+
+        pcrit_h = self.HEOS_hot.p_critical()
+
+        if not (self.state_in_h.p > pcrit_h):  # If the hot stream pressure is higher than the critical pressure, no phase change can occur
+
+            self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 0)
+            self.h_h_bub = self.HEOS_hot.hmass()
+            self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.state_in_h.p, 1)
+            self.h_h_dew = self.HEOS_hot.hmass()
+
+                # 1. Check for potential phase transition 2 phase to Liquid (bubble point) 
+            if (self.EnthalpyVector_h[0] < self.h_h_bub) and (self.EnthalpyVector_h[-1] > self.h_h_bub):
+                self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_bub)
+                self.EnthalpyVector_h.sort()
+                self.condensation_end = True
+                self.N += 1
+            else :
+                self.condensation_end = False
+
+                # 2. Check for potential phase transition Vapor to 2 phase (dew point)
+            if (self.EnthalpyVector_h[0] < self.h_h_dew) and (self.EnthalpyVector_h[-1] > self.h_h_dew):
+                self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, self.h_h_dew)
+                self.EnthalpyVector_h.sort()
+                self.condensation_start = True
+                self.N += 1
+            else :
+                self.condensation_start = False
+
+        else :
+            extra_extra_cells = True  # If the hot stream is supercritical, we add extra cells to better capture the variations in thermodynamic properties
+            self.condensation_start = False
+            self.condensation_end = False
+
+        
+        ## B. Insert phase transition enthalpies for the cold stream if applicable
+
+        pcrit_c = self.HEOS_cold.p_critical()
+
+        if not (self.state_in_c.p > pcrit_c):  # If the cold stream pressure is higher than the critical pressure, no phase change can occur
+
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 0)
+            self.h_c_bub = self.HEOS_cold.hmass()
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.state_in_c.p, 1)
+            self.h_c_dew = self.HEOS_cold.hmass()
+
+                # 1. Check for potential phase transition Liquid to 2 phase (bubble point)
+            if (self.EnthalpyVector_c[0] < self.h_c_bub) and (self.EnthalpyVector_c[-1] > self.h_c_bub):
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_bub)
+                self.EnthalpyVector_c.sort()
+                self.evaporation_start = True
+                self.N += 1
+            else :
+                self.evaporation_start = False
+
+                # 2. Check for potential phase transition 2 phase to Vapor (dew point)
+            if (self.EnthalpyVector_c[0] < self.h_c_dew) and (self.EnthalpyVector_c[-1] > self.h_c_dew):
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, self.h_c_dew)
+                self.EnthalpyVector_c.sort()
+                self.evaporation_end = True
+                self.N += 1
+            else :
+                self.evaporation_end = False
+
+        else :
+            extra_extra_cells = True  # If the cold stream is supercritical, we add extra cells to better capture the variations in thermodynamic properties
+            self.evaporation_start = False
+            self.evaporation_end = False
+
+
+        ## C. Insert complementary phase transition enthalpies
+
+        for j in range(self.N - 1):
+            Qcell_h = self.mdot_h * (self.EnthalpyVector_h[j+1] - self.EnthalpyVector_h[j])
+            Qcell_c = self.mdot_c * (self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j])
+            
+            # We insert the complementary enthalpy in the enthalpy vector of the stream with the 
+            # highest heat transfer in the cell (indicating that we need to split this cell)
+
+            if Qcell_h > Qcell_c:   # In this case, h_h[j+1] is unknown -> we make an energy balance to find it
+                new_h = self.mdot_c/self.mdot_h * (self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j]) + self.EnthalpyVector_h[j]
+                self.EnthalpyVector_h = np.append(self.EnthalpyVector_h, new_h)
+                self.EnthalpyVector_h.sort()
+
+            else :                  # In this case, h_c[j+1] is unknown -> we make an energy balance to find it
+                new_h = self.mdot_h/self.mdot_c * (self.EnthalpyVector_h[j+1] - self.EnthalpyVector_h[j]) + self.EnthalpyVector_c[j]
+                self.EnthalpyVector_c = np.append(self.EnthalpyVector_c, new_h)
+                self.EnthalpyVector_c.sort()
+
+
+        ## D. Add extra cells if required (e.g. for supercritical operation)
+        if extra_cells:
+
+            if extra_extra_cells : final_nb_cells = 50
+            else : final_nb_cells = 30
+
+            total_delta_h = self.EnthalpyVector_c[-1] - self.EnthalpyVector_c[0]
+
+            # Ensure that each cell will correspond to a similar enthalpy difference
+            nb_cells_per_cell = np.zeros(self.N)
+            for j in range(self.N):
+                delta_h_cell_j = self.EnthalpyVector_c[j+1] - self.EnthalpyVector_c[j]
+                proportion_j = delta_h_cell_j / total_delta_h
+                nb_cells_per_cell[j] = max(1, round(proportion_j * final_nb_cells))
+            
+            # Create new enthalpy vectors with the extra cells
+            EnthalpyVector_c_new = []
+            EnthalpyVector_h_new = []
+            for j in range(self.N):
+                h_c_start = self.EnthalpyVector_c[j]
+                h_c_end = self.EnthalpyVector_c[j+1]
+                h_h_start = self.EnthalpyVector_h[j]
+                h_h_end = self.EnthalpyVector_h[j+1]
+
+                n_cells_j = int(nb_cells_per_cell[j])
+                for k in range(n_cells_j):
+                    h_c_new = h_c_start + k * (h_c_end - h_c_start) / n_cells_j
+                    h_h_new = h_h_start + k * (h_h_end - h_h_start) / n_cells_j
+                    EnthalpyVector_c_new.append(h_c_new)
+                    EnthalpyVector_h_new.append(h_h_new)
+
+            EnthalpyVector_c_new.append(self.EnthalpyVector_c[-1])
+            EnthalpyVector_h_new.append(self.EnthalpyVector_h[-1])
+
+            self.EnthalpyVector_c = np.array(EnthalpyVector_c_new)
+            self.EnthalpyVector_h = np.array(EnthalpyVector_h_new)
+            self.N = len(self.EnthalpyVector_c) - 1
+
+
+        ## E. Verify that both vectors have the same length
+
+        if (len(self.EnthalpyVector_c) != len(self.EnthalpyVector_h)):
+            raise ValueError(f"Cell division algorithm failed: Enthalpy vectors have different lengths, len(EnthalpyVector_c) = {len(self.EnthalpyVector_c)}, len(EnthalpyVector_h) = {len(self.EnthalpyVector_h)}.")
+        
+        if (len(self.EnthalpyVector_h) != (self.N+1)):
+            raise ValueError("Size of enthalpy vectors does not match the expected number of cells.")
+        
+        ## F. Initialize temperature vectors based on the enthalpy vectors
+
+        self.TemperatureVector_c = np.zeros(len(self.EnthalpyVector_c))
+        self.TemperatureVector_h = np.zeros(len(self.EnthalpyVector_h))
+
+        for i in range(len(self.EnthalpyVector_c)):
+            self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[i], self.state_in_c.p)
+            self.TemperatureVector_c[i] = self.HEOS_cold.T()
+            self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[i], self.state_in_h.p)
+            self.TemperatureVector_h[i] = self.HEOS_hot.T()
+
+        ## G. Initialize pressure vectors based on the inlet pressures (assuming no pressure drops)
+        self.PressureVector_c = np.ones(len(self.EnthalpyVector_c)) * self.state_in_c.p
+        self.PressureVector_h = np.ones(len(self.EnthalpyVector_h)) * self.state_in_h.p
+
+        return self.EnthalpyVector_c, self.EnthalpyVector_h
+    
+
+    """
+    This method calculates the maximum heat transfer rate based on an internal pinching analysis.
+    
+    """
+    def _Qmax_int(self):
+
+        Q_max_int = self.Qmax_ext
+
+        if (not self.evaporation_start) and (not self.evaporation_end) and (not self.condensation_start) and (not self.condensation_end):
+            # No phase change in either stream -> no internal pinching possible
+            self.Qmax_int = Q_max_int
+            return self.Qmax_int
+        
+        for j in range(1, len(self.EnthalpyVector_c)-1):
+            if (self.TemperatureVector_h[j] + 1e-6 < self.TemperatureVector_c[j]):
+                # Internal pinching detected
+                if (np.isclose(self.EnthalpyVector_c[j], self.h_c_bub, atol=1e-3) or np.isclose(self.EnthalpyVector_c[j], self.h_c_dew, atol=1e-3)) :
+                    # Pinch at the start or at the end of evaporation -> the cold stream sets the temperature
+                    self.TemperatureVector_h[j] = self.TemperatureVector_c[j]
+                    self.HEOS_hot.update(CoolProp.TP_INPUTS, self.TemperatureVector_h[j], self.state_in_h.p)
+                    self.EnthalpyVector_h[j] = self.HEOS_hot.hmass()
+                
+                elif (np.isclose(self.EnthalpyVector_h[j], self.h_h_dew, atol=1e-3) or np.isclose(self.EnthalpyVector_h[j], self.h_h_bub, atol=1e-3)) :
+                    # Pinch at the start or at the end of condensation -> the hot stream sets the temperature
+                    self.TemperatureVector_c[j] = self.TemperatureVector_h[j] 
+                    self.HEOS_cold.update(CoolProp.TP_INPUTS, self.TemperatureVector_c[j], self.state_in_c.p)
+                    self.EnthalpyVector_c[j] = self.HEOS_cold.hmass()
+
+        # Now that we have updated the enthalpy vectors, we can calculate Qmax_int by summing the minimum heat transfer in each cell
+        Qmax_int = 0
+        for k in range(self.N):
+            Qcell_h = self.mdot_h * (self.EnthalpyVector_h[k+1] - self.EnthalpyVector_h[k])
+            Qcell_c = self.mdot_c * (self.EnthalpyVector_c[k+1] - self.EnthalpyVector_c[k])
+            Qmax_int += min(Qcell_h, Qcell_c)
+
+        self.Qmax_int = Qmax_int
+
+        if (self.Qmax_int > self.Qmax_ext):
+            raise ValueError("Qmax based on internal pinching cannot be higher than Qmax based on external pinching.")
+        
+        if (self.Qmax_int < 0):
+            raise ValueError("Qmax based on internal pinching cannot be negative.")
+
+        return self.Qmax_int
+    
+
+    """
+    This method returns the fraction of the heat exchanger area used in cell "j", as well as the heat flux and pressure drops in this cell.
+        - Inputs :
+            - cell_index : index of the cell for which we want to calculate the area fraction (j = 0, 1, ..., N-1)
+            - alpha_h_j : overall heat transfer coefficient for the hot stream [W/m2K]
+            - alpha_c_j : overall heat transfer coefficient for the cold stream [W/m2K]
+            - f_h_j : friction factor for the hot stream in cell "j"
+            - f_c_j : friction factor for the cold stream in cell "j"
+        - Output : 
+            - wj = Aj/A : fraction of the heat exchanger area used in cell "j"
+            - q_prime_prime_j : heat flux in cell "j" [W/m2]
+            - dp_c_j : pressure drop in the cold stream for cell "j" [Pa]
+            - dp_h_j : pressure drop in the hot stream for cell "j" [Pa]
+
+    """
+    def _cell_analysis(self, cell_index, alpha_h_j, alpha_c_j, f_h_j, f_c_j):
+
+        # Heat transfer rate in cell j
+        Qj_h = self.mdot_h * (self.EnthalpyVector_h[cell_index+1] - self.EnthalpyVector_h[cell_index])
+        Qj_c = self.mdot_c * (self.EnthalpyVector_c[cell_index+1] - self.EnthalpyVector_c[cell_index])
+        if not (np.isclose(Qj_h, Qj_c, atol=1e-6)):
+            raise ValueError("Heat transfer rates in cell j are not consistent.")
+        else :
+            Qj = (Qj_h + Qj_c)/2
+
+        Th_j = self.TemperatureVector_h[cell_index]
+        Th_j_plus_1 = self.TemperatureVector_h[cell_index+1]
+        Tc_j = self.TemperatureVector_c[cell_index]
+        Tc_j_plus_1 = self.TemperatureVector_c[cell_index+1]        
+
+        # Temperature differences at both ends of cell j
+        DeltaTA_j = Th_j_plus_1 - Tc_j_plus_1
+        DeltaTB_j = Th_j - Tc_j
+
+        # Log Mean Temperature Difference (LMTD) for cell j
+        if (np.isclose(DeltaTA_j, DeltaTB_j, atol=1e-6)):
+            LMTDj = DeltaTA_j
+        else :
+            DeltaTA_j = max(DeltaTA_j, 1e-6)  # To avoid log(0) or log(negative)
+            DeltaTB_j = max(DeltaTB_j, 1e-6)  # To avoid log(infinity) or log(negative)
+            LMTDj = (DeltaTA_j - DeltaTB_j) / np.log(DeltaTA_j / DeltaTB_j)
+        
+        # Area fraction for cell j
+        UArequired_j = Qj / LMTDj
+        Uj = 1 / (1/alpha_h_j + 1/alpha_c_j)  # Overall heat transfer coefficient for cell j (assuming no wall resistance)
+        Arequired_j = UArequired_j / Uj
+        wj = Arequired_j / self.A
+
+        # Heat flux in cell j
+        q_prime_prime_j = Qj / Arequired_j  # Heat flux in cell j
+
+        # Pressure drops for cell j
+        L_cell = self.L * wj            # Length associated with cell j
+        nb_channels = self.Nb_plates - 1
+        nb_channels_h = nb_channels // 2
+        nb_channels_c = nb_channels - nb_channels_h
+
+            # Cold side
+        h_mean_c = (self.EnthalpyVector_c[cell_index] + self.EnthalpyVector_c[cell_index+1]) / 2
+        p_mean_c = (self.PressureVector_c[cell_index] + self.PressureVector_c[cell_index+1]) / 2
+        self.HEOS_cold.update(CoolProp.HmassP_INPUTS, h_mean_c, p_mean_c)
+        rho_c = self.HEOS_cold.rhomass()
+        v_c = self.mdot_c / (rho_c * self.Aflow * nb_channels_c)  # Velocity in each channel of the cold stream
+
+        dp_c_j = f_c_j * (L_cell/self.Dh) * (rho_c * v_c**2 / 2)
+
+            # Hot side
+        h_mean_h = (self.EnthalpyVector_h[cell_index] + self.EnthalpyVector_h[cell_index+1]) / 2
+        p_mean_h = (self.PressureVector_h[cell_index] + self.PressureVector_h[cell_index+1]) / 2
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, h_mean_h, p_mean_h)
+        rho_h = self.HEOS_hot.rhomass()
+        v_h = self.mdot_h / (rho_h * self.Aflow * nb_channels_h)  # Velocity in each channel of the hot stream
+
+        dp_h_j = f_h_j * (L_cell/self.Dh) * (rho_h * v_h**2 / 2)
+
+        return wj, q_prime_prime_j, dp_c_j, dp_h_j
+    
+
+    """
+    This method iteratively solves the heat exchanger model to find the outlet temperatures and heat transfer rate.
+        - Inputs :
+            - extra_cells (boolean to indicate if we want to add extra cells for better accuracy)
+        - Outputs :
+            - states_out : List of State objects for the outlet states of both streams [State_c_out, State_h_out]
+            - Q : heat transfer rate [W]
+    
+    """
+    def Solve(self, extra_cells = True):
+        Qmax_ext = self._Qmax_ext()                                     # STEP 1 : Calculate Qmax based on external pinching
+        self._cell_division(Qmax_ext, extra_cells=extra_cells)          # STEP 2 : First cell division based on Qmax_ext
+        Qmax_int = self._Qmax_int()                                     # STEP 3 : Calculate a derated Qmax based on internal pinching
+
+        # Main loop on Q
+        def iteration(Q):
+
+            try : 
+                self._cell_division(Q, extra_cells=extra_cells)  # We initialize the enthalpy, temperature and pressure vectors based on the guessed Q (assuming no pressure drops)
+
+                # First guess on the heat fluxes in each cell based on Qmax_int and the number of cells
+                self.q_prime_prime_per_cell = np.ones(self.N) * (Qmax_int / self.A)
+                self.pressure_drop_per_cell_c = np.zeros(self.N)  # We initialize the pressure drops per cell to zero for the first iteration
+                self.pressure_drop_per_cell_h = np.zeros(self.N)  # We initialize the pressure drops per cell to zero for the first iteration
+                
+                q_prime_prime_old = np.zeros(self.N)
+                pressure_drop_c_old = np.zeros(self.N)
+                pressure_drop_h_old = np.zeros(self.N)
+
+                iteration_count = 0
+
+                while (not np.allclose(self.q_prime_prime_per_cell, q_prime_prime_old, atol=1) or not 
+                    np.allclose(self.pressure_drop_per_cell_c, pressure_drop_c_old, atol=1) or not 
+                    np.allclose(self.pressure_drop_per_cell_h, pressure_drop_h_old, atol=1)):
+                    
+                    iteration_count += 1
+                    
+                    q_prime_prime_old = self.q_prime_prime_per_cell.copy()
+                    pressure_drop_c_old = self.pressure_drop_per_cell_c.copy()
+                    pressure_drop_h_old = self.pressure_drop_per_cell_h.copy()
+
+                    self.wVector = np.zeros(self.N)
+
+                    for j in range(self.N):
+                        alpha_c_j, alpha_h_j, f_c_j, f_h_j = self._alpha_f(j)
+                        wj, q_prime_prime_j, dp_c_j, dp_h_j = self._cell_analysis(j, alpha_h_j, alpha_c_j, f_h_j, f_c_j)
+
+                        # Update the heat flux for cell j
+                        self.q_prime_prime_per_cell[j] = q_prime_prime_j
+
+                        # Update the pressure drops for cell j
+                        self.pressure_drop_per_cell_c[j] = dp_c_j
+                        self.pressure_drop_per_cell_h[j] = dp_h_j
+
+                        self.wVector[j] = wj
+
+                    # Update the pressure vectors based on the calculated pressure drops
+                    for j in range(1, len(self.PressureVector_c)):
+                        self.PressureVector_c[j] = self.PressureVector_c[j-1] - self.pressure_drop_per_cell_c[j-1]
+                        self.PressureVector_h[-j-1] = self.PressureVector_h[-j] - self.pressure_drop_per_cell_h[j-1]
+
+                    update = False
+
+                    # Update the enthalpy vectors based on the updated pressure vectors
+                    for j in range(len(self.EnthalpyVector_c)):
+
+                        # 1. Cold stream (self.h_c_bub or self.h_c_dew) - only if subcritical :
+                        if not  (self.PressureVector_c[j] > self.HEOS_cold.p_critical()):
+                            if np.isclose(self.EnthalpyVector_c[j], self.h_c_bub, atol=10):
+                                self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.PressureVector_c[j], 0)
+                                self.EnthalpyVector_c[j] = self.HEOS_cold.hmass()
+                                self.h_c_bub = self.EnthalpyVector_c[j]  # Update the bubble point enthalpy based on the new pressure
+
+                                Qc = self.mdot_c * (self.EnthalpyVector_c[j] - self.EnthalpyVector_c[j-1])
+                                self.EnthalpyVector_h[j] = self.EnthalpyVector_h[j-1] + Qc / self.mdot_h  # Update the corresponding enthalpy in the hot stream based on the energy balance in the cell
+                                update = True
+
+                            elif np.isclose(self.EnthalpyVector_c[j], self.h_c_dew, atol=10):
+                                self.HEOS_cold.update(CoolProp.PQ_INPUTS, self.PressureVector_c[j], 1)
+                                self.EnthalpyVector_c[j] = self.HEOS_cold.hmass()
+                                self.h_c_dew = self.EnthalpyVector_c[j]  # Update the dew point enthalpy based on the new pressure
+
+                                Qc = self.mdot_c * (self.EnthalpyVector_c[j] - self.EnthalpyVector_c[j-1])
+                                self.EnthalpyVector_h[j] = self.EnthalpyVector_h[j-1] + Qc / self.mdot_h  # Update the corresponding enthalpy in the hot stream based on the energy balance in the cell
+                                update = True
+
+                            # After updating the enthalpy vectors, we sort them to ensure they are in the correct order (in case the updates have changed their order)
+                            if update:
+                                self.EnthalpyVector_c.sort()
+                                self.EnthalpyVector_h.sort()
+                                update = False
+
+                        # 2. Hot stream (self.h_h_bub or self.h_h_dew) - only if subcritical :
+                        if not (self.PressureVector_h[j] > self.HEOS_hot.p_critical()):
+
+                            if np.isclose(self.EnthalpyVector_h[j], self.h_h_bub, atol=10):
+                                self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.PressureVector_h[j], 0)
+                                self.EnthalpyVector_h[j] = self.HEOS_hot.hmass()
+                                self.h_h_bub = self.EnthalpyVector_h[j]  # Update the bubble point enthalpy based on the new pressure
+
+                                Qh = self.mdot_h * (self.EnthalpyVector_h[j] - self.EnthalpyVector_h[j-1])
+                                self.EnthalpyVector_c[j] = self.EnthalpyVector_c[j-1] + Qh / self.mdot_c  # Update the corresponding enthalpy in the cold stream based on the energy balance in the cell
+                                update = True
+
+                            elif np.isclose(self.EnthalpyVector_h[j], self.h_h_dew, atol=10):
+                                self.HEOS_hot.update(CoolProp.PQ_INPUTS, self.PressureVector_h[j], 1)
+                                self.EnthalpyVector_h[j] = self.HEOS_hot.hmass()
+                                self.h_h_dew = self.EnthalpyVector_h[j]  # Update the dew point enthalpy based on the new pressure
+
+                                Qh = self.mdot_h * (self.EnthalpyVector_h[j] - self.EnthalpyVector_h[j-1])
+                                self.EnthalpyVector_c[j] = self.EnthalpyVector_c[j-1] + Qh / self.mdot_c  # Update the corresponding enthalpy in the cold stream based on the energy balance in the cell
+                                update = True
+
+                            # After updating the enthalpy vectors, we sort them to ensure they are in the correct order (in case the updates have changed their order)
+                            if update:
+                                self.EnthalpyVector_c.sort()
+                                self.EnthalpyVector_h.sort()
+                                update = False
+
+                    # Update the temperature vectors based on the updated enthalpy and pressure vectors
+                    for j in range(len(self.TemperatureVector_c)):
+                        self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[j], self.PressureVector_c[j])
+                        self.TemperatureVector_c[j] = self.HEOS_cold.T()
+                        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[j], self.PressureVector_h[j])
+                        self.TemperatureVector_h[j] = self.HEOS_hot.T()
+
+                residual = 1 - np.sum(self.wVector)
+            
+            except : residual = -1
+
+            return residual
+        
+        try :
+            self.Q = brentq(iteration, 0.7*Qmax_int, Qmax_int, xtol=1e-5) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+        except ValueError as error:
+            if error.args[0]=='f(a) and f(b) must have different signs':
+                # The most probable reason for this error is that the number of plates is too high, meaning that the temperature
+                # difference between the two streams at one of the internal pinch points close to 0 -> we set Q = Qmax_int
+                iteration(Qmax_int)
+                self.Q = Qmax_int
+                print(f"\n[/!\ /!\ /!\ WARNING START /!\ /!\ /!\] \n Brent method did not converge.\n"
+                      f"[/!\ /!\ /!\  WARNING END  /!\ /!\ /!\] ")
+            else :
+                raise error  # Re-raise the exception if it's a different error
+            
+        # Once we have the final Q, we can calculate the results for the outlet states, pinch temperature and pressure drops
+            
+            # Outlet states
+        self.state_out_c = State(self.HEOS_cold, p=self.PressureVector_c[-1], h=self.EnthalpyVector_c[-1])
+        self.state_out_h = State(self.HEOS_hot, p=self.PressureVector_h[0], h=self.EnthalpyVector_h[0])
+
+            # Pressure drops
+        self.pressure_drop_cold = self.PressureVector_c[0] - self.PressureVector_c[-1]
+        self.pressure_drop_hot = self.PressureVector_h[-1] - self.PressureVector_h[0]
+
+            # Pinch temperature
+        Tpinch = np.inf
+        for j in range(self.N):
+            Delta_T = self.TemperatureVector_h[j] - self.TemperatureVector_c[j]
+            if Delta_T < Tpinch:
+                Tpinch = Delta_T
+            
+        self.Tpinch = Tpinch
+
+        return [self.state_out_c, self.state_out_h], self.Q
+    
+
+    """
+    This method calculates the convective heat transfer coefficients and friction factors for both streams in cell "cell_index".
+        - Input : 
+            - cell_index (index of the cell for which we want to calculate the heat transfer coefficients)
+        - Outputs :
+            - alpha_c : convective heat transfer coefficient for the cold stream [W/m2K]
+            - alpha_h : convective heat transfer coefficient for the hot stream [W/m2K]
+            - f_c : Darcy friction factor for the cold stream [-]
+            - f_h : Darcy friction factor for the hot stream [-]
+    
+    """
+    def _alpha_f(self, cell_index):
+
+        alpha_c = None ; alpha_h = None
+        f_c = None ; f_h = None
+
+        ## Cold stream
+        hc_start = self.EnthalpyVector_c[cell_index]
+        hc_end = self.EnthalpyVector_c[cell_index+1]
+
+        if self.PressureVector_c[cell_index] < self.HEOS_cold.p_critical():
+            pressure_c = (self.PressureVector_c[cell_index] + self.PressureVector_c[cell_index+1]) / 2
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, pressure_c, 0)
+            h_c_bub = self.HEOS_cold.hmass()
+            self.HEOS_cold.update(CoolProp.PQ_INPUTS, pressure_c, 1)
+            h_c_dew = self.HEOS_cold.hmass()
+
+        if self.PressureVector_c[cell_index] > self.HEOS_cold.p_critical():
+            # Cold stream is "supercritical"
+            alpha_c, f_c = self._Supercritical_Correlation(cell_index, "cold", self.Nb_plates)
+        elif hc_end <= h_c_bub or hc_start >= h_c_dew: 
+            # Cold stream is single phase
+            alpha_c, f_c = self._SinglePhase_Correlation(cell_index, "cold", self.Nb_plates)
+        else :
+            # Cold stream is in 2 phase and evaporating
+            alpha_c, f_c = self._Evaporation_Correlation(cell_index, self.Nb_plates)
+
+        ## Hot stream
+        hh_start = self.EnthalpyVector_h[cell_index]
+        hh_end = self.EnthalpyVector_h[cell_index+1]
+
+        if self.PressureVector_h[cell_index] < self.HEOS_hot.p_critical():
+            pressure_h = (self.PressureVector_h[cell_index] + self.PressureVector_h[cell_index+1]) / 2
+            self.HEOS_hot.update(CoolProp.PQ_INPUTS, pressure_h, 0)
+            h_h_bub = self.HEOS_hot.hmass()
+            self.HEOS_hot.update(CoolProp.PQ_INPUTS, pressure_h, 1)
+            h_h_dew = self.HEOS_hot.hmass()
+
+        if self.PressureVector_h[cell_index] > self.HEOS_hot.p_critical():
+            # Hot stream is "supercritical"
+            alpha_h, f_h = self._Supercritical_Correlation(cell_index, "hot", self.Nb_plates)
+        elif hh_end <= h_h_bub or hh_start >= h_h_dew:
+            # Hot stream is single phase liquid
+            alpha_h, f_h = self._SinglePhase_Correlation(cell_index, "hot", self.Nb_plates)
+        else :
+            # Hot stream is in 2 phase and condensing
+            alpha_h, f_h = self._Condensation_Correlation(cell_index, self.Nb_plates)
+
+        return alpha_c, alpha_h, f_c, f_h
+    
+
+    """
+    This method implements the Zhang et al. (2020) correlation to estimate the convective heat transfer 
+    coefficient of condensing fluid (ideally R290) inside a plate heat exchanger.
+        - Input : 
+            - cell_index (index of the cell for which we want to calculate the heat transfer coefficient)
+            - nb_plates (number of plates in the heat exchanger)
+        - Output : 
+            - h (heat transfer coefficient) [W/m2K]
+            - f (friction factor) [-]
+    
+    """
+    def _Condensation_Correlation(self, cell_index, nb_plates):
+
+        pressure = (self.PressureVector_h[cell_index] + self.PressureVector_h[cell_index+1]) / 2
+
+        # Liquid properties
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, pressure, 0)
+        mu_l = self.HEOS_hot.viscosity()
+        rho_l = self.HEOS_hot.rhomass()
+        Pr_l = self.HEOS_hot.Prandtl()
+        k_l = self.HEOS_hot.conductivity()
+
+        # Vapor properties
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, pressure, 1)
+        rho_v = self.HEOS_hot.rhomass()
+
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index], pressure)
+        x_start = self.HEOS_hot.Q()
+        self.HEOS_hot.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_h[cell_index+1], pressure)
+        x_end = self.HEOS_hot.Q()
+        x_m = (x_start + x_end) / 2
+
+        x_m = max(0, min(1, x_m))  # Ensure that x_m is between 0 and 1
+
+        # Equivalent Re calculation
+
+        Nb_channels = nb_plates - 1
+        Nb_channels_h = Nb_channels // 2
+        G = self.mdot_h / Nb_channels_h / self.Aflow
+        Geq = G*((1-x_m) + x_m*(rho_l/rho_v)**0.5)
+
+        Re_eq = Geq * self.Dh / mu_l
+
+        # Calculation of Bd
+
+        self.HEOS_hot.update(CoolProp.PQ_INPUTS, pressure, 0)
+        sigma = self.HEOS_hot.surface_tension()
+        g = 9.81
+        Bd = g * (rho_l - rho_v) * self.Dh**2 / sigma
+
+        # Calculation of rho_star
+        rho_star = rho_l / rho_v
+
+        # Calculation of h
+        h = 0.4703 * Re_eq**0.5221 * Pr_l**(1/3) * Bd**0.1674 * (rho_star)**(0.2126) * k_l / self.Dh
+
+        # Calculation of friction factor
+        f =  11557.62 * Re_eq**(-1.0041) * Bd**0.3002 * (rho_star)**(-0.4268) 
+
+        return h, f
+
+
+    """
+    This method implements the Yang et al. (2016) correlation to estimate the convective heat transfer
+    coefficient of single phase fluid (ideally water) inside a brazed plate heat exchanger and the 
+    Kim and Park (2017) correlation to estimate the friction factor.
+        - Inputs :
+            - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
+            - stream : "hot" or "cold" to indicate which stream we are considering
+            - nb_plates : number of plates in the heat exchanger
+        - Output : 
+            - h (heat transfer coefficient) [W/m2K]
+            - f (friction factor) [-]
+
+    """
+    def _SinglePhase_Correlation(self, cell_index, stream, nb_plates):
+
+        T_start_h = self.TemperatureVector_h[cell_index]
+        T_end_h = self.TemperatureVector_h[cell_index+1]
+        Tm_h = (T_start_h + T_end_h) / 2
+
+        T_start_c = self.TemperatureVector_c[cell_index]
+        T_end_c = self.TemperatureVector_c[cell_index+1]
+        Tm_c = (T_start_c + T_end_c) / 2
+
+        Tw = (Tm_h + Tm_c) / 2  # Wall temperature, we take it as the average of the mean temperatures of both streams
+
+        Nb_channels = nb_plates - 1
+        Nb_channels_h = Nb_channels // 2
+        Nb_channels_c = Nb_channels - Nb_channels_h
+
+        if stream == "hot":
+            mdot = self.mdot_h
+            Tm = Tm_h
+            pressure = (self.PressureVector_h[cell_index] + self.PressureVector_h[cell_index+1]) / 2
+            self.HEOS_hot.update(CoolProp.PT_INPUTS, pressure, Tm)
+            mu = self.HEOS_hot.viscosity()
+            Pr = self.HEOS_hot.Prandtl()
+            k = self.HEOS_hot.conductivity()
+            Nb_channels_stream = Nb_channels_h
+            self.HEOS_hot.update(CoolProp.PT_INPUTS, pressure, Tw)
+            mu_wall = self.HEOS_hot.viscosity()
+        else :
+            mdot = self.mdot_c
+            Tm = Tm_c 
+            pressure = (self.PressureVector_c[cell_index] + self.PressureVector_c[cell_index+1]) / 2  
+            self.HEOS_cold.update(CoolProp.PT_INPUTS, pressure, Tm)
+            mu = self.HEOS_cold.viscosity()
+            Pr = self.HEOS_cold.Prandtl()
+            k = self.HEOS_cold.conductivity()
+            Nb_channels_stream = Nb_channels_c
+            self.HEOS_cold.update(CoolProp.PT_INPUTS, pressure, Tw)
+            mu_wall = self.HEOS_cold.viscosity()
+
+        # Calculation of Reynolds number
+        G = mdot / Nb_channels_stream / self.Aflow
+        Re_Yang = G * self.Dh * self.phi / mu
+        Re = self.Dh * G / mu
+
+        # Calculation of h
+        Nu = (-1.342e-4 * self.beta**2 + 1.808e-2 * self.beta - 0.0075) * Re_Yang**(-7.956e-5 * self.beta**2 + 9.687e-3 * self.beta + 0.3155) * Re_Yang**(self.phi/self.beta) * Re_Yang**(self.gamma/self.beta) * Pr**(1/3) * (mu/mu_wall)**0.14
+        h = Nu * k / (self.Dh * self.phi)
+
+        # Calculation of friction factor 
+        f = 4 * self.phi**4 * (0.6796 * self.phi * Re**(-0.0551) + 0.2)
+
+        return h,f
+
+
+    """
+    This method implements the Amalfi et al. (2015) correlation to estimate the convective heat transfer
+    coefficient of evaporating fluid inside a plate heat exchanger.
+        - Input : 
+            - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
+            - nb_plates : number of plates in the heat exchanger
+        - Output : 
+            - h (heat transfer coefficient) [W/m2K]
+            - f (friction factor) [-]
+    
+    """
+    def _Evaporation_Correlation(self, cell_index, nb_plates):
+
+        beta_max = 70          # Maximum chevron angle [degrees]
+        q_prime_prime = self.q_prime_prime_per_cell[cell_index]  # Heat flux in cell "cell_index" [W/m²]
+
+        pressure = (self.PressureVector_c[cell_index] + self.PressureVector_c[cell_index+1]) / 2
+
+        # Saturated liquid properties
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, pressure, 0)
+        rho_l = self.HEOS_cold.rhomass()
+        kl = self.HEOS_cold.conductivity()
+        mu_l = self.HEOS_cold.viscosity()
+        sigma = self.HEOS_cold.surface_tension()
+        h_l = self.HEOS_cold.hmass()
+
+        # Saturated vapor properties
+        self.HEOS_cold.update(CoolProp.PQ_INPUTS, pressure, 1)
+        rho_v = self.HEOS_cold.rhomass()
+        h_v = self.HEOS_cold.hmass()
+        mu_v = self.HEOS_cold.viscosity()
+
+        h_lv = h_v - h_l  # Latent heat of vaporization [J/kg]
+
+        # Average quality in the cell
+        self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[cell_index], pressure)
+        x_start = self.HEOS_cold.Q()
+        self.HEOS_cold.update(CoolProp.HmassP_INPUTS, self.EnthalpyVector_c[cell_index+1], pressure)
+        x_end = self.HEOS_cold.Q()
+        x_m = (x_start + x_end) / 2
+
+        x_m = max(0, min(1, x_m))  # Ensure that x_m is between 0 and 1
+
+        # Average properties in the cell
+        rho_m = 1 / (x_m/rho_v + (1-x_m)/rho_l)  # Mixture density using the ideal mixture rule
+
+        # Number of channels for this stream
+        Nb_channels = nb_plates - 1
+        Nb_channels_h = Nb_channels // 2
+        Nb_channels_c = Nb_channels - Nb_channels_h
+
+        G = self.mdot_c / Nb_channels_c / self.Aflow
+
+        # Calculation of Bd
+        g = 9.81
+        Bd = g * (rho_l - rho_v) * self.Dh**2 / sigma
+
+        # Calculation of Bo
+        Bo = q_prime_prime / (G * h_lv)
+
+        # Calculation of C
+        C = 2.125 * (self.beta/beta_max)**9.993 + 0.955
+
+        # Calculation of We_m
+        We_m = G**2 * self.Dh / (rho_m * sigma)
+
+        # Calculation of rho_star
+        rho_star = rho_l / rho_v
+
+        # Calculation of Re_v
+        Re_v = x_m * G * self.Dh / mu_v
+
+        # Calculation of Re_lo
+        Re_lo = G * self.Dh / mu_l
+
+        # Calculation of h
+        if Bd < 4 :
+            h = 982 * (kl / self.Dh) * (self.beta/beta_max)**1.101 * We_m**0.315 * Bo**0.320 * rho_star**(-0.224)
+        else :
+            h = 18.495 * (kl / self.Dh) * (self.beta/beta_max)**0.248 * Re_v**0.135 * Re_lo**0.351 * Bd**0.235 * Bo**0.198 * rho_star**(-0.223)
+
+        # Calculation of f
+        f = 4 * C * 15.698 * We_m**(-0.475) * Bd**(0.255) * rho_star**(-0.571)
+
+        return h, f
+    
+
+    """
+    This method implements the Zendehboudi et al. (2021) correlation to estimate the convective heat transfer
+    coefficient of supercritical fluid inside a brazed plate heat exchanger and the 
+    Lee et al. (2020) correlation to estimate the friction factor.
+        - Inputs :
+            - cell_index : index of the cell for which we want to calculate the heat transfer coefficient
+            - stream : "hot" or "cold" to indicate which stream we are considering
+            - nb_plates : number of plates in the heat exchanger
+        - Output : 
+            - h (heat transfer coefficient) [W/m2K]
+            - f (friction factor) [-]
+
+    """
+    def _Supercritical_Correlation(self, cell_index, stream, nb_plates):
+
+        # Calculation of the bulk temperature
+        T_start_h = self.TemperatureVector_h[cell_index]
+        T_end_h = self.TemperatureVector_h[cell_index+1]
+        Tm_h = (T_start_h + T_end_h) / 2
+        
+        T_start_c = self.TemperatureVector_c[cell_index]
+        T_end_c = self.TemperatureVector_c[cell_index+1]
+        Tm_c = (T_start_c + T_end_c) / 2
+
+        Nb_channels = nb_plates - 1
+        Nb_channels_h = Nb_channels // 2
+        Nb_channels_c = Nb_channels - Nb_channels_h
+
+        if stream == "hot":
+            Tm = Tm_h
+            heos = self.HEOS_hot
+            mdot = self.mdot_h
+            p = (self.PressureVector_h[cell_index] + self.PressureVector_h[cell_index+1]) / 2
+            Nb_channels_stream = Nb_channels_h
+        else :
+            Tm = Tm_c
+            heos = self.HEOS_cold
+            mdot = self.mdot_c
+            p = (self.PressureVector_c[cell_index] + self.PressureVector_c[cell_index+1]) / 2
+            Nb_channels_stream = Nb_channels_c
+        
+        # Wall temperature estimation
+        Tw = (Tm_h + Tm_c) / 2
+
+        # Fluid properties at Tb
+        heos.update(CoolProp.PT_INPUTS, p, Tm)
+        rho_m = heos.rhomass()
+        Cp_m = heos.cpmass()
+        mu_m = heos.viscosity()
+        k_m = heos.conductivity()
+        h_m = heos.hmass()
+
+        # Fluid properties at Tw
+        heos.update(CoolProp.PT_INPUTS, p, Tw)
+        rho_w = heos.rhomass()
+        h_w = heos.hmass()
+
+        cp_bar = (h_w - h_m) / (Tw - Tm)
+        Pr_m = cp_bar * mu_m / k_m
+
+        # Calculation of Re
+        G = mdot / Nb_channels_stream / self.Aflow
+        Re_m = self.Dh * G / mu_m
+
+        # Calculation of Gr
+        N = 5
+        T_values = np.linspace(Tw, Tm, N)
+        rho_values = np.zeros(len(T_values))
+        for i, T in enumerate(T_values):
+            heos.update(CoolProp.PT_INPUTS, p, T)
+            rho_values[i] = heos.rhomass()
+        
+        rho_w_bar = np.abs(np.trapz(rho_values, T_values) / (Tm - Tw))
+        g = 9.81
+        Gr = g * self.Dh**3 * (rho_w_bar - rho_m) * rho_m / mu_m**2
+        Gr = max(Gr, 1e-12)  # Ensure that Gr is not zero or negative to avoid numerical issues 
+
+        # Calculation of Nu and h
+        Nu = 0.33 * Re_m**(0.804) * Pr_m**0.1 * (rho_w/rho_m)**(-0.1) * (cp_bar/Cp_m)**0.093 * (Gr/Re_m**2.7)**0.1 
+        h = Nu * k_m / self.Dh
+
+        # Calculation of f
+        f1 = 2.332e7 * Re_m**(-1.537)
+        f2 = 1.129e6 * Re_m**(-1.075)
+        if Re_m < 5000 :
+            f = f1
+        elif Re_m > 6500 :
+            f = f2
+        else :
+            f = f1 + (f2 - f1) * (Re_m - 5000) / (6500 - 5000)  # Linear interpolation between the two regimes
+
+        return h, f
+
+
+    """
+    This method returns the normalized enthalpy vectors of both streams for further analysis.
+        - Outputs :
+            - Normalized_EnthalpyVector_c : normalized enthalpy vector of the cold stream
+            - Normalized_EnthalpyVector_h : normalized enthalpy vector of the hot stream
+        
+        h_normalized = mdot * (h - h_min) / Q
+
+    """
+    def _get_Normalized_EnthalpyVectors(self):
+        hc_min = self.EnthalpyVector_c[0]
+        hh_min = self.EnthalpyVector_h[0]
+        self.Normalized_EnthalpyVector_c = self.mdot_c * (self.EnthalpyVector_c - hc_min) / self.Q
+        self.Normalized_EnthalpyVector_h = self.mdot_h * (self.EnthalpyVector_h - hh_min) / self.Q
+
+        return self.Normalized_EnthalpyVector_c, self.Normalized_EnthalpyVector_h
+    
+
+    """
+    This method plots the heat exchange on a T-h normalized diagram.
+        - Inputs : 
+            - plot (boolean) : to indicate if the plot should be displayed or not
+    
+    """
+    def _plot(self, plot=True):
+
+        if plot is False :
+            return 
+
+        self._get_Normalized_EnthalpyVectors()
+
+        # Compute the yticks in °C
+        Tmin_c = round(min(self.TemperatureVector_c) - 273.15, ndigits=1)
+        Tmax_c = round(max(self.TemperatureVector_c) - 273.15, ndigits=1)
+        Tmin_h = round(min(self.TemperatureVector_h) - 273.15, ndigits=1)
+        Tmax_h = round(max(self.TemperatureVector_h) - 273.15, ndigits=1)
+        Tmax = max(Tmax_c, Tmax_h)
+        Tmin = min(Tmin_c, Tmin_h)
+        yticks = np.array([Tmin, Tmax])
+        yticks = np.unique(yticks)
+
+        # Compute the xticks
+        xticks = np.array([0, 1]) 
+        
+        # Create the plot
+        plt.figure(self.name)
+        plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c - 273.15, marker='o', color="blue", clip_on=False)
+        plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h - 273.15, marker='o', color="red", clip_on=False)
+        plt.xlabel(r"$\hat{h}$ [-]", fontsize=12)
+        plt.xlim(0,1)
+        plt.ylim(yticks[0], yticks[-1])
+
+        # Customize the axes
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major')
+        ax.set_title('Temperature [°C]', loc='left', fontsize=12)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_position(('outward', 20))
+        ax.spines['left'].set_position(('outward', 15))
+        ax.set_xticks(xticks)
+        ax.set_yticks(yticks)
+        plt.tick_params(axis='x', rotation=0)
+        plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+        plt.tight_layout()
+
+        if plot : plt.show()
+
+
+if __name__ == "__main__":
+
+    # A few test cases for the HEX_Operational class
+
+    test_evap = True
+    test_cond = True
+    test_gasCooler = True
+
+    if test_evap:
+
+        HEOS_cold = CoolProp.AbstractState("HEOS", "R290")
+        HEOS_hot = CoolProp.AbstractState("HEOS", "Water")
+
+        state_in_c = State(HEOS_cold, p=5.94e5, Q=0.2653)
+        state_in_h = State(HEOS_hot, T=288.75, p=3e5)
+
+        mdot_c = 0.071
+        mdot_h = 0.942
+
+        Test_Evaporator = HEX_Operational([state_in_c, state_in_h], [mdot_c, mdot_h], name ="Test_Evaporator", N=32, model="ACP70X")
+        Test_Evaporator.Solve()
+        Test_Evaporator._plot()
+        print(Test_Evaporator)
+
+        Temperatures = Test_Evaporator.TemperatureVector_c - 273.15
+        Pressures = Test_Evaporator.PressureVector_c
+        Enthalpies = Test_Evaporator.EnthalpyVector_c
+        Entropies = np.zeros(len(Enthalpies))
+
+        for i in range(len(Enthalpies)):
+            HEOS_cold.update(CoolProp.HmassP_INPUTS, Enthalpies[i], Pressures[i])
+            Entropies[i] = HEOS_cold.smass()
+
+        plt.figure()
+        for i in range(len(Enthalpies)):
+            plt.plot(Entropies[i], Temperatures[i], marker='.', color="red")
+        # Plot saturation curve for R290
+        heos_r290 = CoolProp.AbstractState("HEOS", "R290")
+        p_crit = heos_r290.p_critical()
+        T_crit = heos_r290.T_critical()
+
+        # Generate saturation curve points
+        T_sat = np.linspace(233.15, T_crit - 1, 100)  # R290 min temp ~233K
+        s_sat_liquid = np.zeros_like(T_sat)
+        s_sat_vapor = np.zeros_like(T_sat)
+
+        for i, T in enumerate(T_sat):
+            heos_r290.update(CoolProp.QT_INPUTS, 0, T)  # Saturated liquid
+            s_sat_liquid[i] = heos_r290.smass()
+            heos_r290.update(CoolProp.QT_INPUTS, 1, T)  # Saturated vapor
+            s_sat_vapor[i] = heos_r290.smass()
+
+        plt.plot(s_sat_liquid, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5, label="R290 saturation")
+        plt.plot(s_sat_vapor, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5)
+        plt.legend()
+        plt.ylabel("Temperature [°C]", fontsize=12)
+        plt.xlabel("Entropy [J/kg/K]", fontsize=12)
+        plt.show()
+
+
+    if test_cond:
+
+        HEOS_cold = CoolProp.AbstractState("HEOS", "Water")
+        HEOS_hot = CoolProp.AbstractState("HEOS", "R290")
+
+        state_in_c = State(HEOS_cold, T=313.15, p=3e5)
+        state_in_h = State(HEOS_hot, T=340.45, p=16.16e5)
+
+        mdot_c = 1.196
+        mdot_h = 0.071
+
+        Test_Condenser = HEX_Operational([state_in_c, state_in_h], [mdot_c, mdot_h], name ="Test_Condenser", N=40, model="ACP70X")
+        Test_Condenser.Solve()
+        Test_Condenser._plot()
+        print(Test_Condenser)
+
+        Temperatures = Test_Condenser.TemperatureVector_h - 273.15
+        Pressures = Test_Condenser.PressureVector_h
+        Enthalpies = Test_Condenser.EnthalpyVector_h
+        Entropies = np.zeros(len(Enthalpies))
+
+        for i in range(len(Enthalpies)):
+            HEOS_hot.update(CoolProp.HmassP_INPUTS, Enthalpies[i], Pressures[i])
+            Entropies[i] = HEOS_hot.smass()
+
+
+        plt.figure()
+        for i in range(len(Enthalpies)):
+            plt.plot(Entropies[i], Temperatures[i], marker='.', color="red", clip_on=False)
+        # Plot saturation curve for R290
+        heos_r290 = CoolProp.AbstractState("HEOS", "R290")
+        p_crit = heos_r290.p_critical()
+        T_crit = heos_r290.T_critical()
+
+        # Generate saturation curve points
+        T_sat = np.linspace(233.15, T_crit - 1, 100)  # R290 min temp ~233K
+        s_sat_liquid = np.zeros_like(T_sat)
+        s_sat_vapor = np.zeros_like(T_sat)
+
+        for i, T in enumerate(T_sat):
+            heos_r290.update(CoolProp.QT_INPUTS, 0, T)  # Saturated liquid
+            s_sat_liquid[i] = heos_r290.smass()
+            heos_r290.update(CoolProp.QT_INPUTS, 1, T)  # Saturated vapor
+            s_sat_vapor[i] = heos_r290.smass()
+        
+        plt.plot(s_sat_liquid, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5, label="R290 saturation")
+        plt.plot(s_sat_vapor, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5)
+        plt.legend()
+        plt.ylabel("Temperature [°C]", fontsize=12)
+        plt.xlabel("Entropy [J/kg/K]", fontsize=12)
+        plt.show()
+
+    if test_gasCooler:
+
+        HEOS_cold = CoolProp.AbstractState("HEOS", "Water")
+        HEOS_hot = CoolProp.AbstractState("HEOS", "R290")
+
+        state_in_c = State(HEOS_cold, T=353.15, p=5e5)
+        state_in_h = State(HEOS_hot, T=401.27, p=50.41e5)
+
+        mdot_c = 0.148
+        mdot_h = 0.090
+
+        Test_GasCooler = HEX_Operational([state_in_c, state_in_h], [mdot_c, mdot_h], name ="Test_GasCooler", N=58, model="ACP70X")
+        Test_GasCooler.Solve()
+        Test_GasCooler._plot()
+        print(Test_GasCooler)
+
+        Temperatures = Test_GasCooler.TemperatureVector_h - 273.15
+        Pressures = Test_GasCooler.PressureVector_h
+        Enthalpies = Test_GasCooler.EnthalpyVector_h
+        Entropies = np.zeros(len(Enthalpies))
+
+        for i in range(len(Enthalpies)):
+            HEOS_hot.update(CoolProp.HmassP_INPUTS, Enthalpies[i], Pressures[i])
+            Entropies[i] = HEOS_hot.smass()
+
+        plt.figure()
+        for i in range(len(Enthalpies)):
+            plt.plot(Entropies[i], Temperatures[i], marker='.', color="red", clip_on=False)
+
+        # Plot saturation curve for R290
+        heos_r290 = CoolProp.AbstractState("HEOS", "R290")
+        p_crit = heos_r290.p_critical()
+        T_crit = heos_r290.T_critical()
+
+        # Generate saturation curve points
+        T_sat = np.linspace(233.15, T_crit - 1, 100)  # R290 min temp ~233K
+        s_sat_liquid = np.zeros_like(T_sat)
+        s_sat_vapor = np.zeros_like(T_sat)
+
+        for i, T in enumerate(T_sat):
+            heos_r290.update(CoolProp.QT_INPUTS, 0, T)  # Saturated liquid
+            s_sat_liquid[i] = heos_r290.smass()
+            heos_r290.update(CoolProp.QT_INPUTS, 1, T)  # Saturated vapor
+            s_sat_vapor[i] = heos_r290.smass()
+
+        plt.plot(s_sat_liquid, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5, label="R290 saturation")
+        plt.plot(s_sat_vapor, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5)
+        plt.xlabel("Entropy [J/kg/K]", fontsize=12)
+        plt.ylabel("Temperature [°C]", fontsize=12)
+        plt.legend()
+        plt.show()
