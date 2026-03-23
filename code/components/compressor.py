@@ -3,7 +3,166 @@ import numpy as np
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI
 import CoolProp
-from scipy.optimize import fsolve
+from scipy.optimize import fsolve, minimize, brentq
+
+
+class Compressor_LP():
+    def __init__(self) : 
+        # Geometric parameters
+        self.BVR = 3.273206992615867
+        self.bore = 41e-3
+        self.stroke = 39.3e-3
+        self.n_cylinders = 4 
+        self.V_s = self.bore**2 * np.pi/4 * self.stroke * self.n_cylinders
+
+        # Coefficients for efficiency models
+        self.coeffs_eta_elme = np.array([[-0.07816065,  0.81897356, -2.53186216,  3.38938997],  #25 Hz
+                                         [-0.06039962,  0.61249275, -1.83029312,  2.65642627]]) #50 Hz
+        self.coeffs_eta_v = np.array([[-0.0675744911611597, 0.96117376],                        #25 Hz
+                                     [-0.0675744911611597, 1.00639232]])                        #50 Hz                    
+        self.coeffs_eta_is_max = np.array([0.6623896446847006,                                  #25 Hz
+                                           0.7041695778652344])                                 #50 Hz
+    
+    def mass_flow(self, v1, v2, N) :
+        ratio = v1 / v2
+        grad = (self.coeffs_eta_v[1] - self.coeffs_eta_v[0]) / (50 - 25)
+        coeffs = self.coeffs_eta_v[0] + grad * (N - 25)
+        eta_v = np.polyval(coeffs, ratio)
+        mdot = eta_v * self.V_s * N/2 / v1
+        return mdot
+    
+    def eta_elme(self, v1, v2, N) :
+        ratio = v1 / v2
+        grad = (self.coeffs_eta_elme[1] - self.coeffs_eta_elme[0]) / (50 - 25)
+        coeffs = self.coeffs_eta_elme[0] + grad * (N - 25)
+        eta_elme = np.polyval(coeffs, ratio)
+        return eta_elme
+        
+    def eta_is_max(self, N) :
+        grad = (self.coeffs_eta_is_max[1] - self.coeffs_eta_is_max[0]) / (50 - 25)
+        eta_is_max = self.coeffs_eta_is_max[0] + grad * (N - 25)
+        return eta_is_max
+    
+    def Solve(self, state_in, P_el, mdot, N) :
+        # Isentropic compression
+        heos = state_in.heos
+        heos.update(CoolProp.PT_INPUTS, state_in.p, state_in.T)
+        v_1 = 1/heos.rhomass()
+        v_ad = v_1 / self.BVR
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)
+        h_ad = heos.hmass()
+        p_ad = heos.p()
+        w_su_ad = h_ad - state_in.h
+
+        # Volumetric ratio and mass flow rate
+        mass_flow_to_ratio = lambda v_2 : self.mass_flow(v_1, v_2, N) - mdot
+        v_2 = fsolve(mass_flow_to_ratio, v_ad)[0]
+
+        # Volumetric efficiency and electromecanical efficiency
+        eta_elme = self.eta_elme(v_1, v_2, N)
+        eta_is_max = self.eta_is_max(N)
+
+        # Specific work
+        w_tot = P_el * eta_elme / mdot
+
+        w_ad_ex = w_tot * eta_is_max - w_su_ad
+
+        p_2 = p_ad + w_ad_ex / v_ad
+        p_2_old = 0
+        while abs(p_2 - p_2_old) > 1e-3 :
+            heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
+            T_2 = heos.T()
+
+            heos.update(CoolProp.DmassT_INPUTS, 1/v_2, T_2)
+            p_2_new = heos.p()
+            p_2_old = p_2
+            p_2 = p_2_new
+
+        return p_2, T_2
+
+
+class Compressor_HP():
+    def __init__(self) :
+        # Geometric parameters
+        self.BVR = 2.559206490261362
+        self.bore = 41e-3
+        self.stroke = 27.3e-3
+        self.n_cylinders = 4 
+        self.V_s = self.bore**2 * np.pi/4 * self.stroke * self.n_cylinders
+
+        # Coefficients for efficiency models
+        self.coeffs_eta_elme = np.array([-0.00899985,  0.0856807,  -0.24639968,  1.20386369])   #50 Hz
+        self.coeffs_eta_v = np.array([-0.08511643151843135, 1.01003541])                        #50 Hz
+        self.coeffs_eta_is_max = 0.6823063620613579                                             #50 Hz
+        
+    def mass_flow(self, v1, v2, N) :
+        ratio = v1 / v2
+        '''
+        grad = (self.coeffs_eta_v[1] - self.coeffs_eta_v[0]) / (50 - 25)
+        coeffs = self.coeffs_eta_v[0] + grad * (N - 25)
+        '''
+        coeffs = self.coeffs_eta_v
+        eta_v = np.polyval(coeffs, ratio)
+        mdot = eta_v * self.V_s * N/2 / v1
+        return mdot
+    
+    def eta_elme(self, v1, v2, N) :
+        ratio = v1 / v2
+        '''
+        grad = (self.coeffs_eta_elme[1] - self.coeffs_eta_elme[0]) / (50 - 25)
+        coeffs = self.coeffs_eta_elme[0] + grad * (N - 25)
+        '''
+        coeffs = self.coeffs_eta_elme
+
+        eta_elme = np.polyval(coeffs, ratio)
+        return eta_elme
+        
+    def eta_is_max(self, N) :
+        '''
+        grad = (self.coeffs_eta_is_max[1] - self.coeffs_eta_is_max[0]) / (50 - 25)
+        eta_is_max = self.coeffs_eta_is_max[0] + grad * (N - 25)
+        '''
+        eta_is_max = self.coeffs_eta_is_max
+        return eta_is_max
+    
+    def Solve(self, state_in, P_el, mdot, N) :
+        # Isentropic compression
+        heos = state_in.heos
+        heos.update(CoolProp.PT_INPUTS, state_in.p, state_in.T)
+        v_1 = 1/heos.rhomass()
+        v_ad = v_1 / self.BVR
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)
+        h_ad = heos.hmass()
+        p_ad = heos.p()
+        w_su_ad = h_ad - state_in.h
+
+        # Volumetric ratio and mass flow rate
+        mass_flow_to_ratio = lambda v_2 : self.mass_flow(v_1, v_2, N) - mdot
+        v_2 = fsolve(mass_flow_to_ratio, v_ad)[0]
+
+        # Volumetric efficiency and electromecanical efficiency
+        eta_elme = self.eta_elme(v_1, v_2, N)
+        eta_is_max = self.eta_is_max(N)
+
+        # Specific work
+        w_tot = P_el * eta_elme / mdot
+
+        w_ad_ex = w_tot * eta_is_max - w_su_ad
+
+        p_2 = p_ad + w_ad_ex / v_ad
+        p_2_old = 0
+
+        while abs(p_2 - p_2_old) > 1e-6 :
+            heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
+            T_2 = heos.T()
+
+            heos.update(CoolProp.DmassT_INPUTS, 1/v_2, T_2)
+            p_2_new = heos.p()
+            p_2_old = p_2
+            p_2 = p_2_new
+        
+        return p_2, T_2
+
 
 class Compressor_3_params():
 

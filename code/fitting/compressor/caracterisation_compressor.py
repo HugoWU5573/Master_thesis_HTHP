@@ -1,19 +1,22 @@
 import CoolProp
-from state import State
-from compressor import Compressor_3_params
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from seaborn import color_palette
-from CoolProp.CoolProp import PropsSI
 from math import floor, ceil
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from components.state import State
+from components.compressor import Compressor_3_params
+
 
 fluid = 'R290'
 heos = CoolProp.AbstractState("HEOS&TTSE", fluid)
 weights = (0.5, 0.5)
 weights = None
 
-LP_compressor = 1
+LP_compressor = 0
 HP_compressor = not LP_compressor
 
 ################################################################################################################
@@ -114,7 +117,28 @@ def fitting_eta_v(inputs, data) :
                     eta_v_meas[i,j,k] = np.nan
                     ratio_volume_eta_v[i,j,k] = np.nan
 
-    slope, offset = np.polyfit(ratio_volume_eta_v.flatten()[~np.isnan(ratio_volume_eta_v.flatten())], eta_v_meas.flatten()[~np.isnan(eta_v_meas.flatten())], 1)
+    slope = 0
+    offset = np.zeros(len(N))
+    error = 0
+
+    def objective(params) :
+        slope = params[0]
+        offset = params[1:]
+        error = 0
+        for i in range(len(N)) :
+            for j in range(len(T_2_meas[0])) :
+                for k in range(len(T_2_meas[0,0])) :
+                    if not np.isnan(T_2_meas[i,j,k]) :
+                        eta_v_calc = slope * ratio_volume_eta_v[i,j,k] + offset[i]
+                        error += (eta_v_calc - eta_v_meas[i,j,k])**2
+        return error
+
+    params_initial = [-0.5, 1, 1]
+
+    result = minimize(objective, params_initial)
+    slope = result.x[0]
+    offset = result.x[1:]
+
     return slope, offset
 
 ################################################################################################################
@@ -128,6 +152,7 @@ if LP_compressor :
     stroke = 39.3e-3
     n_cylinders = 4 
     V_s = bore**2 * np.pi/4 * stroke * n_cylinders
+    print
 
     T_cond = np.array([60, 55, 50, 45, 40, 35, 30]) + 273.15
     T_evap = np.array([7,12,17,18]) + 273.15
@@ -371,6 +396,7 @@ if LP_compressor :
                         P_calc[i,j,k] = np.nan
                         eta_is_calc[i,j,k] = np.nan
                         eta_total[i,j,k] = np.nan
+                        eta_v[i,j,k] = np.nan
     
     eta_is = np.zeros_like(T_2)
     v_2 = np.zeros_like(T_2)
@@ -423,7 +449,7 @@ if LP_compressor :
                     else :
                         P_calc[i,j,k] = np.nan
 
-
+    print(coeffs_eta_total)
     ###############################################################################
     # Plots
     ###############################################################################
@@ -450,16 +476,19 @@ if LP_compressor :
         mean_error_T[i] = np.nanmean(error_T[i,:,:])
         std_error_T[i] = np.nanstd(error_T[i,:,:])
         print(f"N={N[i]} Hz: Mean Temperature Error = {mean_error_T[i]:.2f}%, Std Temperature Error = {std_error_T[i]:.2f}%")
+        print(f"N={N[i]} Hz: Min Temperature Error = {np.nanmin(error_T[i,:,:]):.2f}%, Max Temperature Error = {np.nanmax(error_T[i,:,:]):.2f}%")
         bins_T.append(np.arange(np.nanmin(error_T[i,:,:]), np.nanmax(error_T[i,:,:])*1.1, std_error_T[i]/2))
 
         mean_error_P[i] = np.nanmean(error_P[i,:,:])
         std_error_P[i] = np.nanstd(error_P[i,:,:])
         print(f"N={N[i]} Hz: Mean Power Error = {mean_error_P[i]:.2f}%, Std Power Error = {std_error_P[i]:.2f}%")
+        print(f"N={N[i]} Hz: Min Power Error = {np.nanmin(error_P[i,:,:]):.2f}%, Max Power Error = {np.nanmax(error_P[i,:,:]):.2f}%")
         bins_P.append(np.arange(np.nanmin(error_P[i,:,:]), np.nanmax(error_P[i,:,:])*1.1, std_error_P[i]/2))
         
         mean_error_mdot[i] = np.nanmean(error_mdot[i,:,:])
         std_error_mdot[i] = np.nanstd(error_mdot[i,:,:])
         print(f"N={N[i]} Hz: Mean Mass Flow Rate Error = {mean_error_mdot[i]:.2f}%, Std Mass Flow Rate Error = {std_error_mdot[i]:.2f}%")
+        print(f"N={N[i]} Hz: Min Mass Flow Rate Error = {np.nanmin(error_mdot[i,:,:]):.2f}%, Max Mass Flow Rate Error = {np.nanmax(error_mdot[i,:,:]):.2f}%")
         bins_mdot.append(np.arange(np.nanmin(error_mdot[i,:,:]), np.nanmax(error_mdot[i,:,:])*1.1, std_error_mdot[i]/2))
 
     # Temperature error 
@@ -620,15 +649,46 @@ if LP_compressor :
     plt.show()
 
     plt.figure(figsize=(8,6))
+    volume_ratio_range = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
+    eta_v_interpolated = np.zeros((len(N), len(volume_ratio_range)))
+
     for i in range(len(N)) :
         plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
+        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Interpolated data N={N[i]} Hz')
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
     plt.legend(fontsize=12)
     plt.title(r'$\eta_v$', loc='left', fontsize=12)
-    #plt.xlim(1.4, 3.4)
+
+    plt.xlim(1.4, 3.4)
     ax = plt.gca()
-    #ax.set_xticks([1.4, 1.8, 2.2, 2.6, 3.0, 3.4])
+    ax.set_xticks([1.4, 1.8, 2.2, 2.6, 3.0, 3.4])
+    plt.xlabel(r'$v_1 / v_2$', fontsize=12)
+    plt.legend(fontsize=12, frameon=False)
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax = plt.gca()
+    ax.tick_params(axis='both', which='major')
+    ax.set_title(r'$\eta_{v}$', loc='left', fontsize=12)
+
+    # Hide top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Move bottom and left spines away
+    ax.spines['bottom'].set_position(('outward', 10))
+    ax.spines['left'].set_position(('outward', 10))
+
+    # Disable automatic tick locator
+    ax.yaxis.set_major_locator(plt.NullLocator())
+    ax.yaxis.set_minor_locator(plt.NullLocator())
+
+    plt.tick_params(axis='x', rotation=0)
+    plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+
+    ax.set_yticks([floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100, floor(np.nanmin(eta_v[1,:,:].flatten()) * 100)/100, ceil(np.nanmax(eta_v[0,:,:].flatten()) * 100)/100])
+    plt.ylim(floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100)
     plt.show()
+
 
 if HP_compressor :
     ##################################################################################################################
@@ -701,6 +761,8 @@ if HP_compressor :
     ###############################################################################
     # Mass flow rate fitting
     ###############################################################################
+    slope, offset = fitting_eta_v((N, v_1, p_2), (T_2, mdot))
+    print(f"Slope: {slope}, Offset: {offset}")
 
     '''
     mdot_calc = np.zeros_like(mdot)
@@ -805,6 +867,7 @@ if HP_compressor :
                         P_calc[i,j,k] = np.nan
                         eta_is_calc[i,j,k] = np.nan
                         eta_total[i,j,k] = np.nan
+                        eta_v[i,j,k] = np.nan
 
     eta_is = np.zeros_like(T_2)
     v_2 = np.zeros_like(T_2)
@@ -859,7 +922,7 @@ if HP_compressor :
                     else :
                         P_calc[i,j,k] = np.nan
 
-
+    print(coeffs_eta_total)
     ###############################################################################
     # Plots
     ###############################################################################
@@ -889,11 +952,13 @@ if HP_compressor :
         mean_error_T[i] = np.nanmean(error_T[i,:,:])
         std_error_T[i] = np.nanstd(error_T[i,:,:])
         print(f"N={N[i]} Hz: Mean Temperature Error = {mean_error_T[i]:.2f}%, Std Temperature Error = {std_error_T[i]:.2f}%")
+        print(f"N={N[i]} Hz: Min Temperature Error = {np.nanmin(error_T[i,:,:]):.2f}%, Max Temperature Error = {np.nanmax(error_T[i,:,:]):.2f}%")
         bins_T.append(np.arange(np.nanmin(error_T[i,:,:]), np.nanmax(error_T[i,:,:])*1.1, std_error_T[i]/2))
 
         mean_error_P[i] = np.nanmean(error_P[i,:,:])
         std_error_P[i] = np.nanstd(error_P[i,:,:])
         print(f"N={N[i]} Hz: Mean Power Error = {mean_error_P[i]:.2f}%, Std Power Error = {std_error_P[i]:.2f}%")
+        print(f"N={N[i]} Hz: Min Power Error = {np.nanmin(error_P[i,:,:]):.2f}%, Max Power Error = {np.nanmax(error_P[i,:,:]):.2f}%")
         bins_P.append(np.arange(np.nanmin(error_P[i,:,:]), np.nanmax(error_P[i,:,:])*1.1, std_error_P[i]/2))
         
         '''
@@ -1028,18 +1093,42 @@ if HP_compressor :
     plt.ylim(floor(np.nanmin(eta_total.flatten())*100)/100, ceil(max(eta_total.flatten())*100)/100)
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
-    plt.show()
+    #plt.show()
 
+    volume_ratio_range = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     plt.figure(figsize=(8,6))
     for i in range(len(N)) :
         plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
+        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Interpolated data N={N[i]} Hz')
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12)
-    plt.title(r'$\eta_v$', loc='left', fontsize=12)
+    plt.legend(fontsize=12, frameon=False)
     plt.xlim(2.4, 5.2)
+    # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
+    ax.tick_params(axis='both', which='major')
+    ax.set_title(r'$\eta_{v}$', loc='left', fontsize=12)
+
+    # Hide top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Move bottom and left spines away
+    ax.spines['bottom'].set_position(('outward', 10))
+    ax.spines['left'].set_position(('outward', 10))
+
+    # Disable automatic tick locator
+    ax.yaxis.set_major_locator(plt.NullLocator())
+    ax.yaxis.set_minor_locator(plt.NullLocator())
+
+    plt.tick_params(axis='x', rotation=0)
+    plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+
+    ax.set_yticks([floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100])
+    plt.ylim(floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100)
+    plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
     plt.show()
+
 
 
 
