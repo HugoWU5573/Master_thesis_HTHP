@@ -4,7 +4,7 @@ from post_process import plot_results
 
 run_training = False
 run_post_process = True
-save_figs = False
+save_figs = True
 
 # Create the dictionaries with the parameters for the uncertainty quantification process
 
@@ -25,7 +25,7 @@ dict_uq_evap_LT['objective of interest'] = 'log_A_evap_LT'
 
     # 2. For the Evaporator_MT
 dict_uq_evap_MT = COMMON.copy()
-dict_uq_evap_MT['pol order'] = 2                            # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_evap_MT['pol order'] = 3                            # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_evap_MT['objective of interest'] = 'log_A_evap_MT'
 
     # 3. For the Condenser
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     |------------------|---------------------|---------------------|------------------|----------------|
     | Order of the PCE | LOO : log_A_evap_LT | LOO : log_A_evap_MT | LOO : log_A_cond | Nb. of samples |
     |------------------|---------------------|---------------------|------------------|----------------|
-    |        1         |        0.18         |         0.01        |       0.65       |       32       |
-    |        2         |        0.10         |        0.0010       |       0.13       |      272       |
-    |        3         |        0.09         |        0.0011       |       0.03       |     1632       |
+    |        1         |        0.56         |         0.04        |       0.48       |       32       |
+    |        2         |        0.19         |         0.04        |       0.07       |      272       |
+    |        3         |        0.16         |         0.02        |       0.02       |     1632       |
     |------------------|---------------------|---------------------|------------------|----------------|
 
 """

@@ -56,10 +56,10 @@ Performance:
 
 Heat transfer rate: 19.89 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 3.385 m2 (52 plates - model: ACP70X)
+Heat exchanger area: 2.455 m2 (38 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 0.06 bar  (1.0 %)
-	 - Hot stream: 0.28 bar  (9.3 %)
+	 - Cold stream: 0.08 bar  (1.4 %)
+	 - Hot stream: 0.53 bar  (17.8 %)
 ====================================================================================
 
 
@@ -74,10 +74,10 @@ Pressure drops :
 
 Heat transfer rate: 25.00 kW,th
 Delta_T at pinch point: 3.00 K
-Heat exchanger area: 4.087 m2 (62 plates - model: ACP70X)
+Heat exchanger area: 2.539 m2 (40 plates - model: ACP70X)
 Pressure drops :
-	 - Cold stream: 0.28 bar  (9.5 %)
-	 - Hot stream: 0.02 bar  (0.1 %)
+	 - Cold stream: 0.67 bar  (22.4 %)
+	 - Hot stream: 0.03 bar  (0.2 %)
 ====================================================================================
 
 

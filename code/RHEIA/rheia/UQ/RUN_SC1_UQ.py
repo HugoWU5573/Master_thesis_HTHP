@@ -20,7 +20,7 @@ COMMON = {'case': 'SC1',
 
     # 1. For the Evaporator
 dict_uq_evap = COMMON.copy()
-dict_uq_evap['pol order'] = 1                           # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_evap['pol order'] = 3                           # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_evap['objective of interest'] = 'log_A_evap'
 
     # 2. For the Condenser
@@ -44,24 +44,24 @@ if __name__ == '__main__':
 
 
 """
-    CONCLUSIONS : WITH NAN in CASE OF ERROR
+    CONCLUSIONS : With normal MAX Nb plates
 
-    |------------------|------------- ----|------------------|
-    | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond |
-    |------------------|------------------|------------------|
-    |        1         |      0.15        |       0.69       |
-    |        2         |      0.34        |       0.16       |
-    |        3         |      0.21        |       0.03       |
-    |------------------|------------------|------------------|
+    |------------------|------------- ----|------------------|----------------|
+    | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond | Nb. of samples |
+    |------------------|------------------|------------------|----------------|
+    |        1         |      0.47        |       0.41       |       28       |
+    |        2         |      0.45        |       0.08       |      210       |
+    |        3         |      0.30        |       0.02       |     1120       |
+    |------------------|------------------|------------------|----------------|
 
-    CONCLUSIONS : WITH MOST LIKELY VALUE in CASE OF ERROR -> not a good choice
+    CONCLUSIONS : With MAX Nb plates = 1000
 
-    |------------------|------------- ----|------------------|
-    | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond |
-    |------------------|------------------|------------------|
-    |        1         |      0.15        |       0.69       |
-    |        2         |      0.49        |       0.26       |
-    |        3         |      0.31        |       0.17       |
-    |------------------|------------------|------------------|
+    |------------------|------------- ----|------------------|----------------|
+    | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond | Nb. of samples |
+    |------------------|------------------|------------------|----------------|
+    |        1         |      0.47        |       0.41       |       28       |
+    |        2         |      0.39        |       0.07       |      210       |
+    |        3         |      0.27        |       0.02       |     1120       |
+    |------------------|------------------|------------------|----------------|
 
 """

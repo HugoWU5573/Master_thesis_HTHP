@@ -3,7 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from scipy.optimize import brentq  # Function used for iterative root finding 
-from state import State
+
+if not __name__ == "__main__":
+    from components.state import State
 
 
 """  
@@ -61,6 +63,7 @@ class HEX_Design():
             w = 1.63e-3
             min_nb_plates = 4
             max_nb_plates = 52
+            # max_nb_plates = 1000
         elif model == "ACK16":
             L = 0.2095
             W = 0.0735
@@ -79,6 +82,7 @@ class HEX_Design():
             w = 1.63e-3
             min_nb_plates = 4
             max_nb_plates = 124
+            # max_nb_plates = 1000
         else :
             min_nb_plates = 3
             max_nb_plates = 1000
@@ -629,7 +633,7 @@ class HEX_Design():
             delta_P_hot_max = 1e5
             delta_P_cold_max = 0.5e5
         elif delta_P_hot_max is None and delta_P_cold_max is None:  # Useful for the recuperators, where both streams are non water fluids
-            delta_P_hot_max = 0.1 * self.state_in_h.p
+            delta_P_hot_max = np.inf
             delta_P_cold_max = 0.5e5
 
         # We initialize the heat flux per cell with a first guess based on the minimum number of plates
@@ -1609,13 +1613,13 @@ class HEX_Operational():
                 if (np.isclose(self.EnthalpyVector_c[j], self.h_c_bub, atol=1e-3) or np.isclose(self.EnthalpyVector_c[j], self.h_c_dew, atol=1e-3)) :
                     # Pinch at the start or at the end of evaporation -> the cold stream sets the temperature
                     self.TemperatureVector_h[j] = self.TemperatureVector_c[j]
-                    self.HEOS_hot.update(CoolProp.TP_INPUTS, self.TemperatureVector_h[j], self.state_in_h.p)
+                    self.HEOS_hot.update(CoolProp.PT_INPUTS, self.TemperatureVector_h[j], self.state_in_h.p)
                     self.EnthalpyVector_h[j] = self.HEOS_hot.hmass()
                 
                 elif (np.isclose(self.EnthalpyVector_h[j], self.h_h_dew, atol=1e-3) or np.isclose(self.EnthalpyVector_h[j], self.h_h_bub, atol=1e-3)) :
                     # Pinch at the start or at the end of condensation -> the hot stream sets the temperature
                     self.TemperatureVector_c[j] = self.TemperatureVector_h[j] 
-                    self.HEOS_cold.update(CoolProp.TP_INPUTS, self.TemperatureVector_c[j], self.state_in_c.p)
+                    self.HEOS_cold.update(CoolProp.PT_INPUTS, self.TemperatureVector_c[j], self.state_in_c.p)
                     self.EnthalpyVector_c[j] = self.HEOS_cold.hmass()
 
         # Now that we have updated the enthalpy vectors, we can calculate Qmax_int by summing the minimum heat transfer in each cell
@@ -2321,7 +2325,34 @@ class HEX_Operational():
         if plot : plt.show()
 
 
+    def get_points_between(self) :
+
+        # We are only interested in the R290 points
+
+        if self.state_in_c.fluid == "Water" :
+            T = self.TemperatureVector_h
+            p = self.PressureVector_h
+            h = self.EnthalpyVector_h
+            s = np.zeros(len(h))
+            for i in range(len(h)):
+                self.HEOS_hot.update(CoolProp.HmassP_INPUTS, h[i], p[i])
+                s[i] = self.HEOS_hot.smass()
+
+        else :
+            T = self.TemperatureVector_c
+            p = self.PressureVector_c
+            h = self.EnthalpyVector_c
+            s = np.zeros(len(h))
+            for i in range(len(h)):
+                self.HEOS_cold.update(CoolProp.HmassP_INPUTS, h[i], p[i])
+                s[i] = self.HEOS_cold.smass()
+
+        return T, s, p, h
+
+
 if __name__ == "__main__":
+
+    from state import State
 
     # A few test cases for the HEX_Operational class
 
@@ -2329,7 +2360,7 @@ if __name__ == "__main__":
     test_cond = True
     test_gasCooler = True
 
-    if test_evap:
+    if test_evap:  # This is the SC1 evaporator
 
         HEOS_cold = CoolProp.AbstractState("HEOS", "R290")
         HEOS_hot = CoolProp.AbstractState("HEOS", "Water")
@@ -2381,7 +2412,7 @@ if __name__ == "__main__":
         plt.show()
 
 
-    if test_cond:
+    if test_cond:  # This is the SC1 condenser
 
         HEOS_cold = CoolProp.AbstractState("HEOS", "Water")
         HEOS_hot = CoolProp.AbstractState("HEOS", "R290")
@@ -2433,7 +2464,7 @@ if __name__ == "__main__":
         plt.xlabel("Entropy [J/kg/K]", fontsize=12)
         plt.show()
 
-    if test_gasCooler:
+    if test_gasCooler:  # This is the TC1 gas cooler
 
         HEOS_cold = CoolProp.AbstractState("HEOS", "Water")
         HEOS_hot = CoolProp.AbstractState("HEOS", "R290")

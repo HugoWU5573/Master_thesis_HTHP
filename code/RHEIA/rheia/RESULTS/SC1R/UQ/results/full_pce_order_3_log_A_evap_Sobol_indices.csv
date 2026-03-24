@@ -1,14 +1,14 @@
 name,First-order Sobol indices,Total-order Sobol indices  
-phi,0.437741,0.510561  
-beta,0.092709,0.236404  
-Q,0.127826,0.152475  
-h_evaporation,0.028923,0.110640  
-f_single_phase,0.028464,0.078199  
-T1_prime,0.000110,0.070240  
-T4_prime,0.014770,0.040742  
-h_single_phase,0.001145,0.032695  
-f_evaporation,0.000030,0.026783  
-h_condensation,0.000082,0.023803  
-f_condensation,0.000608,0.023354  
-eta_is,0.003742,0.021852  
-gamma,0.001213,0.021442  
+beta,0.291978,0.426510  
+phi,0.180485,0.278854  
+h_evaporation,0.137395,0.204447  
+T1_prime,0.019523,0.109414  
+Q,0.065245,0.089020  
+f_single_phase,0.003663,0.045599  
+h_single_phase,0.008232,0.042566  
+T4_prime,0.011487,0.033958  
+f_condensation,0.002292,0.031126  
+f_evaporation,0.000229,0.029366  
+gamma,0.000935,0.024554  
+eta_is,0.001922,0.021591  
+h_condensation,0.000199,0.021397  

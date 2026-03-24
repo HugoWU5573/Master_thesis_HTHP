@@ -2,7 +2,7 @@ import rheia.UQ.uncertainty_quantification as rheia_uq
 import multiprocessing as mp
 from post_process import plot_results
 
-run_training = True
+run_training = False
 run_post_process = True
 save_figs = False
 
@@ -20,17 +20,17 @@ COMMON = {'case': 'TC1R',
 
     # 1. For the Evaporator
 dict_uq_evap = COMMON.copy()
-dict_uq_evap['pol order'] = 1                            # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_evap['pol order'] = 3                            # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_evap['objective of interest'] = 'log_A_evap'
 
     # 2. For the Gas Cooler
 dict_uq_GasCooler = COMMON.copy()
-dict_uq_GasCooler['pol order'] = 1                        # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_GasCooler['pol order'] = 3                        # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_GasCooler['objective of interest'] = 'log_A_GasCooler'
 
     # 3. For the Recuperator
 dict_uq_recup = COMMON.copy()
-dict_uq_recup['pol order'] = 1                            # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_recup['pol order'] = 3                            # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_recup['objective of interest'] = 'log_A_recup'
 
 if __name__ == '__main__':
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     |------------------|------------------|-----------------------|-------------------|----------------|
     | Order of the PCE | LOO : log_A_evap | LOO : log_A_GasCooler | LOO : log_A_recup | Nb. of samples |
     |------------------|------------------|-----------------------|-------------------|----------------|
-    |        1         |      ????        |         ????          |       ????        |       ??       |
-    |        2         |      ????        |         ????          |       ????        |      ???       |
-    |        3         |      ????        |         ????          |       ????        |     ????       |
+    |        1         |      0.10        |         0.74          |       0.12        |       32       |
+    |        2         |      0.04        |         0.28          |       0.23        |      272       |
+    |        3         |      0.02        |         0.19          |       0.07        |     1632       |
     |------------------|------------------|-----------------------|-------------------|----------------|
 
 """

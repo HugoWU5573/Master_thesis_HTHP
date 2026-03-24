@@ -30,7 +30,7 @@ dict_uq_cond['objective of interest'] = 'log_A_cond'
 
     # 3. For the Recuperator
 dict_uq_recup = COMMON.copy()
-dict_uq_recup['pol order'] = 3                           # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_recup['pol order'] = 3                          # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_recup['objective of interest'] = 'log_A_recup'
 
 if __name__ == '__main__':
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     |------------------|------------------|------------------|-------------------|----------------|
     | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond | LOO : log_A_recup | Nb. of samples |
     |------------------|------------------|------------------|-------------------|----------------|
-    |        1         |      0.36        |       0.65       |        0.10       |       28       |
-    |        2         |      0.42        |       0.14       |        0.23       |      210       |
-    |        3         |      0.28        |       0.03       |        0.06       |     1120       |
+    |        1         |      0.53        |       0.37       |        0.07       |       28       |
+    |        2         |      0.40        |       0.07       |        0.29       |      210       |
+    |        3         |      0.28        |       0.02       |        0.07       |     1120       |
     |------------------|------------------|------------------|-------------------|----------------|
 
 """

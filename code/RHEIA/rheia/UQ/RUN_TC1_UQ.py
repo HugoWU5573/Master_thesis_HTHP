@@ -20,12 +20,12 @@ COMMON = {'case': 'TC1',
 
     # 1. For the Evaporator
 dict_uq_evap = COMMON.copy()
-dict_uq_evap['pol order'] = 2                            # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_evap['pol order'] = 1                            # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_evap['objective of interest'] = 'log_A_evap'
 
     # 2. For the Gas Cooler
 dict_uq_GasCooler = COMMON.copy()
-dict_uq_GasCooler['pol order'] = 1                       # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_GasCooler['pol order'] = 2                       # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_GasCooler['objective of interest'] = 'log_A_GasCooler'
 
 if __name__ == '__main__':
@@ -49,9 +49,9 @@ if __name__ == '__main__':
     |------------------|------------------|-----------------------|----------------|
     | Order of the PCE | LOO : log_A_evap | LOO : log_A_GasCooler | Nb. of samples |
     |------------------|------------------|-----------------------|----------------|
-    |        1         |      0.005       |         0.08          |       32       |
-    |        2         |      0.0003      |         0.09          |      272       |
-    |        3         |      0.0004      |         0.09          |     1632       |
+    |        1         |      0.008       |         0.08          |       32       |
+    |        2         |      0.04        |         0.08          |      272       |
+    |        3         |      0.02        |         0.12          |     1632       |
     |------------------|------------------|-----------------------|----------------|
 
 """
