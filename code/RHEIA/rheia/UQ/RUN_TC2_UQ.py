@@ -2,7 +2,7 @@ import rheia.UQ.uncertainty_quantification as rheia_uq
 import multiprocessing as mp
 from post_process import plot_results
 
-run_training = True
+run_training = False
 run_post_process = True
 save_figs = False
 
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     |------------------|---------------------|---------------------|-----------------------|----------------|
     | Order of the PCE | LOO : log_A_evap_LT | LOO : log_A_evap_MT | LOO : log_A_GasCooler | Nb. of samples |
     |------------------|---------------------|---------------------|-----------------------|----------------|
-    |        1         |        ????         |        ????         |          ????         |       ??       |
-    |        2         |        ????         |        ????         |          ????         |      ???       |
-    |        3         |        ????         |        ????         |          ????         |     ????       |
+    |        1         |        0.23         |        0.04         |          0.11         |       36       |
+    |        2         |        0.17         |        0.007        |          0.12         |      342       |
+    |        3         |        0.12         |        0.007        |          0.06         |     2280       |
     |------------------|---------------------|---------------------|-----------------------|----------------|
 
 """

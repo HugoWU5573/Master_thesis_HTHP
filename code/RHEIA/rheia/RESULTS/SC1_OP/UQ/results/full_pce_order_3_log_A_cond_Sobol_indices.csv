@@ -1,0 +1,5 @@
+name,First-order Sobol indices,Total-order Sobol indices  
+Q,0.907778,0.907779  
+T4_prime,0.088693,0.089055  
+T1_prime,0.001506,0.001868  
+eta_is,0.001543,0.001781  

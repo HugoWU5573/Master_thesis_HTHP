@@ -1,1 +1,1 @@
-## Design and Implementation of a Modular Dual-Evaporator Transcritical High Temperature Heat Pump
+## 	Design of a Modular Dual-Evaporator Transcritical High-Temperature (120 °C) Heat Pump with Propane (R290) as Refrigerant

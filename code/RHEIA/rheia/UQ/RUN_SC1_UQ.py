@@ -20,12 +20,12 @@ COMMON = {'case': 'SC1',
 
     # 1. For the Evaporator
 dict_uq_evap = COMMON.copy()
-dict_uq_evap['pol order'] = 3                           # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_evap['pol order'] = 4                           # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_evap['objective of interest'] = 'log_A_evap'
 
     # 2. For the Condenser
 dict_uq_cond = COMMON.copy()
-dict_uq_cond['pol order'] = 3                           # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_cond['pol order'] = 4                           # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_cond['objective of interest'] = 'log_A_cond'
 
 if __name__ == '__main__':
@@ -44,17 +44,7 @@ if __name__ == '__main__':
 
 
 """
-    CONCLUSIONS : With normal MAX Nb plates
-
-    |------------------|------------- ----|------------------|----------------|
-    | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond | Nb. of samples |
-    |------------------|------------------|------------------|----------------|
-    |        1         |      0.47        |       0.41       |       28       |
-    |        2         |      0.45        |       0.08       |      210       |
-    |        3         |      0.30        |       0.02       |     1120       |
-    |------------------|------------------|------------------|----------------|
-
-    CONCLUSIONS : With MAX Nb plates = 1000
+    CONCLUSIONS :
 
     |------------------|------------- ----|------------------|----------------|
     | Order of the PCE | LOO : log_A_evap | LOO : log_A_cond | Nb. of samples |
@@ -62,6 +52,7 @@ if __name__ == '__main__':
     |        1         |      0.47        |       0.41       |       28       |
     |        2         |      0.39        |       0.07       |      210       |
     |        3         |      0.27        |       0.02       |     1120       |
+    |        4         |      0.24        |       0.02       |     4760       |
     |------------------|------------------|------------------|----------------|
 
 """

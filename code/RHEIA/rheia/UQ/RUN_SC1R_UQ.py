@@ -20,17 +20,17 @@ COMMON = {'case': 'SC1R',
 
     # 1. For the Evaporator
 dict_uq_evap = COMMON.copy()
-dict_uq_evap['pol order'] = 3                           # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_evap['pol order'] = 4                           # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_evap['objective of interest'] = 'log_A_evap'
 
     # 2. For the Condenser
 dict_uq_cond = COMMON.copy()
-dict_uq_cond['pol order'] = 3                           # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_cond['pol order'] = 4                           # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_cond['objective of interest'] = 'log_A_cond'
 
     # 3. For the Recuperator
 dict_uq_recup = COMMON.copy()
-dict_uq_recup['pol order'] = 3                          # See the conclusions at the end of this file for the choice of the order of the PCE.
+dict_uq_recup['pol order'] = 4                          # See the conclusions at the end of this file for the choice of the order of the PCE.
 dict_uq_recup['objective of interest'] = 'log_A_recup'
 
 if __name__ == '__main__':
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     |        1         |      0.53        |       0.37       |        0.07       |       28       |
     |        2         |      0.40        |       0.07       |        0.29       |      210       |
     |        3         |      0.28        |       0.02       |        0.07       |     1120       |
+    |        4         |      0.24        |       0.02       |        0.03       |     4760       |
     |------------------|------------------|------------------|-------------------|----------------|
 
 """

@@ -61,6 +61,7 @@ def plot_results(dict_uq, save_figs=False, cycle_name=None):
     Nb_plates_array = np.array(Nb_plates)
     pdf_array = np.array(pdf)
     pdf_array[Nb_plates_array > xmax] = np.nan
+    pdf_array[Nb_plates_array < xmin] = np.nan
 
         # X ticks
     xticks = np.round([xmin, most_probable_Nb_plates, xmax])

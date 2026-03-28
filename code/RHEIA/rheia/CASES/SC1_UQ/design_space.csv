@@ -1,0 +1,9 @@
+h_single_phase,par,1.0
+h_evaporation,par,1.0
+h_condensation,par,1.0
+f_single_phase,par,1.0
+f_evaporation,par,1.0
+f_condensation,par,1.0
+beta,par,45.0
+phi,par,1.2
+gamma,par,0.55

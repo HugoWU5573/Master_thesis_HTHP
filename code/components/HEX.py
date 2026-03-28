@@ -63,7 +63,6 @@ class HEX_Design():
             w = 1.63e-3
             min_nb_plates = 4
             max_nb_plates = 52
-            # max_nb_plates = 1000
         elif model == "ACK16":
             L = 0.2095
             W = 0.0735
@@ -82,7 +81,6 @@ class HEX_Design():
             w = 1.63e-3
             min_nb_plates = 4
             max_nb_plates = 124
-            # max_nb_plates = 1000
         else :
             min_nb_plates = 3
             max_nb_plates = 1000
@@ -1355,6 +1353,7 @@ class HEX_Operational():
         self.Q = None
         self.pressure_drop_cold = None
         self.pressure_drop_hot = None
+        self.M = None # Refrigerant charge
 
 
     """
@@ -1389,6 +1388,10 @@ class HEX_Operational():
         result += f"\nHeat transfer rate: {self.Q/1000:.2f} kW,th\n"
         result += f"Delta_T at pinch point: {self.Tpinch:.2f} K\n"
         result += f"Heat exchanger area: {self.A:.3f} m2 ({self.Nb_plates} plates - model: {self.model})\n"
+        if self.M is not None:
+            result += f"Refrigerant charge: {self.M:.2f} kg\n"
+        else :
+            result += f"Refrigerant charge: Not calculated\n"
         if self.pressure_drop_hot is not None and self.pressure_drop_cold is not None:
             result += f"Pressure drops :\n"
             result += f"\t - Cold stream: {self.pressure_drop_cold/1e5:.2f} bar  ({self.pressure_drop_cold*100/self.state_in_c.p:.1f} %)\n"
@@ -1882,6 +1885,9 @@ class HEX_Operational():
             
         self.Tpinch = Tpinch
 
+        # Compute the refrigerant charge in the heat exchanger based on the final enthalpy and pressure vectors
+        self._Compute_Refrigerant_Charge()
+
         return [self.state_out_c, self.state_out_h], self.Q
     
 
@@ -2254,6 +2260,80 @@ class HEX_Operational():
             f = f1 + (f2 - f1) * (Re_m - 5000) / (6500 - 5000)  # Linear interpolation between the two regimes
 
         return h, f
+    
+    """
+    This method calculates the refrigerant charge in the heat exchanger based on the local properties of the refrigerant.
+    The methodology used is based on Rémi Dickes (2019) PhD thesis :
+    "Charge-sensitive methods for the off-design performance characterization of organic Rankine cycle (ORC) power systems"
+        - Output :
+            - M (refrigerant charge) [kg]
+    
+    """
+    def _Compute_Refrigerant_Charge(self):
+
+        M_per_channel = 0
+
+        nb_channels = self.Nb_plates - 1
+        nb_channels_h = nb_channels // 2
+        nb_channels_c = nb_channels - nb_channels_h
+
+        # We first identify if the refrigerant is in the hot or cold stream
+        if self.state_in_c.fluid == "R290" :
+            HEOS = self.HEOS_cold
+            PressureVector = self.PressureVector_c
+            EnthalpyVector = self.EnthalpyVector_c
+            nb_channels_stream = nb_channels_c
+        else :
+            HEOS = self.HEOS_hot
+            PressureVector = self.PressureVector_h
+            EnthalpyVector = self.EnthalpyVector_h
+            nb_channels_stream = nb_channels_h
+
+        # We compute the Quality vector based on the enthalpy and pressure vectors
+        QualityVector = np.zeros(len(EnthalpyVector))
+        for i in range(len(EnthalpyVector)):
+            HEOS.update(CoolProp.HmassP_INPUTS, EnthalpyVector[i], PressureVector[i])
+            QualityVector[i] = HEOS.Q()
+
+        # We go through each cell and calculate the mass of refrigerant in it based on the local properties
+        for i in range(self.N):
+
+            Qavg = (QualityVector[i] + QualityVector[i+1]) / 2
+            Pavg = (PressureVector[i] + PressureVector[i+1]) / 2
+            Havg = (EnthalpyVector[i] + EnthalpyVector[i+1]) / 2
+
+            # CASE 1 : If the cell is in the two phase region
+            if Qavg > 0 and Qavg < 1 :
+
+                HEOS.update(CoolProp.PQ_INPUTS, Pavg, 0)
+                rho_l = HEOS.rhomass()
+                HEOS.update(CoolProp.PQ_INPUTS, Pavg, 1)
+                rho_v = HEOS.rhomass()
+
+                Xtt = ((1 - Qavg)/Qavg)**0.9 * (rho_v/rho_l)**0.5  # Martinelli parameter for two phase flow
+
+                if Xtt > 10:
+                    alpha = 0.823 - 0.157 * np.log(Xtt)
+                else :
+                    alpha = (1 + Xtt**0.8)**(-0.378)
+
+                rho_bar = rho_l*(1 - alpha) + rho_v * alpha  # Average density in the cell based on the Martinelli parameter
+            
+            # CASE 2 : If the cell is in the single phase region (or supercritical region)
+            else :
+
+                HEOS.update(CoolProp.HmassP_INPUTS, Havg, Pavg)
+                rho_bar = HEOS.rhomass()
+
+            Vi = self.Aflow * self.L * self.wVector[i]  # Volume of the cell
+            Mi = rho_bar * Vi  # Mass of refrigerant in the cell
+
+            M_per_channel += Mi
+
+        M = M_per_channel * nb_channels_stream  # Total mass of refrigerant in the heat exchanger (we multiply by the number of channels for this stream)
+        self.M = M
+
+        return self.M
 
 
     """

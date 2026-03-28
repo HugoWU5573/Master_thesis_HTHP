@@ -1,4 +1,4 @@
-                      LOO                       nan 
+                      LOO                  0.123295 
              sparse basis               1140.000000 
-                     mean                       nan 
-                std. dev.                       nan 
+                     mean                 -0.372056 
+                std. dev.                  0.416296 
