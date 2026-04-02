@@ -1311,10 +1311,11 @@ class HEX_Operational():
         - gamma : Aspect ratio of the corrugation (optional, default = 0.55)
         - N : Number of plates (optional, default = 30)
         - model : None or "ACK18" or "ACP70X" (optional, default = None) to indicate a specific model of Alfa Laval plate heat exchanger
+        - no_pressure_drop : boolean to indicate if the pressure drop in the heat exchanger should be neglected or not (optional, default = False)
 
     """
     def __init__(self, states_in, mdot, name ="HEX", L=0.3, W=0.1, w=2e-3, 
-                 beta=45, phi=1.2, gamma=0.55, N=30, model=None):
+                 beta=45, phi=1.2, gamma=0.55, N=30, model=None, no_pressure_drop=False):
         
         if model == "ACK18":
             L = 0.315
@@ -1345,6 +1346,7 @@ class HEX_Operational():
         self.P = 2*(self.w + self.W)                  # Wetted perimeter for one channel [m]
         self.Dh = 4 * self.Aflow / self.P / self.phi  # Hydraulic diameter for one channel, corrected by the surface enlargement factor [m]
         self.model = model
+        self.no_pressure_drop = no_pressure_drop
 
         # Results to be computed
         self.state_out_c = None
@@ -1752,9 +1754,9 @@ class HEX_Operational():
 
                 iteration_count = 0
 
-                while (not np.allclose(self.q_prime_prime_per_cell, q_prime_prime_old, atol=1) or not 
-                    np.allclose(self.pressure_drop_per_cell_c, pressure_drop_c_old, atol=1) or not 
-                    np.allclose(self.pressure_drop_per_cell_h, pressure_drop_h_old, atol=1)):
+                while (not np.allclose(self.q_prime_prime_per_cell, q_prime_prime_old, atol=1000) or not 
+                    np.allclose(self.pressure_drop_per_cell_c, pressure_drop_c_old, atol=100) or not 
+                    np.allclose(self.pressure_drop_per_cell_h, pressure_drop_h_old, atol=100)):
                     
                     iteration_count += 1
                     
@@ -1851,18 +1853,19 @@ class HEX_Operational():
             
             except : residual = -1
 
+            # print(f"Iteration with Q = {Q:.2f} W, residual = {residual:.4f}, iteration count = {iteration_count}")
+
             return residual
         
         try :
-            self.Q = brentq(iteration, 0.7*Qmax_int, Qmax_int, xtol=1e-5) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+            self.Q = brentq(iteration, 0.1*Qmax_int, Qmax_int, xtol=10) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
         except ValueError as error:
             if error.args[0]=='f(a) and f(b) must have different signs':
                 # The most probable reason for this error is that the number of plates is too high, meaning that the temperature
                 # difference between the two streams at one of the internal pinch points close to 0 -> we set Q = Qmax_int
                 iteration(Qmax_int)
                 self.Q = Qmax_int
-                print(f"\n[/!\ /!\ /!\ WARNING START /!\ /!\ /!\] \n Brent method did not converge.\n"
-                      f"[/!\ /!\ /!\  WARNING END  /!\ /!\ /!\] ")
+                print("Brent method did not converge.")
             else :
                 raise error  # Re-raise the exception if it's a different error
             
@@ -2011,6 +2014,9 @@ class HEX_Operational():
         # Calculation of friction factor
         f =  11557.62 * Re_eq**(-1.0041) * Bd**0.3002 * (rho_star)**(-0.4268) 
 
+        if self.no_pressure_drop:
+            f = 0
+
         return h, f
 
 
@@ -2077,6 +2083,9 @@ class HEX_Operational():
 
         # Calculation of friction factor 
         f = 4 * self.phi**4 * (0.6796 * self.phi * Re**(-0.0551) + 0.2)
+        
+        if self.no_pressure_drop:
+            f = 0
 
         return h,f
 
@@ -2164,6 +2173,9 @@ class HEX_Operational():
 
         # Calculation of f
         f = 4 * C * 15.698 * We_m**(-0.475) * Bd**(0.255) * rho_star**(-0.571)
+
+        if self.no_pressure_drop:
+            f = 0
 
         return h, f
     
@@ -2258,6 +2270,9 @@ class HEX_Operational():
             f = f2
         else :
             f = f1 + (f2 - f1) * (Re_m - 5000) / (6500 - 5000)  # Linear interpolation between the two regimes
+
+        if self.no_pressure_drop:
+            f = 0
 
         return h, f
     
@@ -2433,12 +2448,14 @@ class HEX_Operational():
 if __name__ == "__main__":
 
     from state import State
+    import time as time
 
     # A few test cases for the HEX_Operational class
 
     test_evap = True
-    test_cond = True
-    test_gasCooler = True
+    test_evap_no_pressure_drop = False
+    test_cond = False
+    test_gasCooler = False
 
     if test_evap:  # This is the SC1 evaporator
 
@@ -2452,7 +2469,65 @@ if __name__ == "__main__":
         mdot_h = 0.942
 
         Test_Evaporator = HEX_Operational([state_in_c, state_in_h], [mdot_c, mdot_h], name ="Test_Evaporator", N=32, model="ACP70X")
+        pressure_drop_time_start = time.time()
         Test_Evaporator.Solve()
+        pressure_drop_time_end = time.time()
+        print(f"Calculation time with pressure drop : {pressure_drop_time_end - pressure_drop_time_start:.2f} seconds")
+        Test_Evaporator._plot()
+        print(Test_Evaporator)
+
+        Temperatures = Test_Evaporator.TemperatureVector_c - 273.15
+        Pressures = Test_Evaporator.PressureVector_c
+        Enthalpies = Test_Evaporator.EnthalpyVector_c
+        Entropies = np.zeros(len(Enthalpies))
+
+        for i in range(len(Enthalpies)):
+            HEOS_cold.update(CoolProp.HmassP_INPUTS, Enthalpies[i], Pressures[i])
+            Entropies[i] = HEOS_cold.smass()
+
+        plt.figure()
+        for i in range(len(Enthalpies)):
+            plt.plot(Entropies[i], Temperatures[i], marker='.', color="red")
+        # Plot saturation curve for R290
+        heos_r290 = CoolProp.AbstractState("HEOS", "R290")
+        p_crit = heos_r290.p_critical()
+        T_crit = heos_r290.T_critical()
+
+        # Generate saturation curve points
+        T_sat = np.linspace(233.15, T_crit - 1, 100)  # R290 min temp ~233K
+        s_sat_liquid = np.zeros_like(T_sat)
+        s_sat_vapor = np.zeros_like(T_sat)
+
+        for i, T in enumerate(T_sat):
+            heos_r290.update(CoolProp.QT_INPUTS, 0, T)  # Saturated liquid
+            s_sat_liquid[i] = heos_r290.smass()
+            heos_r290.update(CoolProp.QT_INPUTS, 1, T)  # Saturated vapor
+            s_sat_vapor[i] = heos_r290.smass()
+
+        plt.plot(s_sat_liquid, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5, label="R290 saturation")
+        plt.plot(s_sat_vapor, T_sat - 273.15, color="black", linestyle="--", linewidth=1.5)
+        plt.legend()
+        plt.ylabel("Temperature [°C]", fontsize=12)
+        plt.xlabel("Entropy [J/kg/K]", fontsize=12)
+        plt.show()
+
+
+    if test_evap_no_pressure_drop:  # This is the SC1 evaporator with no pressure drop
+
+        HEOS_cold = CoolProp.AbstractState("HEOS", "R290")
+        HEOS_hot = CoolProp.AbstractState("HEOS", "Water")
+
+        state_in_c = State(HEOS_cold, p=5.94e5, Q=0.2653)
+        state_in_h = State(HEOS_hot, T=288.75, p=3e5)
+
+        mdot_c = 0.071
+        mdot_h = 0.942
+
+        Test_Evaporator = HEX_Operational([state_in_c, state_in_h], [mdot_c, mdot_h], name ="Test_Evaporator", N=32, model="ACP70X", no_pressure_drop=True)
+        no_pressure_drop_time_start = time.time()
+        Test_Evaporator.Solve()
+        no_pressure_drop_time_end = time.time()
+        print(f"Calculation time with no pressure drop : {no_pressure_drop_time_end - no_pressure_drop_time_start:.2f} seconds")
         Test_Evaporator._plot()
         print(Test_Evaporator)
 
