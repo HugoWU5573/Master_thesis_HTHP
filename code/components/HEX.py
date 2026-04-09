@@ -1856,18 +1856,8 @@ class HEX_Operational():
             # print(f"Iteration with Q = {Q:.2f} W, residual = {residual:.4f}, iteration count = {iteration_count}")
 
             return residual
-        
-        try :
-            self.Q = brentq(iteration, 0.1*Qmax_int, Qmax_int, xtol=10) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
-        except ValueError as error:
-            if error.args[0]=='f(a) and f(b) must have different signs':
-                # The most probable reason for this error is that the number of plates is too high, meaning that the temperature
-                # difference between the two streams at one of the internal pinch points close to 0 -> we set Q = Qmax_int
-                iteration(Qmax_int)
-                self.Q = Qmax_int
-                print("Brent method did not converge.")
-            else :
-                raise error  # Re-raise the exception if it's a different error
+    
+        self.Q = brentq(iteration, 0.1*Qmax_int, Qmax_int, xtol=10) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
             
         # Once we have the final Q, we can calculate the results for the outlet states, pinch temperature and pressure drops
             
