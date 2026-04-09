@@ -57,7 +57,7 @@ mdot = Q_e / (h_evap_out - h_evap_in)
 flow_coefficent = mdot / np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
 
 A = np.polyfit(opening, flow_coefficent, 2)
-print(f"Fitted valve coefficients: a_0 = {A[2]}, a_1 = {A[1]}, a_2 = {A[0]}")
+print(f"Fitted valve coefficients: A = {A}")
 
 linspace_opening = np.linspace(10, 100, 100)
 fitted_flow_coefficent = np.polyval(A, linspace_opening)

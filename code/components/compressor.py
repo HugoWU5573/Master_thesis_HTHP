@@ -5,6 +5,136 @@ from CoolProp.CoolProp import PropsSI
 import CoolProp
 from scipy.optimize import fsolve, minimize, brentq
 
+class Compressor_other():
+    def __init__(self) :
+        # Geometric parameters
+        self.BVR = 3.273206992615867
+        self.bore = 41e-3
+        self.stroke = 39.3e-3
+        self.n_cylinders = 4 
+        self.V_s = self.bore**2 * np.pi/4 * self.stroke * self.n_cylinders
+
+        # Coefficients for efficiency models
+        self.coeffs_eta_elme = np.array([[-0.07816065,  0.81897356, -2.53186216,  3.38938997],  #25 Hz
+                                            [-0.06039962,  0.61249275, -1.83029312,  2.65642627]]) #50 Hz
+        self.coeffs_eta_v = np.array([[-0.0675744911611597, 0.96117376],                        #25 Hz
+                                        [-0.0675744911611597, 1.00639232]])                        #50 Hz                    
+        self.coeffs_eta_is_max = np.array([0.7041695778652344,                                  #25 Hz
+                                           0.6623896446847006])                                 #50 Hz
+    def mass_flow(self, v1, v2, N) :
+        ratio = v1 / v2
+        grad = (self.coeffs_eta_v[1] - self.coeffs_eta_v[0]) / (50 - 25)
+        coeffs = self.coeffs_eta_v[0] + grad * (N - 25)
+        eta_v = np.polyval(coeffs, ratio)
+        mdot = eta_v * self.V_s * N/2 / v1
+        return mdot
+    
+    def eta_elme(self, v1, v2, N) :
+        ratio = v1 / v2
+        grad = (self.coeffs_eta_elme[1] - self.coeffs_eta_elme[0]) / (50 - 25)
+        coeffs = self.coeffs_eta_elme[0] + grad * (N - 25)
+        eta_elme = np.polyval(coeffs, ratio)
+        return eta_elme
+        
+    def eta_is_max(self, N) :
+        grad = (self.coeffs_eta_is_max[1] - self.coeffs_eta_is_max[0]) / (50 - 25)
+        eta_is_max = self.coeffs_eta_is_max[0] + grad * (N - 25)
+        return eta_is_max
+    
+    def Solve(self, state_in, p_2, N) :
+        '''
+        if state_in.Q != -1: 
+            raise ValueError("Inlet state must be a saturated state (Q = -1) for this compressor model.")
+        '''
+        
+        # Isentropic compression
+        heos = state_in.heos
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h, state_in.p)
+        v_1 = 1/heos.rhomass()
+        v_ad = v_1 / self.BVR
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)
+        h_ad = heos.hmass()
+        p_ad = heos.p()
+        w_su_ad = h_ad - state_in.h
+
+        #Isochoric compression 
+        w_ad_ex = v_ad * (p_2 - p_ad)
+        eta_is_max = self.eta_is_max(N)
+        w_tot = (w_ad_ex + w_su_ad) / eta_is_max
+
+        # Discharge state
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
+        T_2 = heos.T()
+        v_2 = 1/heos.rhomass()
+
+        mdot = self.mass_flow(v_1, v_2, N)
+        eta_elme = self.eta_elme(v_1, v_2, N)
+        P_el = mdot * w_tot / eta_elme
+
+        return T_2, P_el, mdot 
+
+
+    def get_points_between(self, state_in, state_out, n_points=100):
+        heos = state_in.heos
+        # Compute the isentropic compression 
+        p_2 = state_out.p
+        heos.update(CoolProp.PSmass_INPUTS, p_2, state_in.s)
+        h_2_is = heos.hmass()
+        eta_is_mean = (h_2_is - state_in.h) / (state_out.h - state_in.h)
+
+        p_min = state_in.p
+        p_max = state_out.p
+        p = np.linspace(p_min, p_max, n_points)
+        T = np.zeros(n_points)
+        s = np.zeros(n_points)
+        h = np.zeros(n_points)
+        for i, p_val in enumerate(p):
+            try : 
+                heos.update(CoolProp.PSmass_INPUTS, p_val, state_in.s)
+                h_is = heos.hmass()
+                h_val = state_in.h + (h_is - state_in.h) / eta_is_mean
+                heos.update(CoolProp.HmassP_INPUTS, h_val, p_val)
+                s[i] = heos.smass()
+                T[i] = heos.T()
+                h[i] = h_val
+            except ValueError as e:
+                T[i] = float('nan')
+                s[i] = float('nan')
+                h[i] = float('nan')
+        return T, s, p, h
+    
+    def energy_analysis(self, P_el, state_in, state_out, mdot_wf) : 
+        """
+        Placeholder for energy analysis of the compressor.
+        """
+        P_mec = P_el * self.eta_elme
+
+        dict_energy = {
+            'P_{el}': P_el,
+            'P_{loss}': P_el - P_mec
+        }
+
+        return dict_energy
+    
+    def exergy_analysis(self, T0, P0, P_el, state_in, state_out, mdot_wf) :
+
+        """
+        Placeholder for exergy analysis of the compressor.
+        """
+        P_mec = P_el * self.eta_elme
+        P_irr = P_mec - mdot_wf * (state_out.exergy(T0, P0) - state_in.exergy(T0, P0))  
+
+        dict_exergy = {
+            'P_{el}': P_el,
+            'P_{loss}': P_el - P_mec,
+            'P_{irr}': P_irr
+        }
+
+        return dict_exergy
+
+
+
+
 
 class Compressor_LP():
     def __init__(self) : 
@@ -57,6 +187,7 @@ class Compressor_LP():
         # Volumetric ratio and mass flow rate
         mass_flow_to_ratio = lambda v_2 : self.mass_flow(v_1, v_2, N) - mdot
         v_2 = fsolve(mass_flow_to_ratio, v_ad)[0]
+        #print(v_1/v_2)
 
         # Volumetric efficiency and electromecanical efficiency
         eta_elme = self.eta_elme(v_1, v_2, N)
@@ -64,12 +195,14 @@ class Compressor_LP():
 
         # Specific work
         w_tot = P_el * eta_elme / mdot
+        #print(w_tot)
 
         w_ad_ex = w_tot * eta_is_max - w_su_ad
 
         p_2 = p_ad + w_ad_ex / v_ad
         p_2_old = 0
         while abs(p_2 - p_2_old) > 1e-3 :
+            #print(p_2)
             heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
             T_2 = heos.T()
 
@@ -139,6 +272,7 @@ class Compressor_HP():
         # Volumetric ratio and mass flow rate
         mass_flow_to_ratio = lambda v_2 : self.mass_flow(v_1, v_2, N) - mdot
         v_2 = fsolve(mass_flow_to_ratio, v_ad)[0]
+        print(v_1/v_2)
 
         # Volumetric efficiency and electromecanical efficiency
         eta_elme = self.eta_elme(v_1, v_2, N)
@@ -160,6 +294,9 @@ class Compressor_HP():
             p_2_new = heos.p()
             p_2_old = p_2
             p_2 = p_2_new
+            
+            s = heos.smass()
+            print("Delta s: ", s - state_in.s)
         
         return p_2, T_2
 

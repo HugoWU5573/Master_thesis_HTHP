@@ -25,6 +25,7 @@ class Transform:
         """
         if self.type == 'None' : 
             raise ValueError("Transform type must be defined to generate intermediate points.")
+
         
         T = np.zeros(n_points)
         s = np.zeros(n_points)
@@ -51,14 +52,19 @@ class Transform:
                     s[i] = heos.smass()
 
         elif self.type == 'hex' :
-            p = state_in.p * np.ones(n_points)
-            s_max = state_in.s
-            s_min = state_out.s
-            s = np.linspace(s_max, s_min, n_points)
-            for i, s_val in enumerate(s):
-                heos.update(CoolProp.PSmass_INPUTS, p[i], s_val)
-                T[i] = heos.T()
-                h[i] = heos.hmass()
+            T_in, s_in, p_in, h_in = self.component.get_points_between()
+            if len(T_in) <= n_points:
+                T[:len(T_in)] = T_in
+                T = T[:len(T_in)]
+                s[:len(s_in)] = s_in
+                s = s[:len(s_in)]
+                p[:len(p_in)] = p_in
+                p = p[:len(p_in)]
+                h[:len(h_in)] = h_in
+                h = h[:len(h_in)]
+            else :
+                raise ValueError("Number of points from the component is greater than n_points. Consider increasing n_points or reducing the number of points returned by the component.")
+                 
         
         elif self.type == 'comp' :
             T, s, p, h = self.component.get_points_between(state_in, state_out, n_points)

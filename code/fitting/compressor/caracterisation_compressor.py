@@ -16,7 +16,7 @@ heos = CoolProp.AbstractState("HEOS&TTSE", fluid)
 weights = (0.5, 0.5)
 weights = None
 
-LP_compressor = 0
+LP_compressor = 1
 HP_compressor = not LP_compressor
 
 ################################################################################################################
@@ -430,6 +430,7 @@ if LP_compressor :
     degree_of_polynomial = 3 
     eta_total_calc = np.zeros_like(eta_total)
     coeffs_eta_total = np.zeros((len(N), degree_of_polynomial+1))
+    print(eta_total)
 
     for i in range(len(N)) :
         volume_ratio = v_1[i,:,:].flatten() / v_2_calc[i,:,:].flatten()
@@ -453,6 +454,16 @@ if LP_compressor :
     ###############################################################################
     # Plots
     ###############################################################################
+
+    plt.plot(T_2.flatten()-273.15, T_2_calc.flatten()-273.15, 'o', label='Measured data')
+    plt.plot(T_2.flatten()-273.15, T_2_calc.flatten()-273.15, 'x', label='Fitted data')
+    plt.xlabel(r'$T_2$ [°C]', fontsize=15)
+    plt.ylabel(r'$T_2$ [°C]', fontsize=15)
+    plt.legend(fontsize=14)
+    plt.xticks(fontsize=13)
+    plt.yticks(fontsize=13)
+    plt.tight_layout()
+    plt.show()
 
     colors = color_palette("tab10", 10)
 
@@ -689,6 +700,7 @@ if LP_compressor :
     plt.ylim(floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100)
     plt.show()
 
+    print(v_1.flatten()/v_2_calc.flatten())
 
 if HP_compressor :
     ##################################################################################################################

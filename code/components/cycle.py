@@ -268,14 +268,12 @@ class Cycle():
                 s_points.append(s_points_transform)
                 labels_transform.append(transform.type)    
 
-        T_points = np.array(T_points)
-        s_points =  np.array(s_points)
         
         heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
         T_crit = heos.T_critical()
         p_crit = heos.p_critical()
         for key, value in states.items() :
-            if key in ['1', '3', '5'] :
+            if key in ['1', '5'] :
                 if p_crit >= value.p :
                     heos.update(CoolProp.PQ_INPUTS, value.p, 1)
                     T_sat_state[key] = heos.T()
@@ -318,7 +316,8 @@ class Cycle():
         s_crit = heos.smass()
         plt.scatter(s_crit/1e3, T_crit-273.15, color='black', s=10, clip_on = False)  # Triple point
 
-        plt.plot(s_points.T/1e3, T_points.T-273.15, '-', label=labels_transform, color = 'firebrick', clip_on = False)
+        for i in range(len(T_points)) :
+            plt.plot(s_points[i]/1e3, T_points[i]-273.15, '-', label=labels_transform[i], color = 'firebrick', clip_on = False)
         plt.scatter(s_states/1e3, T_states-273.15, color='firebrick', clip_on = False)
 
         plt.xlabel('Entropy [kJ/kg/K]', fontsize = 12)
@@ -404,8 +403,6 @@ class Cycle():
                 h_points.append(h_points_transform)
                 labels_transform.append(transform.type)    
 
-        p_points = np.array(p_points)
-        h_points =  np.array(h_points)
         heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
 
         p_states = np.zeros(len(states))
@@ -426,7 +423,8 @@ class Cycle():
         heos.update(CoolProp.PQ_INPUTS, p_min_state, 1)
 
         plt.figure(figsize=(8,6))
-        plt.plot(h_points.T/1e3, p_points.T/1e5, '-', label=labels_transform, color = 'firebrick', clip_on = False)
+        for i in range(len(p_points)) :
+            plt.plot(h_points[i]/1e3, p_points[i]/1e5, '-', label=labels_transform[i], color = 'firebrick', clip_on = False)
         plt.scatter(h_states/1e3, p_states/1e5, color = 'firebrick', clip_on = False)
         plt.yscale('log')
         plt.xlabel('Enthalpy [kJ/kg]', fontsize = 12)

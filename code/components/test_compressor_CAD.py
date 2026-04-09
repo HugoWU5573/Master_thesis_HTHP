@@ -1,13 +1,13 @@
 import CoolProp
 from state import State
-from compressor import Compressor_LP, Compressor_HP
+from compressor import Compressor_other, Compressor_HP
 import numpy as np
 import matplotlib.pyplot as plt
 
 fluid = 'R290'
 heos = CoolProp.AbstractState("HEOS&TTSE", fluid)
 
-compressor = Compressor_LP()
+compressor = Compressor_other()
 
 #"=================LP testing====================="
 
@@ -119,22 +119,44 @@ for i, p_c in enumerate(p_cond):
 
 p_2_calc = np.zeros_like(T_2)
 T_2_calc = np.zeros_like(T_2)
+P_2_calc = np.zeros_like(T_2)
+mdot_calc = np.zeros_like(T_2)
 
 for i in range(len(N)) :
     for j in range(len(T_2[0])) :
         for k in range(len(T_2[0,0])) :
             if not np.isnan(T_2[i,j,k]) :
+                
                 state_in = State(heos, p = p_1[i,j,k], T = T_1[i,j,k])
-                p_2_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_in, P[i,j,k], mdot[i,j,k], N[i])
+                #p_2_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_in, P[i,j,k], mdot[i,j,k], N[i])
+                T_2_calc[i,j,k], P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
             else : 
                 p_2_calc[i,j,k] = np.nan
                 T_2_calc[i,j,k] = np.nan
+                P_2_calc[i,j,k] = np.nan
+                mdot_calc[i,j,k] = np.nan
 
+plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', clip_on=False)
+plt.plot(P.flatten()/1e3, P.flatten()/1e3, 'k-', label='Ideal', clip_on=False)
+plt.show()
+
+plt.plot(mdot.flatten(), mdot_calc.flatten(), 'kx', clip_on=False)
+plt.plot(mdot.flatten(), mdot.flatten(), 'k-', label='Ideal', clip_on=False)
+plt.show()
+
+plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', clip_on=False)
+plt.plot(T_2.flatten() - 273.15, T_2.flatten() - 273.15, 'k-', label='Ideal', clip_on=False)
+plt.show()
+
+'''
 error_min_p = np.nanmin(p_2_calc.flatten() - p_2.flatten())
 error_max_p = np.nanmax(p_2_calc.flatten() - p_2.flatten())
 error_min_T = np.nanmin(T_2_calc.flatten() - T_2.flatten())
 error_max_T = np.nanmax(T_2_calc.flatten() - T_2.flatten())
 print(T_2.flatten() + error_min_T - 273.15, T_2.flatten() + error_max_T - 273.15)
+
+
+
 
 sorted_indices = np.argsort(p_2.flatten())
 p_2_sorted = p_2.flatten()[sorted_indices]
@@ -336,4 +358,4 @@ plt.xlim(110, 145)
 plt.ylim(110, 145)
 
 plt.show()
-
+'''
