@@ -1734,8 +1734,12 @@ class HEX_Operational():
     """
     def Solve(self, extra_cells = True):
         Qmax_ext = self._Qmax_ext()                                     # STEP 1 : Calculate Qmax based on external pinching
+        if Qmax_ext <=0:
+            raise ValueError(f"Qmax for {self.name} is negative or zero, which is not physically possible.")
         self._cell_division(Qmax_ext, extra_cells=extra_cells)          # STEP 2 : First cell division based on Qmax_ext
         Qmax_int = self._Qmax_int()                                     # STEP 3 : Calculate a derated Qmax based on internal pinching
+        if Qmax_int <=0:
+            raise ValueError(f"Qmax for {self.name} is negative or zero, which is not physically possible.")
 
         # Main loop on Q
         def iteration(Q):
@@ -1853,11 +1857,21 @@ class HEX_Operational():
             
             except : residual = -1
 
-            # print(f"Iteration with Q = {Q:.2f} W, residual = {residual:.4f}, iteration count = {iteration_count}")
+            #print(f"Iteration with Q = {Q:.2f} W, residual = {residual:.4f}, iteration count = {iteration_count}")
 
             return residual
-    
-        self.Q = brentq(iteration, 0.1*Qmax_int, Qmax_int, xtol=10) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+
+        #print(f"The Qmax_int for {self.name} is {Qmax_int/1000:.2f} kW,th")
+
+        # If the HEX is oversized, we can have a positive residual for Qmax_int, which means that the heat exchanger can transfer Qmax_int
+        if iteration(Qmax_int) > 0:
+            self.Q = Qmax_int
+
+        else :
+            try :
+                self.Q = brentq(iteration, 0.1*Qmax_int, Qmax_int, xtol=1e-6) # STEP 4 : Find the real Q using the iterative Brent method between 0 and Qmax
+            except:
+                raise ValueError(f"Brent method did not converge for {self.name}")
             
         # Once we have the final Q, we can calculate the results for the outlet states, pinch temperature and pressure drops
             
@@ -1871,7 +1885,7 @@ class HEX_Operational():
 
             # Pinch temperature
         Tpinch = np.inf
-        for j in range(self.N):
+        for j in range(self.N+1):
             Delta_T = self.TemperatureVector_h[j] - self.TemperatureVector_c[j]
             if Delta_T < Tpinch:
                 Tpinch = Delta_T
