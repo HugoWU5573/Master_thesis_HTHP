@@ -64,14 +64,14 @@ class Compressor_LP():
 
         # Discharge state
         heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
-        T_2 = heos.T()
+        h_2 = state_in.h + w_tot
         v_2 = 1/heos.rhomass()
 
         mdot = self.mass_flow(v_1, v_2, N)
         eta_elme = self.eta_elme(v_1, v_2, N)
         P_el = mdot * w_tot / eta_elme
 
-        return T_2, P_el, mdot 
+        return h_2, P_el, mdot 
 
 
     def get_points_between(self, state_in, state_out, n_points=100):
@@ -172,14 +172,14 @@ class Compressor_HP():
 
         # Discharge state
         heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
-        T_2 = heos.T()
+        h_2 = state_in.h + w_tot
         v_2 = 1/heos.rhomass()
 
         mdot = self.mass_flow(v_1, v_2, N)
         eta_elme = self.eta_elme(v_1, v_2, N)
         P_el = mdot * w_tot / eta_elme
 
-        return T_2, P_el, mdot 
+        return h_2, P_el, mdot 
     
     def get_points_between(self, state_in, state_out, n_points=100):
         heos = state_in.heos

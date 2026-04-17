@@ -103,36 +103,40 @@ def CAD(compressors_inputs, valves_inputs, HP_evaporator, external_fluid_LT_para
                 # HP Compressor
                 T_5_calc, P_HP_calc, mdot_top_calc = compressor_HP.Solve(cycle.state_3, p_5, N_HP)
                 cycle.state_5 = State(heos = heos_working_fluid, T = T_5_calc, p = p_5)
-                #print("State 3:", cycle.state_3)
-                #print("State 5:", cycle.state_5)
+                print("State 3:", cycle.state_3)
+                print("State 5:", cycle.state_5)
 
             # Condenser
             condenser = HEX_Operational(states_in=[cycle.state_5_prime, cycle.state_5], mdot = [mdot_external_fluid_HT, cycle.mdot_wf_top], name = 'Condenser', N = 86, model = "ACP70X")
             cycle.state_6_prime, cycle.state_6 = condenser.Solve()[0]
-            #print("State 6:", cycle.state_6)
+            print("State 6:", cycle.state_6)
             
             # LP Valve
             p_10, h_10 = valve_LP.Solve(cycle.state_6, cycle.mdot_wf_bottom, z_LP)
             cycle.state_10 = State(heos = heos_working_fluid, p = p_10, h = h_10)
-            #print("State 10:", cycle.state_10)
+            print("State 10:", cycle.state_10)
 
             # LP Evaporator
             evaporator_LP = HEX_Operational(states_in=[cycle.state_10, cycle.state_1_prime], mdot = [cycle.mdot_wf_bottom, mdot_external_fluid_LT], name = 'Evaporator_LP', N = 57, model = "ACP70X")
             cycle.state_1, cycle.state_2_prime = evaporator_LP.Solve()[0]
-            #print("State 1:", cycle.state_1)
+            print("State 1:", cycle.state_1)
 
             # LP Compressor
             T_3_comp, P_LP_calc, mdot_bottom_calc = compressor_LP.Solve(cycle.state_1, p_3, N_LP)
             cycle.state_3_comp = State(heos = heos_working_fluid, T = T_3_comp, p = p_3)
+            print("State 3 comp:", cycle.state_3_comp)
 
             if HP_evaporator:
                 # HP Valve
                 p_8, h_8 = valve_HP.Solve(cycle.state_6, cycle.mdot_wf_top - cycle.mdot_wf_bottom, z_HP)
                 cycle.state_8 = State(heos = heos_working_fluid, p = p_8, h = h_8)
+                print("State 8:", cycle.state_8)
 
                 # HP Evaporator
                 evaporator_HP = HEX_Operational(states_in=[cycle.state_8, cycle.state_3_prime], mdot = [cycle.mdot_wf_top - cycle.mdot_wf_bottom, mdot_external_fluid_MT], name = 'Evaporator_HP', N = 31, model = "ACP70X")
                 cycle.state_3_evap, cycle.state_4_prime = evaporator_HP.Solve()[0]
+                print("State 3 evap:", cycle.state_3_evap)
+
 
                 # Isenthalpic mixing
                 p_3_calc = cycle.state_3_evap.p
@@ -201,13 +205,13 @@ if __name__ == '__main__':
     compressor_inputs = {'N_LP': N_LP, 'N_HP': N_HP, 'P_LP': P_LP, 'P_HP': P_HP}
 
     # Valve opening
-    z_LP = [40] #np.arange(35,46, 1)
-    z_HP = [20]
+    z_LP = [25] #np.arange(35,46, 1)
+    z_HP = 20
 
     valve_inputs = {'z_LP': z_LP, 'z_HP': z_HP}
 
     # Manual Valve opening
-    HP_evaporator = False
+    HP_evaporator = True
 
     ############################################################
     # Parameters
@@ -217,19 +221,19 @@ if __name__ == '__main__':
         # 1. LT source
     T1_prime = 25 + 273.75                          # Inlet temperature of the external fluid in the heat source [K] 
     p1_prime = 3e5                                  # Inlet pressure of the external fluid in the heat source [Pa]
-    mdot_external_fluid_LT = 3                      # Mass flow rate of the external fluid in the heat source [kg/s] 
+    mdot_external_fluid_LT = 5                      # Mass flow rate of the external fluid in the heat source [kg/s] 
     external_fluid_LT_param = {'T1_prime': T1_prime, 'p1_prime': p1_prime, 'mdot_external_fluid_LT': mdot_external_fluid_LT}
 
 
         # 2. MT source
-    T3_prime = 40 + 273.15                          # Inlet temperature of the external fluid in the heat sink [K] 
+    T3_prime = 70 + 273.15                          # Inlet temperature of the external fluid in the heat sink [K] 
     p3_prime = 3e5                                  # Inlet pressure of the external fluid in the heat sink [Pa]
-    mdot_external_fluid_MT = 1                      # Mass flow rate of the external fluid in the heat sink [kg/s]
+    mdot_external_fluid_MT = 10                      # Mass flow rate of the external fluid in the heat sink [kg/s]
     external_fluid_MT_param = {'T3_prime': T3_prime, 'p3_prime': p3_prime, 'mdot_external_fluid_MT': mdot_external_fluid_MT}
 
 
     # Heat sink parameters
-    T5_prime = 45 + 273.15                          # Inlet temperature of the external fluid in the heat sink [K] 
+    T5_prime = 80 + 273.15                          # Inlet temperature of the external fluid in the heat sink [K] 
     p5_prime = 3e5                                  # Inlet pressure of the external fluid in the heat sink [Pa]
     mdot_external_fluid_HT = 1.2                    # Mass flow rate of the external fluid in the heat sink [kg/s]
     external_fluid_HT_param = {'T5_prime': T5_prime, 'p5_prime': p5_prime, 'mdot_external_fluid_HT': mdot_external_fluid_HT}
@@ -238,8 +242,8 @@ if __name__ == '__main__':
     # Simulation and optimization
     ##############################################################
 
-    #initial_guess = [np.log(5e5), np.log(10e5), np.log(20e5), np.log(330), np.log(0.08), np.log(0.08)]
-    initial_guess = [13.122363377404328, 13.951199380764326, 14.59544959400266, 5.774448123746895, -2.4951621337422076, -2.268615953214233]
+    initial_guess = [np.log(5e5), np.log(15e5), np.log(40e5), np.log(330), np.log(0.08), np.log(0.08)]
+    #initial_guess = [13.122363377404328, 13.951199380764326, 14.59544959400266, 5.774448123746895, -2.4951621337422076, -2.268615953214233]
 
     # Create a pool of workers
     pool = Pool(processes=cpu_count())

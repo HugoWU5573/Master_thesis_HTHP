@@ -34,18 +34,16 @@ class Valve_other :
     def __init__(self, coeffs) :
         self.coeffs = coeffs
 
-    def Solve(self, state_in, p_out, z) :
+    def Solve(self, state_in, p_out, mdot) :
         heos = state_in.heos
-        if state_in.Q > 0 and state_in.Q < 1:
-            heos.update(CoolProp.QT_INPUTS, state_in.Q, state_in.T)
-            rho_in = heos.rhomass()
-        else:
-            heos.update(CoolProp.PT_INPUTS, state_in.p, state_in.T)
-            rho_in = heos.rhomass()
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h, state_in.p)
         
-        mdot = np.polyval(self.coeffs, z) * np.sqrt(2 * rho_in * (state_in.p - p_out))
+        def iteration_function(z):
+            mass_flow_rate = np.polyval(self.coeffs, z) * np.sqrt(2 * heos.rhomass()) * np.sqrt(state_in.p - p_out)
+            return mass_flow_rate - mdot
         
-        return state_in.h, mdot
+        z = fsolve(iteration_function, 50)[0]
+        return state_in.h, z
     
     def get_points_between(self, state_in, state_out, n_points=100):
         heos = state_in.heos
