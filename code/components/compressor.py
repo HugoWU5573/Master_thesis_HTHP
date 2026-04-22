@@ -116,37 +116,27 @@ class Compressor_HP():
 
         # Coefficients for efficiency models
         self.coeffs_eta_elme = np.array([-0.00899985,  0.0856807,  -0.24639968,  1.20386369])   #50 Hz
+        self.grad_eta_elme = np.array([0.00071044, -0.00825923,  0.02806276, -0.02931855])
         self.coeffs_eta_v = np.array([-0.08511643151843135, 1.01003541])                        #50 Hz
+        self.grad_eta_v = np.array([0.0, 0.00180874])
         self.coeffs_eta_is_max = 0.6823063620613579                                             #50 Hz
+        self.grad_eta_is_max = -0.0016711973272213498
         
     def mass_flow(self, v1, v2, N) :
         ratio = v1 / v2
-        '''
-        grad = (self.coeffs_eta_v[1] - self.coeffs_eta_v[0]) / (50 - 25)
-        coeffs = self.coeffs_eta_v[0] + grad * (N - 25)
-        '''
-        coeffs = self.coeffs_eta_v
+        coeffs = self.coeffs_eta_v + self.grad_eta_v * (N - 50)
         eta_v = np.polyval(coeffs, ratio)
         mdot = eta_v * self.V_s * N/2 / v1
         return mdot
     
     def eta_elme(self, v1, v2, N) :
         ratio = v1 / v2
-        '''
-        grad = (self.coeffs_eta_elme[1] - self.coeffs_eta_elme[0]) / (50 - 25)
-        coeffs = self.coeffs_eta_elme[0] + grad * (N - 25)
-        '''
-        coeffs = self.coeffs_eta_elme
-
+        coeffs = self.coeffs_eta_elme + self.grad_eta_elme * (N - 50)
         eta_elme = np.polyval(coeffs, ratio)
         return eta_elme
         
     def eta_is_max(self, N) :
-        '''
-        grad = (self.coeffs_eta_is_max[1] - self.coeffs_eta_is_max[0]) / (50 - 25)
-        eta_is_max = self.coeffs_eta_is_max[0] + grad * (N - 25)
-        '''
-        eta_is_max = self.coeffs_eta_is_max
+        eta_is_max = self.coeffs_eta_is_max + self.grad_eta_is_max * (N - 50)
         return eta_is_max
     
     def Solve(self, state_in, p_2, N) :
