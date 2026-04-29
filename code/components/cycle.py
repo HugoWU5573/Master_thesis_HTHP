@@ -238,7 +238,7 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, plot = True, n=100, save = True) : 
+    def Ts_diagram(self, plot = True, n=100, save = True, external_circuits = False) : 
         # Generate saturation curve for working fluid
 
         if plot is False and save is False :
@@ -320,6 +320,22 @@ class Cycle():
             plt.plot(s_points[i]/1e3, T_points[i]-273.15, '-', label=labels_transform[i], color = 'firebrick', clip_on = False)
         plt.scatter(s_states/1e3, T_states-273.15, color='firebrick', clip_on = False)
 
+        if external_circuits :
+            for transform in self.transforms :
+                if transform.type == "hex" :
+                    
+                    if "Cond" in transform.component.name or "Gas" in transform.component.name :
+                        T_values = np.array([transform.component.state_in_c.T, transform.component.state_out_c.T])
+                        s_values = np.array([transform.component.state_out_h.s, transform.component.state_in_h.s])
+                        plt.scatter(s_values/1e3, T_values-273.15, color = 'grey', clip_on = False, marker='x')
+                        plt.plot(s_values/1e3, T_values-273.15, '--', color = 'grey', clip_on = False)
+                    
+                    if ("Evap" in transform.component.name) :
+                        T_values = np.array([transform.component.state_in_h.T, transform.component.state_out_h.T])
+                        s_values = np.array([transform.component.state_out_c.s, transform.component.state_in_c.s])
+                        plt.scatter(s_values/1e3, T_values-273.15, color = 'grey', clip_on = False, marker='x')
+                        plt.plot(s_values/1e3, T_values-273.15, '--', color = 'grey', clip_on = False)
+
         plt.xlabel('Entropy [kJ/kg/K]', fontsize = 12)
         #plt.legend(frameon=False)
 
@@ -369,7 +385,7 @@ class Cycle():
         #plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        if save : plt.savefig(f'{fig_dir}/Ts_diagram.png', dpi=600)
+        if save : plt.savefig(f'{fig_dir}/Ts_diagram.pdf')
         if plot : plt.show()
         return
     

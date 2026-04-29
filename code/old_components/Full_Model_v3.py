@@ -64,6 +64,11 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
     Nb_plates_Recup_LT = 31
     Nb_plates_Recup_MT = 28
 
+
+    ############################################################
+    # Instantiate objects
+    ############################################################
+
     # CoolProp low-level interface for all the fluids
 
     HEOS_type = "HEOS"  # Choose from "HEOS", "TTSE&HEOS"
@@ -73,28 +78,34 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
     HEOS_external_fluid_HT = CoolProp.AbstractState(HEOS_type, external_fluid_HT)
     HEOS_working_fluid = CoolProp.AbstractState(HEOS_type, working_fluid)
 
+    # Cycle with its fixed states
+    cycle_name = "Full_Model_" + name
+    cycle = Cycle(cycle_name)
+    cycle.state_1_prime = State(HEOS_external_fluid_LT, T=T1_prime, p=p_prime_LT)
+    cycle.state_3_prime = State(HEOS_external_fluid_MT, T=T3_prime, p=p_prime_MT)
+    cycle.state_5_prime = State(HEOS_external_fluid_HT, T=T5_prime, p=p_prime_HT)
+
+    # Compressors
+    Comp_LP = Compressor_LP()
+    Comp_HP = Compressor_HP()
+
+    # Valves
+    Valve_LP = Valve_other([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
+    Valve_HP = Valve_other([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
+
     ############################################################
     # Iterative process to solve the cycle
     ############################################################
 
-    def run_cycle(p1, p3, p5, N_LP, N_HP, results=False, tol=5e-2, verbose=False):
-
-        # Cycle with its fixed states
-        cycle_name = "Full_Model_" + name
-        cycle = Cycle(cycle_name)
-        cycle.state_1_prime = State(HEOS_external_fluid_LT, T=T1_prime, p=p_prime_LT)
-        cycle.state_3_prime = State(HEOS_external_fluid_MT, T=T3_prime, p=p_prime_MT)
-        cycle.state_5_prime = State(HEOS_external_fluid_HT, T=T5_prime, p=p_prime_HT)
-
-        # Compressors
-        Comp_LP = Compressor_LP()
-        Comp_HP = Compressor_HP()
-
-        # Valves
-        Valve_LP = Valve_other([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
-        Valve_HP = Valve_other([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
+    def iterative_process(args, results=False, tol=5e-2):
 
         try :
+
+            p1 = args[0]*50e5
+            p3 = args[1]*50e5
+            p5 = args[2]*50e5
+            N_LP = args[3]*75
+            N_HP = args[4]*75
 
             # Check that the pressures are in the correct order
             if (p3 <= p1) or (p5 <= p3) :
@@ -155,11 +166,11 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
                    (np.abs((delta_p_evap_LT_old - delta_p_evap_LT_new)/delta_p_evap_LT_new) > tol) or 
                    (np.abs((delta_p_evap_MT_old - delta_p_evap_MT_new)/delta_p_evap_MT_new) > tol)):
                 
-                if iteration_counter == 1 and verbose:
+                if iteration_counter == 1 :
                     print(f"The input parameters are p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz.")
 
                 # Stop if there are too many iterations to avoid infinite loops
-                if iteration_counter > 20 :
+                if iteration_counter > 50 :
                     raise ValueError("Too many iterations. The solution may not be converging.")
 
                 # STATE 1
@@ -309,7 +320,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
                 residual_delta_p_evap_MT = (delta_p_evap_MT_old - delta_p_evap_MT_new)/delta_p_evap_MT_new
 
                 # Residuals table
-                if iteration_counter == 1 and verbose:
+                if iteration_counter == 1:
                     print("-" * 100)
                     print(
                         f"{'It.':>4} | {'res_h1':>12} | {'res_mdot_LT':>12} | "
@@ -317,13 +328,12 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
                     )
                     print("-" * 100)
 
-                if verbose:
-                    print(
-                        f"{iteration_counter:4d} | "
-                        f"{residual_h1:12.2%} | {residual_mdot_LT:12.2%} | "
-                        f"{residual_mdot_MT:12.2%} | {residual_mdot_HT:12.2%} | "
-                        f"{residual_delta_p_evap_LT:12.2%} | {residual_delta_p_evap_MT:12.2%}"
-                    )
+                print(
+                    f"{iteration_counter:4d} | "
+                    f"{residual_h1:12.2%} | {residual_mdot_LT:12.2%} | "
+                    f"{residual_mdot_MT:12.2%} | {residual_mdot_HT:12.2%} | "
+                    f"{residual_delta_p_evap_LT:12.2%} | {residual_delta_p_evap_MT:12.2%}"
+                )
 
                 iteration_counter += 1
 
@@ -387,77 +397,24 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
                             f.write('\n' + str(Recuperator_MT) + '\n')
 
 
+            # We want to maximize the COP and to respect the following constraints : Q_calculated = Q and mdot_wf_top = mdot_wf_bottom
             residual_Q = (Q_calculated - Q)/Q
             alpha_calculated = Evaporator_MT.Q/(Evaporator_LT.Q + Evaporator_MT.Q)
             residual_alpha = alpha_calculated - alpha
             COP = cycle.COP
 
-            results = COP, residual_Q, residual_alpha
+            residual = -COP + 1e3*abs(residual_Q) + 1e3*abs(residual_alpha)
 
-            if verbose : print(f"End : COP = {cycle.COP:.2f}, z_LP = {z_LP:.2f} %, z_HP = {z_MT:.2f} %, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz, Q_calculated = {Q_calculated/1e3:.2f} kW, alpha_calculated = {alpha_calculated:.4f}" + "\n")
+            print(f"End : COP = {cycle.COP:.2f}, z_LP = {z_LP:.2f} %, z_HP = {z_MT:.2f} %, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz, Q_calculated = {Q_calculated/1e3:.2f} kW, alpha_calculated = {alpha_calculated:.4f}", f"-> Residual = {residual:.4f}" + "\n")
 
-            return results
+            return residual
         
         except Exception as e:
 
             print(f"End : An error occurred during the iterative process : {e}" + "\n")
         
-            return np.nan, 1e6, 1e6
-        
-    cache = {}
-    last_inner_solution = [38.08, 58.26]  # Initial guess for N_LP and N_HP in the inner optimization (in Hz)
-
-    def inner_residuals(x, p1, p3, p5):
-
-        N_LP, N_HP = x
-
-        result = run_cycle(p1, p3, p5, N_LP, N_HP)
-
-        return [result[1], result[2]]
+            return 1e6   # Return a positive value to indicate that the solution is not valid for this p5
     
-    def objective_pressures(x, results=False, tol=5e-2):
-
-        nonlocal last_inner_solution
-
-        p1, p3, p5 = x
-
-        # Rounded key to avoid tiny numerical differences
-        key = (round(p1, -3), round(p3, -3), round(p5, -3))
-
-        # Reuse previous solution
-        if key in cache:
-
-            COP, N_LP, N_HP = cache[key]
-
-            print(f"Using cached result for p1 = {p1/1e5:.2f} bar, "
-                f"p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar.")
-
-            if results:
-                run_cycle(p1, p3, p5, N_LP, N_HP,results=True, tol=tol)
-
-            return -COP
-
-        print(f"Trying with p1 = {p1/1e5:.2f} bar, "f"p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar.")
-
-        sol_inner = root(inner_residuals, x0=last_inner_solution, args=(p1, p3, p5), options={"xtol":1e-2, "maxfev":20})
-
-        if not sol_inner.success:
-            return 1e6
-
-        N_LP, N_HP = sol_inner.x
-        last_inner_solution[:] = sol_inner.x  # Update the initial guess for the next inner optimization
-        print("Inner optimization successful : N_LP = {:.2f} Hz, N_HP = {:.2f} Hz.".format(N_LP, N_HP))
-
-        result = run_cycle(p1, p3, p5, N_LP, N_HP, results=results, tol=tol)
-
-        COP = result[0]
-
-        # Save in cache
-        cache[key] = (COP, N_LP, N_HP)
-
-        print(f"COP is {COP:.2f}\n")
-
-        return -COP
     
 
     ############################################################
@@ -483,35 +440,40 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
         p5_first_guess = HEOS_working_fluid.p_critical() + 5e5
         p5_max = 55e5
 
-    HEOS_working_fluid.update(CoolProp.QT_INPUTS, 1, T3_first_guess-1)
-    p3_max = HEOS_working_fluid.p()
-    HEOS_working_fluid.update(CoolProp.QT_INPUTS, 1, T1_first_guess-1)
-    p1_max = HEOS_working_fluid.p()
-    p1_min = 5e5
-    p3_min = p1_max
-    p5_min = p3_max
+    initial_guess = np.zeros(5)
 
-    bounds = [(p1_min, p1_max),
-              (p3_min, p3_max), 
-              (p5_min, p5_max)]     # Bounds for p1, p3, p5 and compressor frequencies
+    p5_min = p3_first_guess
+    p3_max = p5_first_guess
+    p3_min = p1_first_guess
+    p1_max = p3_first_guess
+    p1_min = 1e5
 
-    sol = minimize(objective_pressures, 
-                   x0=[p1_first_guess, p3_first_guess, p5_first_guess], 
-                   bounds=bounds, method='Powell', 
-                   options={'xtol': 5e3,     # pressure tolerance [Pa]
-                            'ftol': 1e-2,    # COP tolerance
-                            })
+    initial_guess[0] = p1_first_guess/50e5
+    initial_guess[1] = p3_first_guess/50e5
+    initial_guess[2] = p5_first_guess/50e5
+    initial_guess[3] = 38/75     # Initial guess for the LP compressor frequency [Hz]
+    initial_guess[4] = 59/75     # Initial guess for the HP compressor frequency [Hz]
+
+    bounds = [(p1_min/50e5, p1_max/50e5),
+              (p3_min/50e5, p3_max/50e5), 
+              (p5_min/50e5, p5_max/50e5), 
+              (25/75, 75/75), 
+              (25/75, 75/75)]     # Bounds for p1, p3, p5 and compressor frequencies
+    
+    sol = minimize(iterative_process, initial_guess, bounds=bounds, options={'ftol': 1e-2, 'xtol': 1e-2})
 
     if sol.success:
-        p1 = sol.x[0]
-        p3 = sol.x[1]
-        p5 = sol.x[2]
-        print(f"Solution found : p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar")
+        p1 = sol.x[0]*50e5
+        p3 = sol.x[1]*50e5
+        p5 = sol.x[2]*50e5
+        N_LP = sol.x[3]*75
+        N_HP = sol.x[4]*75
+        print(f"Solution found : p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz")
     else :
         print("No solution found")
     
     # Run the iterative process one last time with the solution to get the final results
-    objective_pressures(sol.x, results=True, tol=5e-4)
+    iterative_process(sol.x, results=True, tol=5e-4)
     
 
 
@@ -544,21 +506,5 @@ if __name__ == "__main__":
     """
     A FAIRE :
         - Lorsque nous avons les deux compresseurs, le récupérateur MT ne fonctionne pas très bien (T3>T6)
-
-        - Last version : BEST COP = 3.87 and execution time = 77min
-        - New version : BEST COP = 3.94 (unknown execution time but more than 1h)
-            - Il faut essayer d'améliorer le temps d'exécution 
-
-
-        Idées pour la suite :
-            - Différents cas d'étude :
-                - Souscritique sans récupérateur
-                - Souscritique avec récupérateur LT
-                - Transcritique sans récupérateur
-                - Transcritique avec récupérateur LT
-
-            - Pour chaque cas d'étude :
-                - Changer le alpha (0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100%)
-                - Eventuellement faire varier le glide HT
     
     """

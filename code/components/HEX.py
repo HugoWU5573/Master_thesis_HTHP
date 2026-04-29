@@ -2379,7 +2379,7 @@ class HEX_Operational():
             - plot (boolean) : to indicate if the plot should be displayed or not
     
     """
-    def _plot(self, plot=True):
+    def _plot(self, plot=True, save=False, name_cycle=None):
 
         if plot is False :
             return 
@@ -2420,6 +2420,11 @@ class HEX_Operational():
         plt.tick_params(axis='x', rotation=0)
         plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
         plt.tight_layout()
+
+        if save and (name_cycle is not None):
+            fig_dir = f'code/Figures/{name_cycle}'
+            os.makedirs(fig_dir, exist_ok=True)
+            plt.savefig(f'{fig_dir}/{self.name}.pdf')
 
         if plot : plt.show()
 
