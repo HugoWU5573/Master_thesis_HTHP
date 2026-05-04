@@ -273,7 +273,7 @@ class Cycle():
         T_crit = heos.T_critical()
         p_crit = heos.p_critical()
         for key, value in states.items() :
-            if key in ['1', '5'] :
+            if key in ['1', '3' ,'5'] :
                 if p_crit >= value.p :
                     heos.update(CoolProp.PQ_INPUTS, value.p, 1)
                     T_sat_state[key] = heos.T()
@@ -371,7 +371,7 @@ class Cycle():
         # Apply ticks and formatted labels (s in kJ/kg/K, T in °C)
         xticks = np.sort(xticks)
         ax.set_xticks(xticks)
-        ax.set_xticklabels([f"{v:.3f}" for v in xticks])
+        ax.set_xticklabels([f"{v:.1f}" for v in xticks])
 
         
         yticks = np.sort(yticks)
@@ -498,7 +498,7 @@ class Cycle():
         
         yticks = np.sort(yticks)
         ax.set_yticks(yticks)
-        ax.set_yticklabels([f"{v:.2f}" for v in yticks])
+        ax.set_yticklabels([f"{v:.1f}" for v in yticks])
 
         # Improve readability
         plt.tick_params(axis='x', rotation=0)
