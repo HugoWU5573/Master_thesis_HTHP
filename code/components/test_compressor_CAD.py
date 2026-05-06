@@ -121,6 +121,7 @@ p_2_calc = np.zeros_like(T_2)
 T_2_calc = np.zeros_like(T_2)
 P_2_calc = np.zeros_like(T_2)
 mdot_calc = np.zeros_like(T_2)
+N_calc = np.zeros_like(T_2)
 
 for i in range(len(N)) :
     for j in range(len(T_2[0])) :
@@ -129,7 +130,8 @@ for i in range(len(N)) :
                 
                 state_in = State(heos, p = p_1[i,j,k], T = T_1[i,j,k])
                 #p_2_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_in, P[i,j,k], mdot[i,j,k], N[i])
-                h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
+                #h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
+                h_2_calc, P_2_calc[i,j,k], N_calc[i,j,k] = compressor.Solve_2(state_in, p_2[i,j,k], mdot[i,j,k])
                 heos.update(CoolProp.HmassP_INPUTS, h_2_calc, p_2[i,j,k])
                 T_2_calc[i,j,k] = heos.T()
             else : 
@@ -137,6 +139,7 @@ for i in range(len(N)) :
                 T_2_calc[i,j,k] = np.nan
                 P_2_calc[i,j,k] = np.nan
                 mdot_calc[i,j,k] = np.nan
+                N_calc[i,j,k] = np.nan
 
 plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', clip_on=False)
 plt.plot(P.flatten()/1e3, P.flatten()/1e3, 'k-', label='Ideal', clip_on=False)
@@ -148,6 +151,9 @@ plt.show()
 
 plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', clip_on=False)
 plt.plot(T_2.flatten() - 273.15, T_2.flatten() - 273.15, 'k-', label='Ideal', clip_on=False)
+plt.show()
+
+plt.plot(N_calc.flatten(), N_calc.flatten(), 'kx', clip_on=False)
 plt.show()
 
 '''
@@ -287,6 +293,12 @@ T_2_calc = np.zeros_like(T_2)
 P_2_calc = np.zeros_like(T_2)
 mdot_calc = np.zeros_like(T_2)
 
+p_2_calc = np.zeros_like(T_2)
+T_2_calc = np.zeros_like(T_2)
+P_2_calc = np.zeros_like(T_2)
+mdot_calc = np.zeros_like(T_2)
+N_calc = np.zeros_like(T_2)
+
 for i in range(len(N)) :
     for j in range(len(T_2[0])) :
         for k in range(len(T_2[0,0])) :
@@ -294,7 +306,8 @@ for i in range(len(N)) :
                 
                 state_in = State(heos, p = p_1[i,j,k], T = T_1[i,j,k])
                 #p_2_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_in, P[i,j,k], mdot[i,j,k], N[i])
-                h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
+                #h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
+                h_2_calc, P_2_calc[i,j,k], N_calc[i,j,k] = compressor.Solve_2(state_in, p_2[i,j,k], mdot[i,j,k])
                 heos.update(CoolProp.HmassP_INPUTS, h_2_calc, p_2[i,j,k])
                 T_2_calc[i,j,k] = heos.T()
             else : 
@@ -302,6 +315,7 @@ for i in range(len(N)) :
                 T_2_calc[i,j,k] = np.nan
                 P_2_calc[i,j,k] = np.nan
                 mdot_calc[i,j,k] = np.nan
+                N_calc[i,j,k] = np.nan
 
 plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', clip_on=False)
 plt.plot(P.flatten()/1e3, P.flatten()/1e3, 'k-', label='Ideal', clip_on=False)
@@ -313,6 +327,9 @@ plt.show()
 
 plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', clip_on=False)
 plt.plot(T_2.flatten() - 273.15, T_2.flatten() - 273.15, 'k-', label='Ideal', clip_on=False)
+plt.show()
+
+plt.plot(N_calc.flatten(), N_calc.flatten(), 'kx', clip_on=False)
 plt.show()
 
 '''

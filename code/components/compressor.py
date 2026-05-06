@@ -72,7 +72,53 @@ class Compressor_LP():
         P_el = mdot * w_tot / eta_elme
 
         return h_2, P_el, mdot 
+    
+    def Solve_2(self, state_in, p_2, mdot) :
+        '''
+        if state_in.Q != -1: 
+            raise ValueError("Inlet state must be a saturated state (Q = -1) for this compressor model.")
+        '''
+        
+        # Isentropic compression
+        heos = state_in.heos
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h, state_in.p)
+        v_1 = 1/heos.rhomass()
+        v_ad = v_1 / self.BVR
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)
+        h_ad = heos.hmass()
+        p_ad = heos.p()
+        w_su_ad = h_ad - state_in.h
 
+        def objective(args, final=False): 
+            #print(args)
+            N, v_2 = args
+            mdot_calc = self.mass_flow(v_1, v_2, N)
+            
+            #Isochoric compression 
+            w_ad_ex = v_ad * (p_2 - p_ad)
+            eta_is_max = self.eta_is_max(N)
+            w_tot = (w_ad_ex + w_su_ad) / eta_is_max
+
+            # Discharge state
+            heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
+            h_2 = state_in.h + w_tot
+            v_2_calc = 1/heos.rhomass()
+
+            #mdot = self.mass_flow(v_1, v_2_calc, N)
+            eta_elme = self.eta_elme(v_1, v_2_calc, N)
+            P_el = mdot * w_tot / eta_elme
+
+            if final :
+                residual = [(mdot_calc - mdot) / mdot, (v_2_calc - v_2) / v_2]
+                return h_2, P_el, N
+            else :
+                residual = [(mdot_calc - mdot) / mdot, (v_2_calc - v_2) / v_2]
+                return residual
+            
+        initial_guess = [50, v_1]
+        N, v_2 = fsolve(objective, initial_guess)
+        return objective([N, v_2], final=True)
+        
 
     def get_points_between(self, state_in, state_out, n_points=100):
         heos = state_in.heos
@@ -170,6 +216,52 @@ class Compressor_HP():
         P_el = mdot * w_tot / eta_elme
 
         return h_2, P_el, mdot 
+    
+    def Solve_2(self, state_in, p_2, mdot) :
+        '''
+        if state_in.Q != -1: 
+            raise ValueError("Inlet state must be a saturated state (Q = -1) for this compressor model.")
+        '''
+        
+        # Isentropic compression
+        heos = state_in.heos
+        heos.update(CoolProp.HmassP_INPUTS, state_in.h, state_in.p)
+        v_1 = 1/heos.rhomass()
+        v_ad = v_1 / self.BVR
+        heos.update(CoolProp.DmassSmass_INPUTS, 1/v_ad, state_in.s)
+        h_ad = heos.hmass()
+        p_ad = heos.p()
+        w_su_ad = h_ad - state_in.h
+
+        def objective(args, final=False): 
+            #print(args)
+            N, v_2 = args
+            mdot_calc = self.mass_flow(v_1, v_2, N)
+            
+            #Isochoric compression 
+            w_ad_ex = v_ad * (p_2 - p_ad)
+            eta_is_max = self.eta_is_max(N)
+            w_tot = (w_ad_ex + w_su_ad) / eta_is_max
+
+            # Discharge state
+            heos.update(CoolProp.HmassP_INPUTS, state_in.h + w_tot, p_2)
+            h_2 = state_in.h + w_tot
+            v_2_calc = 1/heos.rhomass()
+
+            #mdot = self.mass_flow(v_1, v_2_calc, N)
+            eta_elme = self.eta_elme(v_1, v_2_calc, N)
+            P_el = mdot * w_tot / eta_elme
+
+            if final :
+                residual = [(mdot_calc - mdot) / mdot, (v_2_calc - v_2) / v_2]
+                return h_2, P_el, N
+            else :
+                residual = [(mdot_calc - mdot) / mdot, (v_2_calc - v_2) / v_2]
+                return residual
+            
+        initial_guess = [50, v_1]
+        N, v_2 = fsolve(objective, initial_guess)
+        return objective([N, v_2], final=True)
     
     def get_points_between(self, state_in, state_out, n_points=100):
         heos = state_in.heos
