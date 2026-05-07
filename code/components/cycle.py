@@ -55,6 +55,11 @@ class Cycle():
         self.P_comp_bottom = None   # Compressor power in bottom cycle [W] (useful for dual-evaporator cycles)
         self.P_comp_top = None   # Compressor power in top cycle [W] (useful for dual-evaporator cycles)
 
+        # Power of the heat exchangers
+        self.Q_LT = None      # Heat transfer rate in low temperature heat exchanger [W]
+        self.Q_MT = None      # Heat transfer rate in medium temperature heat exchanger [W]
+        self.Q_HT = None      # Heat transfer rate in high temperature heat exchanger [W]
+
         # List of transforms
         self.transforms = []
 
@@ -238,7 +243,7 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, plot = True, n=100, save = True, external_circuits = False) : 
+    def Ts_diagram(self, plot = True, n=100, save = True, external_circuits = False, only_points = False) : 
         # Generate saturation curve for working fluid
 
         if plot is False and save is False :
@@ -266,7 +271,10 @@ class Cycle():
                 T_points_transform, s_points_transform = transform.get_points_between(states[transform.label_in_secondary], states[transform.label_out_secondary], n)[:2]
                 T_points.append(T_points_transform)
                 s_points.append(s_points_transform)
-                labels_transform.append(transform.type)    
+                labels_transform.append(transform.type)  
+
+        if only_points :
+            return T_points, s_points, states  
 
         
         heos = CoolProp.AbstractState("HEOS", list(states.values())[0].fluid)
