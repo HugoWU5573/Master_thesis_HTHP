@@ -168,17 +168,6 @@ if show_part_2_dual_curve :
     plt.savefig(f'code/Figures/Case_Studies/COP_vs_alpha_2.pdf')
     plt.show()
 
-    """
-
-    COMMENTS ON THIS PLOT :
-        - At low alpha, the red COP is higher than the black COP, which is counterintuitive at first glance. 
-        However, this is because the portion of heat that is taken at the MT source is low (low impact from TMT)
-        and on the other hand, the compressor staging is more effective at low TMT than at high TMT.
-        - At high alpha, we recover the intuitive result that the black COP is higher than the red COP.
-        - At alpha = 0, both COPs should be equal but the difference is the compressor staging
-    
-    """
-
     # Plot the second law efficiency vs alpha
     plt.figure()
 
@@ -254,10 +243,10 @@ if show_part_3 :
 
     # Plot for the T_MT = 60C case
     plt.plot(alpha, intensity_low_carbon_grid_40K_60C, color="black", zorder=2, label=r"$\Delta \mathrm{T}_{\mathrm{HT}} = 40\mathrm{K}$")
-    plt.text(0.7, intensity_low_carbon_grid_40K_60C[alpha == 0.7][0]+8, r"$\mathrm{Low}$ $\mathrm{carbon}$ $\mathrm{grid}$", fontsize=12, color="black", zorder=2, rotation=-3)
+    plt.text(0.7, intensity_low_carbon_grid_40K_60C[alpha == 0.7][0]+8, r"$150$ [gCO$_2$/$\mathrm{kWh}_{\mathrm{el}}$]", fontsize=12, color="black", zorder=2, rotation=-2)
     plt.plot(alpha, intensity_low_carbon_grid_60K_60C, color="black", zorder=3, linestyle="--", label=r"$\Delta \mathrm{T}_{\mathrm{HT}} = 60\mathrm{K}$")
     plt.plot(alpha, intensity_high_carbon_grid_40K_60C, color="black", zorder=1)
-    plt.text(0.7, intensity_high_carbon_grid_40K_60C[alpha == 0.7][0]+15, r"$\mathrm{High}$ $\mathrm{carbon}$ $\mathrm{grid}$", fontsize=12, color="black", zorder=1, rotation=-9)
+    plt.text(0.7, intensity_high_carbon_grid_40K_60C[alpha == 0.7][0]+15, r"$500$ [gCO$_2$/$\mathrm{kWh}_{\mathrm{el}}$]", fontsize=12, color="black", zorder=1, rotation=-8)
     plt.plot(alpha, intensity_high_carbon_grid_60K_60C, color="black", zorder=3, linestyle="--")
     plt.fill_between(alpha, intensity_low_carbon_grid_40K_60C, intensity_low_carbon_grid_60K_60C, color="black", alpha=0.2, zorder=1, label=r"$\mathrm{T}_{\mathrm{MT}} = 60\mathrm{°C}$")
     plt.fill_between(alpha, intensity_high_carbon_grid_40K_60C, intensity_high_carbon_grid_60K_60C, color="black", alpha=0.2, zorder=1)
@@ -275,7 +264,7 @@ if show_part_3 :
     plt.ylim(0, 250)
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'Carbon Footprint  [gCO$_2$/kWh]', loc='left', fontsize=12)
+    ax.set_title(r'Carbon Footprint  [gCO$_2$/$\mathrm{kWh}_{\mathrm{th}}$]', loc='left', fontsize=12)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_position(('outward', 20))
@@ -296,11 +285,11 @@ if show_part_3 :
 
 show_part_4 = False
 
-CAPEX_heat_pump = 1000                  # [€/kW] (from Arpagaus et al. 2018 (800€) corrected for inflation to 2026 https://fxtop.com/fr/calculateur-inflation-entre-deux-dates.php)
+CAPEX_heat_pump = 1600                  # [€/kW] (from compute_cost.py, method based on Ommen et al. 2015)
 CAPEX_gas_boiler = 70                   # [€/kW] (from Bamigbetan et al. 2019 (50€ in 2009) corrected for inflation to 2026 https://fxtop.com/fr/calculateur-inflation-entre-deux-dates.php)
 natural_gas_boiler_efficiency = 0.95    # [-] (Mateu-Royo et al. 2021)
 operating_hours_per_year = 8000         # [h/year]  (from Jouhara et al. 2024 + Bamigbetan et al. 2019)
-lifetime_years = 25                     # (assumed)
+lifetime_years = 20                     # Ommen et al. 
 
 electricity_price_high = 90/1000  # [€/kWh] (e.g. EU in 2025 was 107 USD/MWh, https://www.iea.org/data-and-statistics/charts/estimated-final-electricity-price-for-large-industrial-customers-in-energy-intensive-industries-2019-2025)
 electricity_price_low = 40/1000   # [€/kWh] (e.g. USA in 2025 was 50 USD/MWh, https://www.iea.org/data-and-statistics/charts/estimated-final-electricity-price-for-large-industrial-customers-in-energy-intensive-industries-2019-2025)
@@ -356,11 +345,11 @@ if show_part_4 :
 
     # Plot for the gas boiler
     plt.plot(alpha, LCOH_gas_boiler_high*100, linestyle=":", color="black", zorder=3)
-    plt.text(0.01, LCOH_gas_boiler_high[0]*100 + 0.1, r"$\mathrm{Gas}$ $\mathrm{boiler}$ $\mathrm{high}$", fontsize=12, color="black", zorder=3)
+    plt.text(0.75, LCOH_gas_boiler_high[0]*100 + 0.1, r"$\mathrm{Gas}$ $\mathrm{boiler}$ $\mathrm{high}$", fontsize=12, color="black", zorder=3)
     plt.plot(alpha, LCOH_gas_boiler_low*100, linestyle=":", color="black", zorder=3)
-    plt.text(0.01, LCOH_gas_boiler_low[0]*100 +0.1, r"$\mathrm{Gas}$ $\mathrm{boiler}$ $\mathrm{low}$", fontsize=12, color="black", zorder=3)
-    plt.plot(alpha, LCOH_gas_boiler_low_no_tax*100, linestyle=":", color="black", zorder=2)
-    plt.text(0.01, LCOH_gas_boiler_low_no_tax[0]*100 - 0.3, r"$\mathrm{Gas}$ $\mathrm{boiler}$ $\mathrm{low}$ $\mathrm{(no}$ $\mathrm{tax)}$", fontsize=12, color="black", zorder=2)
+    plt.text(0.75, LCOH_gas_boiler_low[0]*100 +0.1, r"$\mathrm{Gas}$ $\mathrm{boiler}$ $\mathrm{low}$", fontsize=12, color="black", zorder=3)
+    #plt.plot(alpha, LCOH_gas_boiler_low_no_tax*100, linestyle=":", color="black", zorder=2)
+    #plt.text(0.01, LCOH_gas_boiler_low_no_tax[0]*100 - 0.3, r"$\mathrm{Gas}$ $\mathrm{boiler}$ $\mathrm{low}$ $\mathrm{(no}$ $\mathrm{tax)}$", fontsize=12, color="black", zorder=2)
 
     # Plot for the T_MT = 60C case
     plt.plot(alpha, LCOH_heat_pump_low_40K_60C*100, color="black", zorder=2, label=r"$\Delta \mathrm{T}_{\mathrm{HT}} = 40\mathrm{K}$")
@@ -373,8 +362,8 @@ if show_part_4 :
     # Plot for the T_MT = 40C case
     plt.plot(alpha, LCOH_heat_pump_low_40K_40C*100, color="red", zorder=2)
     plt.plot(alpha, LCOH_heat_pump_high_40K_40C*100, color="red", zorder=2)
-    plt.text(0.6, LCOH_heat_pump_high_40K_40C[alpha == 0.6]*100-0.1, r"$\mathrm{High}$ $\mathrm{cost}$ $\mathrm{grid}$", fontsize=12, color="black", zorder=2, rotation=-7)
-    plt.text(0.6, LCOH_heat_pump_low_40K_40C[alpha == 0.6]*100, r"$\mathrm{Low}$ $\mathrm{cost}$ $\mathrm{grid}$", fontsize=12, color="black", zorder=2, rotation=-3)
+    plt.text(0.75, LCOH_heat_pump_high_40K_40C[alpha == 0.75]*100-0.08, r"$9$ [c€/$\mathrm{kWh}_{\mathrm{el}}$]", fontsize=12, color="black", zorder=2, rotation=-8)
+    plt.text(0.1, LCOH_heat_pump_low_40K_40C[alpha == 0.1]*100+0.02, r"$4$ [c€/$\mathrm{kWh}_{\mathrm{el}}$]", fontsize=12, color="black", zorder=2, rotation=-3)
     plt.plot(alpha, LCOH_heat_pump_low_60K_40C*100, color="red", zorder=3, linestyle="--")
     plt.plot(alpha, LCOH_heat_pump_high_60K_40C*100, color="red", zorder=3, linestyle="--")
     plt.fill_between(alpha, LCOH_heat_pump_low_40K_40C*100, LCOH_heat_pump_low_60K_40C*100, color="red", alpha=0.2, zorder=2, label=r"$\mathrm{T}_{\mathrm{MT}} = 40\mathrm{°C}$")
@@ -382,19 +371,19 @@ if show_part_4 :
 
     plt.xlabel(r'$\alpha$  [-]', fontsize=12)
     plt.xlim(0, 1)
-    plt.ylim(1, 6)
+    plt.ylim(2, 6)
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'LCOH  [c€/kWh]', loc='left', fontsize=12)
+    ax.set_title(r'LCOH  [c€/$\mathrm{kWh}_{\mathrm{th}}$]', loc='left', fontsize=12)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_position(('outward', 20))
     ax.spines['left'].set_position(('outward', 15))
     ax.set_xticks(np.arange(0, 1.1, 0.2))
-    ax.set_yticks(np.arange(1, 6.5, 1))
+    ax.set_yticks(np.arange(2, 6.5, 1))
     plt.tick_params(axis='x', rotation=0)
     plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
-    plt.legend(frameon=False, fontsize=12, ncols=2, loc='upper right', bbox_to_anchor=(1, 1.1))
+    plt.legend(frameon=False, fontsize=12, ncols=2, loc="lower left",bbox_to_anchor=(0, -0.05))    
     plt.tight_layout()
     plt.savefig(f'code/Figures/Case_Studies/LCOH_vs_alpha.pdf')
     plt.show()
@@ -422,11 +411,58 @@ COP_single_40K_60C = COP_single[mask_40K_60C]
 COP_single_60K_40C = COP_single[mask_60K_40C]
 COP_single_60K_60C = COP_single[mask_60K_60C]
 
+delta_COP_40K_40C = (COP_single_40K_40C - COP_40K_40C) / COP_single_40K_40C
+
+delta_COP_40K_60C = (COP_single_40K_60C - COP_40K_60C) / COP_single_40K_60C
+
+delta_COP_60K_40C = (COP_single_60K_40C - COP_60K_40C) / COP_single_60K_40C
+
+delta_COP_60K_60C = (COP_single_60K_60C - COP_60K_60C) / COP_single_60K_60C
+    
+delta_COP_40K_40C_mean = np.mean(delta_COP_40K_40C)
+print(f"On average, the single evaporator configuration has a COP that is {delta_COP_40K_40C_mean*100:.3f}% higher than the dual evaporator configuration for the T_MT = 40C and delta_T_HT = 40K case.")
+delta_COP_40K_60C_mean = np.mean(delta_COP_40K_60C)
+print(f"On average, the single evaporator configuration has a COP that is {delta_COP_40K_60C_mean*100:.3f}% higher than the dual evaporator configuration for the T_MT = 60C and delta_T_HT = 40K case.")
+delta_COP_60K_40C_mean = np.mean(delta_COP_60K_40C)
+print(f"On average, the single evaporator configuration has a COP that is {delta_COP_60K_40C_mean*100:.3f}% higher than the dual evaporator configuration for the T_MT = 40C and delta_T_HT = 60K case.")
+delta_COP_60K_60C_mean = np.mean(delta_COP_60K_60C)
+print(f"On average, the single evaporator configuration has a COP that is {delta_COP_60K_60C_mean*100:.3f}% higher than the dual evaporator configuration for the T_MT = 60C and delta_T_HT = 60K case.")
+
+delta_COP_dual_single = np.mean([delta_COP_40K_40C_mean, delta_COP_40K_60C_mean, delta_COP_60K_40C_mean, delta_COP_60K_60C_mean])
+print(f"On average, the single evaporator configuration has a COP that is {delta_COP_dual_single*100:.3f}% higher than the dual evaporator configuration.")
+
+
 if show_part_5 :
 
     plt.figure()
-    plt.plot(alpha_single, COP_single_40K_40C, color="black", label=r"Two single evaporator HTHPs in parallel", linestyle="--")
-    plt.plot(alpha, COP_40K_40C, color="black", label=r"Dual evaporator HTHP", linestyle="-")
+    plt.plot([2, 5], [2, 5], color="black", linestyle="--")
+    plt.scatter(COP_single_40K_40C, COP_40K_40C, label=r"$\mathrm{T}_{\mathrm{MT}} = 40\mathrm{°C}$, $\Delta \mathrm{T}_{\mathrm{HT}} = 40\mathrm{K}$", color="black")
+    plt.scatter(COP_single_40K_60C, COP_40K_60C, label=r"$\mathrm{T}_{\mathrm{MT}} = 60\mathrm{°C}$, $\Delta \mathrm{T}_{\mathrm{HT}} = 40\mathrm{K}$", color="red")
+    plt.scatter(COP_single_60K_40C, COP_60K_40C, label=r"$\mathrm{T}_{\mathrm{MT}} = 40\mathrm{°C}$, $\Delta \mathrm{T}_{\mathrm{HT}} = 60\mathrm{K}$", color="green")
+    plt.scatter(COP_single_60K_60C, COP_60K_60C, label=r"$\mathrm{T}_{\mathrm{MT}} = 60\mathrm{°C}$, $\Delta \mathrm{T}_{\mathrm{HT}} = 60\mathrm{K}$", color="blue")
+
+    plt.xlabel(r'COP Parallel HTHPs  [-]', fontsize=12)
+    plt.xlim(2, 5)
+    plt.ylim(2, 5)
+    ax = plt.gca()
+    ax.tick_params(axis='both', which='major')
+    ax.set_title(r"COP Integrated HTHP  [-]", loc='left', fontsize=12)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
+    ax.set_xticks(np.arange(2, 5.1, 1))
+    ax.set_yticks(np.arange(2, 5.1, 1))
+    plt.tick_params(axis='x', rotation=0)
+    plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+    plt.legend(frameon=False, fontsize=12)
+    plt.tight_layout()
+    plt.savefig(f'code/Figures/Case_Studies/COP_single_vs_dual_scatter.pdf')
+    plt.show()
+
+    plt.figure()
+    plt.plot(alpha_single, COP_single_40K_40C, color="black", label=r"Parallel HTHPs", linestyle="--")
+    plt.plot(alpha, COP_40K_40C, color="black", label=r"Integrated HTHP", linestyle="-")
     plt.plot(alpha_single, COP_single_40K_60C, color="red", linestyle="--")
     plt.plot(alpha, COP_40K_60C, color="red")
     plt.plot(alpha_single, COP_single_60K_40C, color="green", linestyle="--")
@@ -458,11 +494,6 @@ if show_part_5 :
     plt.savefig(f'code/Figures/Case_Studies/COP_single_vs_dual.pdf')
     plt.show()
 
-    """
-    This plot is assuming that is is possible to achieve a lift from 15°C to 120°C with a single compressor (which is likely not the case in practice).
-    
-    """
-
 
 ###############################################################
 ## PART 6 : Create bar charts to decompose the LCOH
@@ -470,7 +501,7 @@ if show_part_5 :
 
 show_part_6 = False
 
-CAPEX_heat_pump_single = 1200              # [€/kW]  (assumed higher than the dual evaporator case because more components (one more gas cooler) and more complex compressor)
+CAPEX_heat_pump_single = 1690              # [€/kW]  (from compute_cost.py, method based on Ommen et al.)
 
     # Remark : We use the high cost (with carbon tax) case for illustration
 
@@ -518,34 +549,52 @@ if show_part_6 :
     plt.barh(2, OPEX_PART_gas_boiler, left=CAPEX_PART_gas_boiler, color="black", alpha=0.5)
     plt.barh(2, TAX_PART_gas_boiler, left=CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler, color="red")
 
-    plt.barh(1, CAPEX_PART_heat_pump_dual_CASE_1, left=0, color="black")
-    plt.barh(1, OPEX_PART_heat_pump_dual_CASE_1, left=CAPEX_PART_heat_pump_dual_CASE_1, color="black", alpha=0.5)
-    plt.barh(1, TAX_PART_heat_pump_dual_CASE_1, left=CAPEX_PART_heat_pump_dual_CASE_1 + OPEX_PART_heat_pump_dual_CASE_1, color="red")
+    plt.barh(0, CAPEX_PART_heat_pump_dual_CASE_1, left=0, color="black")
+    plt.barh(0, OPEX_PART_heat_pump_dual_CASE_1, left=CAPEX_PART_heat_pump_dual_CASE_1, color="black", alpha=0.5)
+    #plt.barh(0, TAX_PART_heat_pump_dual_CASE_1, left=CAPEX_PART_heat_pump_dual_CASE_1 + OPEX_PART_heat_pump_dual_CASE_1, color="red")
 
-    plt.barh(0, CAPEX_PART_heat_pump_single_CASE_1, left=0, color="black")
-    plt.barh(0, OPEX_PART_heat_pump_single_CASE_1, left=CAPEX_PART_heat_pump_single_CASE_1, color="black", alpha=0.5)
-    plt.barh(0, TAX_PART_heat_pump_single_CASE_1, left=CAPEX_PART_heat_pump_single_CASE_1 + OPEX_PART_heat_pump_single_CASE_1, color="red")
-
-    plt.text((CAPEX_PART_heat_pump_single_CASE_1)/2, 0, r"CAPEX", fontsize=12, color="white", va="center", ha="center")
-    plt.text(CAPEX_PART_heat_pump_single_CASE_1 + OPEX_PART_heat_pump_single_CASE_1/2, 0, r"OPEX", fontsize=12, color="white", va="center", ha="center")
-    plt.text(CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler + TAX_PART_gas_boiler/2, 2, r"CARBON TAX", fontsize=12, color="white", va="center", ha="center")
+    plt.barh(1, CAPEX_PART_heat_pump_single_CASE_1, left=0, color="black")
+    plt.barh(1, OPEX_PART_heat_pump_single_CASE_1, left=CAPEX_PART_heat_pump_single_CASE_1, color="black", alpha=0.5)
+    #plt.barh(1, TAX_PART_heat_pump_single_CASE_1, left=CAPEX_PART_heat_pump_single_CASE_1 + OPEX_PART_heat_pump_single_CASE_1, color="red")
 
     total_heat_pump_single_CASE_1 = CAPEX_PART_heat_pump_single_CASE_1 + OPEX_PART_heat_pump_single_CASE_1 + TAX_PART_heat_pump_single_CASE_1
     total_heat_pump_dual_CASE_1 = CAPEX_PART_heat_pump_dual_CASE_1 + OPEX_PART_heat_pump_dual_CASE_1 + TAX_PART_heat_pump_dual_CASE_1
     total_gas_boiler = CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler + TAX_PART_gas_boiler
 
-    plt.text(total_heat_pump_single_CASE_1+0.1, 0, "Single\nevaporator", fontsize=12, color="black", va="center", ha="left")
-    plt.text(total_heat_pump_dual_CASE_1+0.1, 1, "Dual\nevaporator", fontsize=12, color="black", va="center", ha="left")
+    gain = 1 - total_heat_pump_dual_CASE_1 / total_heat_pump_single_CASE_1
+    print(f"By switching from the single evaporator configuration to the dual evaporator configuration, the LCOH is reduced by {gain[0]*100:.1f}% in the case 1.")
+
+    percentage_CAPEX_single_CASE_1 = np.round(CAPEX_PART_heat_pump_single_CASE_1 / total_heat_pump_single_CASE_1 * 100,0)
+    percentage_CAPEX_dual_CASE_1 = np.round(CAPEX_PART_heat_pump_dual_CASE_1 / total_heat_pump_dual_CASE_1 * 100,0)
+    percentage_CAPEX_gas_boiler = np.round(CAPEX_PART_gas_boiler / total_gas_boiler * 100,0)
+
+    percentage_OPEX_single_CASE_1 = np.round(OPEX_PART_heat_pump_single_CASE_1 / total_heat_pump_single_CASE_1 * 100,0)
+    percentage_OPEX_dual_CASE_1 = np.round(OPEX_PART_heat_pump_dual_CASE_1 / total_heat_pump_dual_CASE_1 * 100,0)
+    percentage_OPEX_gas_boiler = np.round(OPEX_PART_gas_boiler / total_gas_boiler * 100,0)
+
+    percentage_TAX_single_CASE_1 = np.round(TAX_PART_heat_pump_single_CASE_1 / total_heat_pump_single_CASE_1 * 100,0)
+    percentage_TAX_dual_CASE_1 = np.round(TAX_PART_heat_pump_dual_CASE_1 / total_heat_pump_dual_CASE_1 * 100,0)
+    percentage_TAX_gas_boiler = np.round(TAX_PART_gas_boiler / total_gas_boiler * 100,0)
+
+    plt.text((CAPEX_PART_heat_pump_dual_CASE_1)/2, 0, "CAPEX\n" + str(int(percentage_CAPEX_dual_CASE_1[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_heat_pump_single_CASE_1/2, 1, str(int(percentage_CAPEX_single_CASE_1[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_heat_pump_dual_CASE_1 + OPEX_PART_heat_pump_dual_CASE_1/2, 0, "OPEX\n" + str(int(percentage_OPEX_dual_CASE_1[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_heat_pump_single_CASE_1 + OPEX_PART_heat_pump_single_CASE_1/2, 1, str(int(percentage_OPEX_single_CASE_1[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler/2, 2, str(int(percentage_OPEX_gas_boiler)) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler + TAX_PART_gas_boiler/2, 2, "CARBON TAX\n" + str(int(percentage_TAX_gas_boiler)) + "%", fontsize=12, color="white", va="center", ha="center")
+
+    plt.text(total_heat_pump_single_CASE_1+0.1, 1, "Parallel\nHTHPs", fontsize=12, color="black", va="center", ha="left")
+    plt.text(total_heat_pump_dual_CASE_1+0.1, 0, "Integrated\nHTHP", fontsize=12, color="black", va="center", ha="left")
     plt.text(total_gas_boiler+0.1, 2, "Gas\nboiler", fontsize=12, color="black", va="center", ha="left")
 
-    xmax = max(total_heat_pump_single_CASE_1, total_heat_pump_dual_CASE_1, total_gas_boiler)
-
-    plt.xlabel(r"LCOH  [c€/kWh]", fontsize=12)
+    plt.xlabel(r"LCOH  [c€/$\mathrm{kWh}_{\mathrm{th}}$]", fontsize=12)
 
     ax = plt.gca()
     ax.tick_params(axis='both', which='major', direction='in', labelsize=11)
     ax.set_yticks([])
-    ax.set_xticks([0, np.round(xmax) + 1])
+    ax.set_xticks([0, np.round(total_gas_boiler,1)])
+    ax.set_xlim(0,  np.round(total_gas_boiler,1))
+    ax.set_xticklabels([0, str(np.round(total_gas_boiler,1))])
     #ax.set_yticklabels(["Single \n evaporator \n HTHPs", "Dual \n evaporator \n HTHP", "Gas \n boiler"])
     ax.tick_params(axis='y', which='both', length=0)
     ax.invert_yaxis()
@@ -568,34 +617,49 @@ if show_part_6 :
     plt.barh(2, OPEX_PART_gas_boiler, left=CAPEX_PART_gas_boiler, color="black", alpha=0.5)
     plt.barh(2, TAX_PART_gas_boiler, left=CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler, color="red")
 
-    plt.barh(1, CAPEX_PART_heat_pump_dual_CASE_2, left=0, color="black")
-    plt.barh(1, OPEX_PART_heat_pump_dual_CASE_2, left=CAPEX_PART_heat_pump_dual_CASE_2, color="black", alpha=0.5)
-    plt.barh(1, TAX_PART_heat_pump_dual_CASE_2, left=CAPEX_PART_heat_pump_dual_CASE_2 + OPEX_PART_heat_pump_dual_CASE_2, color="red")
+    plt.barh(0, CAPEX_PART_heat_pump_dual_CASE_2, left=0, color="black")
+    plt.barh(0, OPEX_PART_heat_pump_dual_CASE_2, left=CAPEX_PART_heat_pump_dual_CASE_2, color="black", alpha=0.5)
+    plt.barh(0, TAX_PART_heat_pump_dual_CASE_2, left=CAPEX_PART_heat_pump_dual_CASE_2 + OPEX_PART_heat_pump_dual_CASE_2, color="red")
 
-    plt.barh(0, CAPEX_PART_heat_pump_single_CASE_2, left=0, color="black")
-    plt.barh(0, OPEX_PART_heat_pump_single_CASE_2, left=CAPEX_PART_heat_pump_single_CASE_2, color="black", alpha=0.5)
-    plt.barh(0, TAX_PART_heat_pump_single_CASE_2, left=CAPEX_PART_heat_pump_single_CASE_2 + OPEX_PART_heat_pump_single_CASE_2, color="red")
-
-    plt.text((CAPEX_PART_heat_pump_single_CASE_2)/2, 0, r"CAPEX", fontsize=12, color="white", va="center", ha="center")
-    plt.text(CAPEX_PART_heat_pump_single_CASE_2 + OPEX_PART_heat_pump_single_CASE_2/2, 0, r"OPEX", fontsize=12, color="white", va="center", ha="center")
-    plt.text(CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler + TAX_PART_gas_boiler/2, 2, r"CARBON TAX", fontsize=12, color="white", va="center", ha="center")
+    plt.barh(1, CAPEX_PART_heat_pump_single_CASE_2, left=0, color="black")
+    plt.barh(1, OPEX_PART_heat_pump_single_CASE_2, left=CAPEX_PART_heat_pump_single_CASE_2, color="black", alpha=0.5)
+    plt.barh(1, TAX_PART_heat_pump_single_CASE_2, left=CAPEX_PART_heat_pump_single_CASE_2 + OPEX_PART_heat_pump_single_CASE_2, color="red")
 
     total_heat_pump_single_CASE_2 = CAPEX_PART_heat_pump_single_CASE_2 + OPEX_PART_heat_pump_single_CASE_2 + TAX_PART_heat_pump_single_CASE_2
     total_heat_pump_dual_CASE_2 = CAPEX_PART_heat_pump_dual_CASE_2 + OPEX_PART_heat_pump_dual_CASE_2 + TAX_PART_heat_pump_dual_CASE_2
     total_gas_boiler = CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler + TAX_PART_gas_boiler
 
-    plt.text(total_heat_pump_single_CASE_2+0.1, 0, "Single\nevaporator", fontsize=12, color="black", va="center", ha="left")
-    plt.text(total_heat_pump_dual_CASE_2+0.1, 1, "Dual\nevaporator", fontsize=12, color="black", va="center", ha="left")
+    percentage_CAPEX_single_CASE_2 = np.round(CAPEX_PART_heat_pump_single_CASE_2 / total_heat_pump_single_CASE_2 * 100,0)
+    percentage_CAPEX_dual_CASE_2 = np.round(CAPEX_PART_heat_pump_dual_CASE_2 / total_heat_pump_dual_CASE_2 * 100,0)
+    percentage_CAPEX_gas_boiler = np.round(CAPEX_PART_gas_boiler / total_gas_boiler * 100,0)
+
+    percentage_OPEX_single_CASE_2 = np.round(OPEX_PART_heat_pump_single_CASE_2 / total_heat_pump_single_CASE_2 * 100,0)
+    percentage_OPEX_dual_CASE_2 = np.round(OPEX_PART_heat_pump_dual_CASE_2 / total_heat_pump_dual_CASE_2 * 100,0)
+    percentage_OPEX_gas_boiler = np.round(OPEX_PART_gas_boiler / total_gas_boiler * 100,0)
+
+    percentage_TAX_single_CASE_2 = np.round(TAX_PART_heat_pump_single_CASE_2 / total_heat_pump_single_CASE_2 * 100,0)
+    percentage_TAX_dual_CASE_2 = np.round(TAX_PART_heat_pump_dual_CASE_2 / total_heat_pump_dual_CASE_2 * 100,0)
+    percentage_TAX_gas_boiler = np.round(TAX_PART_gas_boiler / total_gas_boiler * 100,0)
+
+    plt.text((CAPEX_PART_heat_pump_dual_CASE_2)/2, 0, "CAPEX\n" + str(int(percentage_CAPEX_dual_CASE_2[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_heat_pump_single_CASE_2/2, 1, str(int(percentage_CAPEX_single_CASE_2[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_heat_pump_dual_CASE_2 + OPEX_PART_heat_pump_dual_CASE_2/2, 0, "OPEX\n" + str(int(percentage_OPEX_dual_CASE_2[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_heat_pump_single_CASE_2 + OPEX_PART_heat_pump_single_CASE_2/2, 1, str(int(percentage_OPEX_single_CASE_2[0])) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler/2, 2, str(int(percentage_OPEX_gas_boiler)) + "%", fontsize=12, color="white", va="center", ha="center")
+    plt.text(CAPEX_PART_gas_boiler + OPEX_PART_gas_boiler + TAX_PART_gas_boiler/2, 2, "CARBON TAX\n" + str(int(percentage_TAX_gas_boiler)) + "%", fontsize=12, color="white", va="center", ha="center")
+
+    plt.text(total_heat_pump_single_CASE_2+0.1, 1, "Parallel HTHPs", fontsize=12, color="black", va="center", ha="left")
+    plt.text(total_heat_pump_dual_CASE_2+0.1, 0, "Integrated HTHP", fontsize=12, color="black", va="center", ha="left")
     plt.text(total_gas_boiler+0.1, 2, "Gas\nboiler", fontsize=12, color="black", va="center", ha="left")
 
-    xmax = max(total_heat_pump_single_CASE_2, total_heat_pump_dual_CASE_2, total_gas_boiler)
-
-    plt.xlabel(r"LCOH  [c€/kWh]", fontsize=12)
+    plt.xlabel(r"LCOH  [c€/$\mathrm{kWh}_{\mathrm{th}}$]", fontsize=12)
 
     ax = plt.gca()
     ax.tick_params(axis='both', which='major', direction='in', labelsize=11)
     ax.set_yticks([])
-    ax.set_xticks([0, np.round(xmax) + 1])
+    ax.set_xticks([0, np.round(total_gas_boiler,1)])
+    ax.set_xlim(0,  np.round(total_gas_boiler,1))
+    ax.set_xticklabels([0, str(np.round(total_gas_boiler,1))])
     #ax.set_yticklabels(["Single \n evaporator \n HTHPs", "Dual \n evaporator \n HTHP", "Gas \n boiler"])
     ax.tick_params(axis='y', which='both', length=0)
     ax.invert_yaxis()
