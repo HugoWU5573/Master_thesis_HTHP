@@ -287,7 +287,7 @@ class Cycle():
                     T_sat_state[key] = heos.T()
         T_sat_state = list(T_sat_state.values())
 
-        plt.figure(figsize=(8,6))
+        plt.figure()
 
         s_states = np.zeros(len(states))
         T_states = np.zeros(len(states))
@@ -350,7 +350,7 @@ class Cycle():
 
         # Add some text for labels, title and custom x-axis tick labels, etc.
         ax = plt.gca()
-        ax.tick_params(axis='both', which='major')
+        ax.tick_params(axis='both', which='major', labelsize=11, direction='in')
         ax.set_title('Temperature [°C]', loc='left', fontsize=12)
 
         # Hide top and right spines
@@ -384,13 +384,13 @@ class Cycle():
         
         yticks = np.sort(yticks)
         ax.set_yticks(yticks)
-        ax.set_yticklabels([f"{v:.1f}" for v in yticks])
+        ax.set_yticklabels([f"{v:.0f}" for v in yticks])
 
         # Improve readability
         plt.tick_params(axis='x', rotation=0)
         plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
 
-        #plt.tight_layout()
+        plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
         if save : plt.savefig(f'{fig_dir}/Ts_diagram.pdf')
