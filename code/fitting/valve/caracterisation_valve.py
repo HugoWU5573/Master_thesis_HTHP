@@ -51,9 +51,18 @@ rho_valve_in = PropsSI('D', 'T', t_c, 'Q', 0, fluid)
 p_valve_in = PropsSI('P', 'T', t_c, 'Q', 0, fluid)
 p_valve_out = PropsSI('P', 'T', t_e, 'Q', 1, fluid)
 
-opening = np.array([50, 100, 150, 200, 250, 300, 350, 400, 450]) / 480 * 100                    
-Q_e = np.array([4.5, 11.5, 17.5, 19.5, 23.0, 27.0, 30, 32, 36]) * 1e3
+opening = np.array([50, 100, 150, 200, 250, 300, 350, 400, 450]) / 480 * 100  
+
+# For ETS6 - 18
+Q_e = np.array([1.25, 2.5, 4.17, 5.5, 6.5, 7.5, 8, 10.5, 12.5]) * 1e3
+
+# For ETS6 - 25
+Q_e = np.array([2.5, 7.5, 12, 15.5, 18, 21, 22, 23, 23.5]) * 1e3
+
+# For ETS6 - 32 
+#Q_e = np.array([4.5, 11.5, 17.5, 19.5, 23.0, 27.0, 30, 32, 36]) * 1e3
 mdot = Q_e / (h_evap_out - h_evap_in)
+print(mdot)
 flow_coefficent = mdot / np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
 
 A = np.polyfit(opening, flow_coefficent, 2)
@@ -65,8 +74,8 @@ fitted_mdot = fitted_flow_coefficent * np.sqrt(2 * rho_valve_in * (p_valve_in - 
 
 
 plt.figure(figsize=(8, 6))
-plt.scatter(opening, mdot * 3600, color='black', label='Experimental Data', clip_on=False)
-plt.plot(linspace_opening, fitted_mdot * 3600, color='black', label='Fitted Line', clip_on=False)
+plt.scatter(opening, mdot, color='black', label='Experimental Data', clip_on=False)
+plt.plot(linspace_opening, fitted_mdot, color='black', label='Fitted Line', clip_on=False)
 plt.xlabel(r'$z$ [%]', fontsize = 12)
 #plt.legend(fontsize = 12)
     

@@ -4,8 +4,13 @@ import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
 class Valve:
-    def __init__(self, coeffs) :
-        self.coeffs = coeffs
+    def __init__(self, type) :
+        if type == 'ETS6-25' :
+            self.coeffs = np.array([-3.71259328e-10, 6.85466880e-08, -3.66184812e-07])
+        elif type == 'ETS6-32' :
+            self.coeffs = np.array([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
+        else : 
+            raise ValueError("Unsupported valve type. Please choose 'ETS6-25' or 'ETS6-32'.")
     
     def Solve(self, state_in, mdot, z) :
         heos = state_in.heos
@@ -31,8 +36,13 @@ class Valve:
         return p_out, state_in.h
     
 class Valve_other :
-    def __init__(self, coeffs) :
-        self.coeffs = coeffs
+    def __init__(self, type) :
+        if type == 'ETS6-25' :
+            self.coeffs = np.array([-3.71259328e-10, 6.85466880e-08, -3.66184812e-07])
+        elif type == 'ETS6-32' :
+            self.coeffs = np.array([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
+        else : 
+            raise ValueError("Unsupported valve type. Please choose 'ETS6-25' or 'ETS6-32'.")
 
     def Solve(self, state_in, p_out, mdot) :
         heos = state_in.heos

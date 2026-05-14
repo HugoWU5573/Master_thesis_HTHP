@@ -66,6 +66,8 @@ p5_prime = 3e5                                  # Inlet pressure of the external
 glide_external_fluid_HT = 5                    # Mass flow rate of the external fluid in the heat sink [kg/s]
 external_fluid_HT_param = {'T5_prime': T5_prime, 'p5_prime': p5_prime, 'glide_external_fluid_HT': glide_external_fluid_HT}
 
+recuperator_LP = False
+
 
 file_name = "code/Figures/CAD/results.txt"
 data = np.loadtxt(file_name, skiprows=1)  # Skip the header row
