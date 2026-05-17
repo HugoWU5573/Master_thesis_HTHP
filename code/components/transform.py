@@ -41,13 +41,15 @@ class Transform:
             p = np.linspace(p_max, p_min, n_points)
             p_crit = heos.p_critical()
             h = state_in.h * np.ones(n_points)
+            print(p)
 
             for i, p_val in enumerate(p):
-                if np.isclose(p_val/1e5, p_crit/1e5, atol=1e-1):
+                if np.isclose(p_val/1e5, p_crit/1e5, atol=1):
                     # Skip the critical pressure to avoid problem with heos.update
                     T[i] = T[i-1]  # Assign previous temperature to avoid discontinuity
                     s[i] = s[i-1]
                 else :
+                    print(p_val)
                     heos.update(CoolProp.HmassP_INPUTS, h[0], p_val)
                     T[i] = heos.T()
                     s[i] = heos.smass()
