@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+from scipy.interpolate import interp1d
 
 ###############################################################
 ## PART 1 : Retrieve the results
@@ -672,3 +673,48 @@ if show_part_6 :
     plt.tight_layout()
     plt.savefig(f'code/Figures/Case_Studies/LCOH_Breakdown_Case_2.pdf')
     plt.show()
+
+
+###############################################################
+## PART 7 : Cost as a function of elec/gas price ratio
+###############################################################
+
+elec_gas_price_ratio_EU = electricity_price_high / gas_price_high
+elec_gas_price_ratio_US = electricity_price_low / gas_price_low
+
+f_gas = interp1d([elec_gas_price_ratio_EU, elec_gas_price_ratio_US], [gas_price_high, gas_price_low], fill_value="extrapolate")
+f_elec = interp1d([elec_gas_price_ratio_EU, elec_gas_price_ratio_US], [electricity_price_high, electricity_price_low], fill_value="extrapolate")
+
+elec_gas_price_ratio_range = np.linspace(1, 6, 100)
+electricity_price_range = f_elec(elec_gas_price_ratio_range)
+gas_price_range = f_gas(elec_gas_price_ratio_range)
+
+show_part_7 = True
+
+if show_part_7 :
+
+    plt.figure()
+    plt.scatter(elec_gas_price_ratio_EU, electricity_price_high, color="red", label="Electricity price EU")
+    plt.scatter(elec_gas_price_ratio_EU, gas_price_high, color="green", label="Gas price EU")
+    plt.scatter(elec_gas_price_ratio_US, electricity_price_low, color="blue", label="Electricity price US")
+    plt.scatter(elec_gas_price_ratio_US, gas_price_low, color="orange", label="Gas price US")
+    plt.plot(elec_gas_price_ratio_range, electricity_price_range, color="black", linestyle="--")
+    plt.plot(elec_gas_price_ratio_range, gas_price_range, color="black", linestyle="--")
+    plt.xlabel(r'$\mathrm{Electricity}$ $\mathrm{price}$ / $\mathrm{Gas}$ $\mathrm{price}$  [-]', fontsize=12)
+    ax = plt.gca()
+    ax.tick_params(axis='both', which='major')
+    ax.set_title(r'Energy prices  [€/kWh]', loc='left', fontsize=12)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
+    plt.tick_params(axis='x', rotation=0)
+    plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+    plt.legend(frameon=False, fontsize=12)
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+""" TO BE COMPLETED """

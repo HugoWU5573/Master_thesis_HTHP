@@ -50,6 +50,11 @@ Performance:
 | COP            | 2.430       |
 | alpha          | 50 %        |
 +----------------+-------------+
+
+Operational Parameters:
+(No valve openings defined)
+
+(No compressor frequencies defined)
 ======================================================================================================================
 
 

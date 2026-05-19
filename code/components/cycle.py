@@ -50,10 +50,16 @@ class Cycle():
         self.mdot_MT = None         # Medium temperature heat source mass flow rate [kg/s]
         self.mdot_HT = None         # High temperature heat source mass flow rate [kg/s]
 
-        # Power of the compressor
-        self.P_comp = None   # Compressor power [W]
+        # Compressors parameters
+        self.P_comp = None          # Compressor power [W]
         self.P_comp_bottom = None   # Compressor power in bottom cycle [W] (useful for dual-evaporator cycles)
-        self.P_comp_top = None   # Compressor power in top cycle [W] (useful for dual-evaporator cycles)
+        self.P_comp_top = None      # Compressor power in top cycle [W] (useful for dual-evaporator cycles)
+        self.N_comp_top = None      # Compressor frequency in top cycle [Hz] (useful for dual-evaporator cycles)
+        self.N_comp_bottom = None   # Compressor frequency in bottom cycle [Hz] (useful for dual-evaporator cycles)
+
+        # Valves parameters
+        self.z_LP = None            # LP valve opening [-]
+        self.z_HP = None            # HP valve opening [-]
 
         # Power of the heat exchangers
         self.Q_LT = None      # Heat transfer rate in low temperature heat exchanger [W]
@@ -71,12 +77,12 @@ class Cycle():
 
     def __str__(self):
         # ──────────────────────────────────────────────
-        # 1️⃣ Cycle title
+        # 1 Cycle title
         # ──────────────────────────────────────────────
         title = f"\n{'=' * 50}  Cycle: {self.name}  {'=' * 50}\n"
 
         # ──────────────────────────────────────────────
-        # 2️⃣ Mass flow rates
+        # 2 Mass flow rates
         # ──────────────────────────────────────────────
         mass_flow_items = [
             ("mdot_wf", self.mdot_wf),
@@ -102,7 +108,7 @@ class Cycle():
             mass_flow_str = "(No mass flow rates defined)"
 
         # ──────────────────────────────────────────────
-        # 3️⃣ Formatting helper function
+        # 3 Formatting helper function
         # ──────────────────────────────────────────────
         def fmt(value, scale=1.0, unit_fmt="{:.2f}"):
             """Safely format numerical values with scaling and optional precision."""
@@ -114,7 +120,7 @@ class Cycle():
                 return ""
 
         # ──────────────────────────────────────────────
-        # 4️⃣ Table of thermodynamic states
+        # 4 Table of thermodynamic states
         # ──────────────────────────────────────────────
         state_header = (
             "+--------+--------------+--------------+-------------------+---------------------+----------------+-------------+"
@@ -170,7 +176,7 @@ class Cycle():
         state_table_str = "\n".join(header_rows + rows)
 
         # ──────────────────────────────────────────────
-        # 5️⃣ Compressor power (show only if available)
+        # 5 Compressor power (show only if available)
         # ──────────────────────────────────────────────
         comp_items = []
         if getattr(self, "P_comp_top", None) is not None:
@@ -192,7 +198,7 @@ class Cycle():
             compressor_str = "(No compressor power defined)"
 
         # ──────────────────────────────────────────────
-        # 6️⃣ COP / Performance
+        # 6 COP / Performance
         # ──────────────────────────────────────────────
         cop_val = self.COP
         if cop_val is None:
@@ -227,7 +233,41 @@ class Cycle():
         performance_str = "\n".join(performance_lines)
 
         # ──────────────────────────────────────────────
-        # 7️⃣ Build final output string
+        # 7 Operational notes
+        # ──────────────────────────────────────────────
+
+        if self.z_LP is not None or self.z_HP is not None:
+            valve_lines = [
+                "+----------------------+------------+",
+                "| Valve Opening        | Value      |",
+                "+----------------------+------------+",
+            ]
+            if self.z_LP is not None:
+                valve_lines.append(f"| z_LP                 | {self.z_LP:.2f} %    |")
+            if self.z_HP is not None:
+                valve_lines.append(f"| z_HP                 | {self.z_HP:.2f} %    |")
+            valve_lines.append("+----------------------+------------+")
+            valve_str = "\n".join(valve_lines)
+        else:
+            valve_str = "(No valve openings defined)"
+
+        if self.N_comp_top is not None or self.N_comp_bottom is not None:
+            freq_lines = [
+                "+----------------------+------------+",
+                "| Compressor Frequency | Value [Hz] |",
+                "+----------------------+------------+",
+            ]
+            if self.N_comp_top is not None:
+                freq_lines.append(f"| N_comp_top           | {self.N_comp_top:.2f}{'':<6}|")
+            if self.N_comp_bottom is not None:
+                freq_lines.append(f"| N_comp_bottom        | {self.N_comp_bottom:.2f}{'':<6}|")
+            freq_lines.append("+----------------------+------------+")
+            freq_str = "\n".join(freq_lines)
+        else:
+            freq_str = "(No compressor frequencies defined)"
+
+        # ──────────────────────────────────────────────
+        # 8 Build final output string
         # ──────────────────────────────────────────────
         output = [
             title,
@@ -239,6 +279,10 @@ class Cycle():
             compressor_str,
             "\n\nPerformance:\n",
             performance_str,
+            "\n\nOperational Parameters:\n",
+            valve_str,
+            "\n\n",
+            freq_str,
             f"\n{'=' * 118}\n",
         ]
         return "".join(output)
@@ -358,8 +402,8 @@ class Cycle():
         ax.spines['right'].set_visible(False)
 
         # Move bottom and left spines away
-        ax.spines['bottom'].set_position(('outward', 10))
-        ax.spines['left'].set_position(('outward', 10))
+        ax.spines['bottom'].set_position(('outward', 20))
+        ax.spines['left'].set_position(('outward', 15))
 
         # Show only axis limit values for entropy (s). Keep T state ticks but ensure limits included.
         xlim = ax.get_xlim()
@@ -446,7 +490,7 @@ class Cycle():
         h_min_liq = heos.hmass()
         heos.update(CoolProp.PQ_INPUTS, p_min_state, 1)
 
-        plt.figure(figsize=(8,6))
+        plt.figure()
         for i in range(len(p_points)) :
             plt.plot(h_points[i]/1e3, p_points[i]/1e5, '-', label=labels_transform[i], color = 'firebrick', clip_on = False)
         plt.scatter(h_states/1e3, p_states/1e5, color = 'firebrick', clip_on = False)
@@ -476,8 +520,8 @@ class Cycle():
         ax.spines['right'].set_visible(False)
 
         # Move bottom and left spines away
-        ax.spines['bottom'].set_position(('outward', 10))
-        ax.spines['left'].set_position(('outward', 10))
+        ax.spines['bottom'].set_position(('outward', 20))
+        ax.spines['left'].set_position(('outward', 15))
 
         # Disable automatic tick locator
         ax.yaxis.set_major_locator(plt.NullLocator())
@@ -501,7 +545,7 @@ class Cycle():
         # Apply ticks and formatted labels (s in kJ/kg/K, T in °C)
         xticks = np.sort(xticks)
         ax.set_xticks(xticks)
-        ax.set_xticklabels([f"{v:.1f}" for v in xticks])
+        ax.set_xticklabels([f"{v:.0f}" for v in xticks])
 
         
         yticks = np.sort(yticks)
@@ -526,10 +570,10 @@ class Cycle():
         heos.update(CoolProp.PQ_INPUTS, p_crit, 0.5)
         plt.scatter(heos.hmass()/1e3, p_crit/1e5, color='black', clip_on=False, s = 15)
 
-        #plt.tight_layout()
+        plt.tight_layout()
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)
-        if save : plt.savefig(f'{fig_dir}/ph_diagram.png', dpi=600)
+        if save : plt.savefig(f'{fig_dir}/ph_diagram.pdf')
         if plot : plt.show()
         return
 

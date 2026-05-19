@@ -20,7 +20,7 @@ import numpy as np
 from scipy.optimize import root, fsolve, minimize, brentq, differential_evolution
 from time import time
 
-def run_Full_Model(name="", transcritical=False, recuperators=[False, False], save_results=False):
+def run_Full_Model(name="", transcritical=False, recuperators=[False, False], alpha=0.5, save_results=False):
 
     ############################################################
     # Model input parameters
@@ -29,7 +29,6 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
     ## Cycle parameters
     working_fluid = 'R290'      # Working fluid
     Q = 25e3                    # Heat load at the condenser/gas cooler [W]
-    alpha = 0.5                 # Heat fraction coefficient (Q_MT / (Q_MT + Q_LT)) [-]
 
     ## Heat sources parameters
 
@@ -41,7 +40,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
 
         # 2. MT source
     external_fluid_MT = 'Water'     # External fluid in the MT heat source
-    T3_prime = 40 + 273.15          # Inlet temperature of the external fluid in the MT heat source [K]
+    T3_prime = 60 + 273.15          # Inlet temperature of the external fluid in the MT heat source [K]
     glide_MT = 5                    # Temperature glide of the external fluid in the MT heat source [K]
     p_prime_MT = 3e5                # Inlet pressure of the external fluid in the MT heat source [Pa]
 
@@ -51,8 +50,8 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
         T5_prime = 60 + 273.15      # Inlet temperature of the external fluid in the heat sink [K]
         glide_HT = 5                # Temperature glide of the external fluid in the heat sink [K]
     else :
-        T5_prime = 363.15           # Inlet temperature of the external fluid in the heat sink [K]
-        glide_HT = 25               # Temperature glide of the external fluid in the heat sink [K]
+        T5_prime = 353.15           # Inlet temperature of the external fluid in the heat sink [K]
+        glide_HT = 40               # Temperature glide of the external fluid in the heat sink [K]
     p_prime_HT = 5e5                # Inlet pressure of the external fluid in the heat sink [Pa]
 
     ## Components parameters
@@ -77,7 +76,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
     # Iterative process to solve the cycle
     ############################################################
 
-    def run_cycle(p1, p3, p5, N_LP, N_HP, results=False, tol=5e-2, verbose=False):
+    def run_cycle(p1, p3, p5, N_LP, N_HP, results=False, tol=1e-3, verbose=True):
 
         # Cycle with its fixed states
         cycle_name = "Full_Model_" + name
@@ -91,8 +90,8 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
         Comp_HP = Compressor_HP()
 
         # Valves
-        Valve_LP = Valve_other([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
-        Valve_HP = Valve_other([-2.29201900e-10,  6.60049743e-08,  2.27974980e-08])
+        Valve_LP = Valve_other("ETS6-25")
+        Valve_HP = Valve_other("ETS6-25")
 
         try :
 
@@ -233,7 +232,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
 
                 # STATE 8
                 p8 = cycle.state_3.p + delta_p_evap_MT_new
-                h8, z_MT = Valve_HP.Solve(cycle.state_7, p8, (mdot_wf_top - mdot_wf_bottom))
+                h8, z_HP = Valve_HP.Solve(cycle.state_7, p8, (mdot_wf_top - mdot_wf_bottom))
                 cycle.state_8 = State(HEOS_working_fluid, p=p8, h=h8)
 
                 # STATE 3_evap
@@ -328,6 +327,12 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
                 iteration_counter += 1
 
             # Final results after convergence
+
+            cycle.z_HP = z_HP
+            cycle.z_LP = z_LP
+            cycle.N_comp_top = N_HP
+            cycle.N_comp_bottom = N_LP
+
             cycle.transforms = [Transform('hex', '5', '6', Condenser_Gas_Cooler, label_in_secondary='5_prime', label_out_secondary='6_prime'),
                                 Transform('hex', '10', '1', Evaporator_LT, label_in_secondary='1_prime', label_out_secondary='2_prime'), 
                                 Transform('hex', '8', '3_evap', Evaporator_MT, label_in_secondary='3_prime', label_out_secondary='4_prime'),
@@ -394,7 +399,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
 
             results = COP, residual_Q, residual_alpha
 
-            if verbose : print(f"End : COP = {cycle.COP:.2f}, z_LP = {z_LP:.2f} %, z_HP = {z_MT:.2f} %, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz, Q_calculated = {Q_calculated/1e3:.2f} kW, alpha_calculated = {alpha_calculated:.4f}" + "\n")
+            if verbose : print(f"End : COP = {cycle.COP:.2f}, z_LP = {z_LP:.2f} %, z_HP = {z_HP:.2f} %, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz, Q_calculated = {Q_calculated/1e3:.2f} kW, alpha_calculated = {alpha_calculated:.4f}" + "\n")
 
             return results
         
@@ -405,7 +410,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
             return np.nan, 1e6, 1e6
         
     cache = {}
-    last_inner_solution = [38.08, 58.26]  # Initial guess for N_LP and N_HP in the inner optimization (in Hz)
+    last_inner_solution = [38, 38]  # Initial guess for N_LP and N_HP in the inner optimization (in Hz)
 
     def inner_residuals(x, p1, p3, p5):
 
@@ -415,7 +420,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
 
         return [result[1], result[2]]
     
-    def objective_pressures(x, results=False, tol=5e-2):
+    def objective_pressures(x, results=False, tol=1e-3):
 
         nonlocal last_inner_solution
 
@@ -449,6 +454,10 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
         print("Inner optimization successful : N_LP = {:.2f} Hz, N_HP = {:.2f} Hz.".format(N_LP, N_HP))
 
         result = run_cycle(p1, p3, p5, N_LP, N_HP, results=results, tol=tol)
+
+        if (result[1] or result[2]) > 1e-4 :
+            print(f"Warning : High residuals for p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar : residual_Q = {result[1]:.2e}, residual_alpha = {result[2]:.2e}")
+            return 1e6
 
         COP = result[0]
 
@@ -511,16 +520,19 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], sa
         print("No solution found")
     
     # Run the iterative process one last time with the solution to get the final results
-    objective_pressures(sol.x, results=True, tol=5e-4)
+    objective_pressures(sol.x, results=True, tol=1e-3)
     
 
 
 if __name__ == "__main__":
 
-    run_SC2 = True
+    run_SC2 = False
     run_SC2R = False
+    run_TC2 = False
+    run_TC2R_single_recup = True
+    run_TC2R_dual_recup = False
 
-    save_results = False
+    save_results = True
 
     start = time()
 
@@ -532,6 +544,16 @@ if __name__ == "__main__":
     if run_SC2R :
         run_Full_Model(name="SC2R", transcritical=False, recuperators=[True, False], save_results=save_results)
 
+    if run_TC2 :
+        run_Full_Model(name="TC2", transcritical=True, recuperators=[False, False], save_results=save_results)
+    
+    if run_TC2R_single_recup :
+        run_Full_Model(name="TC2R_alpha_0_5", transcritical=True, recuperators=[True, False], alpha=0.5, save_results=save_results)
+        #run_Full_Model(name="TC2R_alpha_0_6", transcritical=True, recuperators=[True, False], alpha=0.6, save_results=save_results)
+
+    if run_TC2R_dual_recup :
+        run_Full_Model(name="TC2R_dual_recup", transcritical=True, recuperators=[True, True], save_results=save_results)
+
 
     end = time()
 
@@ -539,26 +561,3 @@ if __name__ == "__main__":
     sec = np.round((end - start) % 60, 0)
 
     print(f"Execution time : {min:.0f} min {sec:.0f} sec")
-
-
-    """
-    A FAIRE :
-        - Lorsque nous avons les deux compresseurs, le récupérateur MT ne fonctionne pas très bien (T3>T6)
-
-        - Last version : BEST COP = 3.87 and execution time = 77min
-        - New version : BEST COP = 3.94 (unknown execution time but more than 1h)
-            - Il faut essayer d'améliorer le temps d'exécution 
-
-
-        Idées pour la suite :
-            - Différents cas d'étude :
-                - Souscritique sans récupérateur
-                - Souscritique avec récupérateur LT
-                - Transcritique sans récupérateur
-                - Transcritique avec récupérateur LT
-
-            - Pour chaque cas d'étude :
-                - Changer le alpha (0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100%)
-                - Eventuellement faire varier le glide HT
-    
-    """

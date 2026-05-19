@@ -1117,9 +1117,10 @@ class HEX_Design():
             - save (boolean) : to indicate if the plot should be saved as a PNG file
             - name_cycle (str) : name of the cycle in which the HEX is integrated (used for saving the plot in the right folder)
             - plot (boolean) : to indicate if the plot should be displayed or not
+            - show_pinch_point (boolean) : to indicate if the pinch point should be highlighted on the plot
     
     """
-    def _plot(self, save=False, name_cycle=None, plot=True):
+    def _plot(self, save=False, name_cycle=None, plot=True, show_pinch_point=True):
         
         if plot is False and save is False:
             return
@@ -1136,6 +1137,15 @@ class HEX_Design():
         yticks = np.array([Tmin, Tmax])
         yticks = np.unique(yticks)
 
+        i_pinch = 0
+        T_pinch = np.inf
+
+        for i in range(len(self.TemperatureVector_c)):
+            delta_T = self.TemperatureVector_h[i] - self.TemperatureVector_c[i]
+            if delta_T < T_pinch:
+                T_pinch = delta_T
+                i_pinch = i
+
         # Compute the xticks
         xticks = np.array([0, 1]) 
         
@@ -1143,6 +1153,10 @@ class HEX_Design():
         plt.figure(self.name)
         plt.plot(self.Normalized_EnthalpyVector_c, self.TemperatureVector_c - 273.15, marker='o', color="blue", clip_on=False)
         plt.plot(self.Normalized_EnthalpyVector_h, self.TemperatureVector_h - 273.15, marker='o', color="red", clip_on=False)
+        if show_pinch_point:
+            plt.plot([self.Normalized_EnthalpyVector_c[i_pinch], self.Normalized_EnthalpyVector_c[i_pinch]], 
+                    [self.TemperatureVector_h[i_pinch] - 273.15, self.TemperatureVector_c[i_pinch]-273.15],
+                    marker="o",color='green', label='Pinch point', zorder=5, clip_on=False)
         plt.xlabel(r"$\hat{h}$ [-]", fontsize=12)
         plt.xlim(0,1)
         plt.ylim(yticks[0], yticks[-1])
@@ -1157,6 +1171,7 @@ class HEX_Design():
         ax.spines['left'].set_position(('outward', 15))
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
+        ax.set_yticklabels([f"{ytick:.0f}" for ytick in yticks])
         plt.tick_params(axis='x', rotation=0)
         plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
         plt.tight_layout()
@@ -2417,6 +2432,7 @@ class HEX_Operational():
         ax.spines['left'].set_position(('outward', 15))
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
+        ax.set_yticklabels([f"{ytick:.0f}" for ytick in yticks])
         plt.tick_params(axis='x', rotation=0)
         plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
         plt.tight_layout()
