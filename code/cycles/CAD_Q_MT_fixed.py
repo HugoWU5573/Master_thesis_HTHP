@@ -24,7 +24,7 @@ import itertools
 from multiprocessing import Pool, cpu_count, Lock
 from matplotlib import pyplot as plt
 
-def CAD(Q_cond,compressors_inputs, valves_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, recuperator, initial_guess, method = 'hybr', file_results = None, plot_figures = False, solve = False) :
+def CAD(Q_MT,compressors_inputs, valves_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, recuperator, initial_guess, method = 'hybr', file_results = None, plot_figures = False, solve = False) :
 
     # INPUTS
         # 1. Frequencies of the compressors
@@ -164,13 +164,13 @@ def CAD(Q_cond,compressors_inputs, valves_inputs, external_fluid_LT_param, exter
             cycle.alpha = cycle.Q_MT / (cycle.Q_LT + cycle.Q_MT)
 
             if recuperator :
-                residual = [(state_3_calc.h - h_3) / h_3, (state_3_calc.p - p_3) / p_3, (cycle.Q_HT - Q_cond) / Q_cond, (z_LP_calc - z_LP) / z_LP,\
+                residual = [(state_3_calc.h - h_3) / h_3, (state_3_calc.p - p_3) / p_3, (cycle.Q_MT - Q_MT) / Q_MT, (z_LP_calc - z_LP) / z_LP,\
                             (z_HP_calc - z_HP) / z_HP, (N_LP_calc - N_LP) / N_LP, (N_HP_calc - N_HP) / N_HP, (glide_LT_calc - glide_external_fluid_LT) / glide_external_fluid_LT, \
                             (glide_MT_calc - glide_external_fluid_MT) / glide_external_fluid_MT, (glide_HT_calc - glide_external_fluid_HT) / glide_external_fluid_HT, \
                             (state_1_calc.p - cycle.state_1.p) / cycle.state_1.p, (state_1_calc.h - cycle.state_1.h) / cycle.state_1.h]
             
             else : 
-                residual = [(state_3_calc.h - h_3) / h_3, (state_3_calc.p - p_3) / p_3, (cycle.Q_HT - Q_cond) / Q_cond, (z_LP_calc - z_LP) / z_LP,\
+                residual = [(state_3_calc.h - h_3) / h_3, (state_3_calc.p - p_3) / p_3, (cycle.Q_MT - Q_MT) / Q_MT, (z_LP_calc - z_LP) / z_LP,\
                             (z_HP_calc - z_HP) / z_HP, (N_LP_calc - N_LP) / N_LP, (N_HP_calc - N_HP) / N_HP, (glide_LT_calc - glide_external_fluid_LT) / glide_external_fluid_LT, \
                             (glide_MT_calc - glide_external_fluid_MT) / glide_external_fluid_MT, (glide_HT_calc - glide_external_fluid_HT) / glide_external_fluid_HT]
             
@@ -233,11 +233,11 @@ def CAD(Q_cond,compressors_inputs, valves_inputs, external_fluid_LT_param, exter
         with open(file_results, "a") as f:
             #f.write("Q_cond \t N_LP \t N_HP \t z_LP \t z_HP \t p_3 \t p_5 \t h_3 \t p_10 \t p_8 \t mdot_wf_bottom \t mdot_wf_top \t mdot_LT \t mdot_MT \t mdot_HT \t Sum of resilduals \t time \n")
             if recuperator :
-                f.write(f"{Q_cond:.2f} \t {N_LP:.2f} \t {N_HP:.2f} \t {z_LP:.2f} \t {z_HP:.2f} \t {p_3:.2f} \t {p_5:.2f} \t {h_3:.2f} \t {p_10:.2f} \t {p_8:.2f}" \
+                f.write(f"{Q_MT:.2f} \t {N_LP:.2f} \t {N_HP:.2f} \t {z_LP:.2f} \t {z_HP:.2f} \t {p_3:.2f} \t {p_5:.2f} \t {h_3:.2f} \t {p_10:.2f} \t {p_8:.2f}" \
                         f"\t {mdot_wf_bottom:.4f} \t {mdot_wf_top:.4f} \t {mdot_LT:.4f} \t {mdot_MT:.4f} \t {mdot_HT:.4f} \t {p_1:.2f} \t {h_1:.2f}" \
                         f"\t {np.sum(np.abs(residual)):.2f} \t {end - start:.2f}\n")
             else :
-                f.write(f"{Q_cond:.2f} \t {N_LP:.2f} \t {N_HP:.2f} \t {z_LP:.2f} \t {z_HP:.2f} \t {p_3:.2f} \t {p_5:.2f} \t {h_3:.2f} \t {p_10:.2f} \t {p_8:.2f}" \
+                f.write(f"{Q_MT:.2f} \t {N_LP:.2f} \t {N_HP:.2f} \t {z_LP:.2f} \t {z_HP:.2f} \t {p_3:.2f} \t {p_5:.2f} \t {h_3:.2f} \t {p_10:.2f} \t {p_8:.2f}" \
                         f"\t {mdot_wf_bottom:.4f} \t {mdot_wf_top:.4f} \t {mdot_LT:.4f} \t {mdot_MT:.4f} \t {mdot_HT:.4f} \t {np.sum(np.abs(residual)):.2f} \t " \
                         f"{end - start:.2f}\n")
 
@@ -271,17 +271,17 @@ if __name__ == '__main__':
     ############################################################
 
     # Condenser heat
-    Q_cond = 25e3  # Condenser heat load [W]
+    Q_MT = 10e3  # Condenser heat load [W]
 
     # Frequencies of the compressors 
-    N_LP = 46
-    N_HP = 38
+    N_LP = 38
+    N_HP = 38.5
     
     compressor_inputs = {'N_LP': N_LP, 'N_HP': N_HP}
 
     # Valve opening
-    z_LP = 13.5
-    z_HP = 21
+    z_LP = 12
+    z_HP = 23.5
 
     valve_inputs = {'z_LP': z_LP, 'z_HP': z_HP}
 
@@ -314,7 +314,7 @@ if __name__ == '__main__':
     recuperator_LP = True
 
     # File to save results
-    file_results = "code/Figures/CAD/results_super.txt"
+    file_results = "code/Figures/CAD/results.txt"
 
     ############################################################
     # Simulation
@@ -322,10 +322,10 @@ if __name__ == '__main__':
 
     #initial_guess = np.log(np.array([1043490.45, 2758860.91, 645057.60, 517978.52, 1045743.74, 0.0378, 0.0707, 0.4213, 0.4113, 1.1953]))
     #initial_guess = np.log(np.array([1202820.05, 4737189.71, 577162.27, 499016.54, 1208356.14, 0.0352, 0.0827, 0.3989, 0.3261, 1.1957]))
-    initial_guess = np.log(np.array([1781480.99, 4473182.32, 725165.01, 575682.12, 1783977.57, 0.0297, 0.0687, 0.4051, 0.3847, 0.1482, 574457.81, 598348.64]))
+    initial_guess = np.log(np.array([1866950.78, 4674555.58, 706838.79, 501173.71, 1872400.48, 0.0233, 0.0721, 0.3216, 0.4849, 0.1482, 500583.47, 601167.06]))
     method = 'hybr'  # You can also try 'lm'
-    cycle = CAD(Q_cond, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, recuperator_LP, \
-        initial_guess, method = method, file_results = None, plot_figures = True, solve = False)
+    cycle = CAD(Q_MT, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, recuperator_LP, \
+        initial_guess, method = method, file_results = file_results, plot_figures = True, solve = False)
     print(cycle)
     print(cycle.Q_LT, cycle.Q_MT, cycle.Q_HT, cycle.COP, cycle.alpha)
     
