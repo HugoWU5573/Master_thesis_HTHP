@@ -68,15 +68,84 @@ flow_coefficent = mdot / np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
 A = np.polyfit(opening, flow_coefficent, 2)
 print(f"Fitted valve coefficients: A = {A}")
 
+mdot_linspace = np.linspace(min(mdot), max(mdot), 100)
+mdot_calc = np.polyval(A, opening) * np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
+
+print("Max error in mass flow rate: ", np.max(np.abs(mdot_calc - mdot) / mdot))
+
+plt.figure()
+plt.scatter(mdot, mdot_calc, color = 'black', label='Calculated', clip_on=False)
+plt.plot(mdot_linspace, mdot_linspace, color='black', label='Experimental', clip_on=False)
+plt.xlabel(r'$\dot{m}_{meas}$ [kg/s]', fontsize = 12)
+#plt.legend(fontsize = 12)
+    
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax = plt.gca()
+ax.tick_params(axis='both', which='major')
+ax.set_title(r'$\dot{m}_{calc}$ [kg/s]', loc='left', fontsize=12)
+
+# Hide top and right spines
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+plt.xlim(0.01, 0.15)
+plt.ylim(0.01, 0.15)
+plt.tight_layout()
+plt.savefig('code/fitting/valve/flow_coefficient.pdf', dpi=300)
+#plt.show()
+
 linspace_opening = np.linspace(10, 100, 100)
 fitted_flow_coefficent = np.polyval(A, linspace_opening)
 fitted_mdot = fitted_flow_coefficent * np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
 
-
-plt.figure(figsize=(8, 6))
-plt.scatter(opening, mdot, color='black', label='Experimental Data', clip_on=False)
-plt.plot(linspace_opening, fitted_mdot, color='black', label='Fitted Line', clip_on=False)
+plt.figure()
+plt.plot(linspace_opening, fitted_flow_coefficent, color='black', clip_on=False)
 plt.xlabel(r'$z$ [%]', fontsize = 12)
+#plt.legend(fontsize = 12)
+    
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax = plt.gca()
+ax.tick_params(axis='both', which='major')
+ax.set_title(r'$C_D$', loc='left', fontsize=12)
+
+# Hide top and right spines
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+plt.xlim(10, 100)
+plt.ylim(0, 3e-6)
+plt.tight_layout()
+plt.savefig('code/fitting/valve/flow_coefficient.pdf', dpi=300)
+#plt.show()
+
+print(PropsSI('D', 'P', 40e5, 'Q', 0, 'R290'))
+print(PropsSI('D', 'P', 20e5, 'Q', 0, 'R290'))
+
+rho_in = PropsSI('D', 'P', 40e5, 'Q', 0, 'R290')
+dp = np.linspace(0, 40e5, 100)
+openings = np.array([10, 30, 60, 90])
+mdot = np.zeros((len(openings), len(dp)))
+for i, opening in enumerate(openings):
+    for j, delta_p in enumerate(dp):
+        flow_coefficent = np.polyval(A, opening)
+        mdot[i, j] = flow_coefficent * np.sqrt(2 * rho_in * delta_p)
+
+plt.figure()
+for i, opening in enumerate(openings):
+    plt.plot(np.sqrt(dp/40e5), mdot[i, :], label=rf'$z = {{{opening}}}\%$', clip_on=False)
+plt.xlabel(r'$\sqrt{\Delta p / p_{in}}$', fontsize = 12)
 #plt.legend(fontsize = 12)
     
 # Add some text for labels, title and custom x-axis tick labels, etc.
@@ -89,14 +158,17 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
 # Move bottom and left spines away
-ax.spines['bottom'].set_position(('outward', 10))
-ax.spines['left'].set_position(('outward', 10))
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
 
 plt.tick_params(axis='x', rotation=0)
 plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
-plt.xlim(10, 100)
-#plt.ylim(0.025, 0.225)
+plt.xlim(0, 1)
+plt.ylim(0, 0.14)
 
+plt.tight_layout()
+plt.legend(frameon=False, loc='best', fontsize=12)
+plt.savefig('code/fitting/valve/mass_flow_rate.pdf', dpi=300)
 plt.show()
 
 

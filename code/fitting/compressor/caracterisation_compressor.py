@@ -16,7 +16,7 @@ heos = CoolProp.AbstractState("HEOS&TTSE", fluid)
 weights = (0.5, 0.5)
 weights = None
 
-LP_compressor = 1
+LP_compressor = 0
 HP_compressor = not LP_compressor
 
 ################################################################################################################
@@ -590,13 +590,13 @@ if LP_compressor :
     '''
     # Isentropic efficiency
 
-    plt.figure(figsize=(8,6))
+    plt.figure()
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
         ratio_sorted_indices = np.argsort(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten())
-        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12)
+    plt.legend(fontsize=12, frameon=False)
     
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
@@ -608,8 +608,8 @@ if LP_compressor :
     ax.spines['right'].set_visible(False)
 
     # Move bottom and left spines away
-    ax.spines['bottom'].set_position(('outward', 10))
-    ax.spines['left'].set_position(('outward', 10))
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
 
     # Disable automatic tick locator
     ax.yaxis.set_major_locator(plt.NullLocator())
@@ -622,9 +622,11 @@ if LP_compressor :
     plt.ylim(floor(np.nanmin(eta_is.flatten())*100)/100, ceil(max(eta_is.flatten())*100)/100)
     plt.xlim(1.4, 3.4)
     ax.set_xticks([1.4, 1.8, 2.2, 2.6, 3.0, 3.4])
+    plt.tight_layout()
+    plt.savefig('code/fitting/compressor/eta_is_LP.pdf', dpi=300)
 
     # Total efficiency
-    plt.figure(figsize=(8,6))
+    plt.figure()
     range_of_ratios = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     for i in range(len(N)) :
         plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
@@ -643,8 +645,8 @@ if LP_compressor :
     ax.spines['right'].set_visible(False)
 
     # Move bottom and left spines away
-    ax.spines['bottom'].set_position(('outward', 10))
-    ax.spines['left'].set_position(('outward', 10))
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
 
     # Disable automatic tick locator
     ax.yaxis.set_major_locator(plt.NullLocator())
@@ -657,17 +659,18 @@ if LP_compressor :
     plt.ylim(floor(np.nanmin(eta_total.flatten())*100)/100, ceil(max(eta_total.flatten())*100)/100)
     plt.xlim(1.4, 3.4)
     ax.set_xticks([1.4, 1.8, 2.2, 2.6, 3.0, 3.4])
-    plt.show()
+    plt.tight_layout()
+    plt.savefig('code/fitting/compressor/eta_tot_LP.pdf', dpi=300)
+    #plt.show()
 
-    plt.figure(figsize=(8,6))
+    plt.figure()
     volume_ratio_range = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     eta_v_interpolated = np.zeros((len(N), len(volume_ratio_range)))
 
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Interpolated data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
+        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12)
     plt.title(r'$\eta_v$', loc='left', fontsize=12)
 
     plt.xlim(1.4, 3.4)
@@ -686,8 +689,8 @@ if LP_compressor :
     ax.spines['right'].set_visible(False)
 
     # Move bottom and left spines away
-    ax.spines['bottom'].set_position(('outward', 10))
-    ax.spines['left'].set_position(('outward', 10))
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
 
     # Disable automatic tick locator
     ax.yaxis.set_major_locator(plt.NullLocator())
@@ -698,7 +701,9 @@ if LP_compressor :
 
     ax.set_yticks([floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100, floor(np.nanmin(eta_v[1,:,:].flatten()) * 100)/100, ceil(np.nanmax(eta_v[0,:,:].flatten()) * 100)/100])
     plt.ylim(floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100)
-    plt.show()
+    plt.tight_layout()
+    plt.savefig('code/fitting/compressor/eta_v_LP.pdf', dpi=300)
+    #plt.show()
 
     print(v_1.flatten()/v_2_calc.flatten())
 
@@ -1040,13 +1045,13 @@ if HP_compressor :
     '''
     # Isentropic efficiency
 
-    plt.figure(figsize=(8,6))
+    plt.figure()
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Measured data N={N[i]} Hz', clip_on = False)
         ratio_sorted_indices = np.argsort(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten())
-        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*(i+1)], label=f'Fitted data N={N[i]} Hz', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12)
+    plt.legend(fontsize=12, frameon=False)
    
    # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
@@ -1058,8 +1063,8 @@ if HP_compressor :
     ax.spines['right'].set_visible(False)
 
     # Move bottom and left spines away
-    ax.spines['bottom'].set_position(('outward', 10))
-    ax.spines['left'].set_position(('outward', 10))
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
 
     # Disable automatic tick locator
     ax.yaxis.set_major_locator(plt.NullLocator())
@@ -1072,15 +1077,17 @@ if HP_compressor :
     plt.ylim(floor(np.nanmin(eta_is.flatten())*100)/100, ceil(max(eta_is_calc.flatten())*100)/100)
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
+    plt.tight_layout()
+    plt.savefig('code/fitting/compressor/eta_is_HP.pdf', dpi=300)
 
     # Total efficiency
-    plt.figure(figsize=(8,6))
+    plt.figure()
     range_of_ratios = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
-        plt.plot(range_of_ratios, np.polyval(coeffs_eta_total[i,:], range_of_ratios), '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Measured data N={N[i]} Hz', clip_on = False)
+        plt.plot(range_of_ratios, np.polyval(coeffs_eta_total[i,:], range_of_ratios), '-', color = colors[2*(i+1)], label=f'Fitted data N={N[i]} Hz', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=14)
+    plt.legend(fontsize=12, frameon=False)
   # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
@@ -1091,8 +1098,8 @@ if HP_compressor :
     ax.spines['right'].set_visible(False)
 
     # Move bottom and left spines away
-    ax.spines['bottom'].set_position(('outward', 10))
-    ax.spines['left'].set_position(('outward', 10))
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
 
     # Disable automatic tick locator
     ax.yaxis.set_major_locator(plt.NullLocator())
@@ -1105,13 +1112,15 @@ if HP_compressor :
     plt.ylim(floor(np.nanmin(eta_total.flatten())*100)/100, ceil(max(eta_total.flatten())*100)/100)
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
+    plt.tight_layout()
+    plt.savefig('code/fitting/compressor/eta_tot_HP.pdf', dpi=300)
     #plt.show()
 
     volume_ratio_range = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
-    plt.figure(figsize=(8,6))
+    plt.figure()
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Interpolated data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Measured data N={N[i]} Hz', clip_on = False)
+        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*(i+1)], label=f'Interpolated data N={N[i]} Hz', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
     plt.legend(fontsize=12, frameon=False)
     plt.xlim(2.4, 5.2)
@@ -1125,8 +1134,8 @@ if HP_compressor :
     ax.spines['right'].set_visible(False)
 
     # Move bottom and left spines away
-    ax.spines['bottom'].set_position(('outward', 10))
-    ax.spines['left'].set_position(('outward', 10))
+    ax.spines['bottom'].set_position(('outward', 20))
+    ax.spines['left'].set_position(('outward', 15))
 
     # Disable automatic tick locator
     ax.yaxis.set_major_locator(plt.NullLocator())
@@ -1139,7 +1148,9 @@ if HP_compressor :
     plt.ylim(floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100)
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
-    plt.show()
+    plt.tight_layout()
+    plt.savefig('code/fitting/compressor/eta_v_HP.pdf', dpi=300)
+    #plt.show()
 
 
 

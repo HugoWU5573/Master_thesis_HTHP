@@ -1,6 +1,9 @@
 import CoolProp
-from state import State
-from compressor import Compressor_LP, Compressor_HP
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from components.state import State
+from components.compressor import Compressor_LP, Compressor_HP
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -130,8 +133,8 @@ for i in range(len(N)) :
                 
                 state_in = State(heos, p = p_1[i,j,k], T = T_1[i,j,k])
                 #p_2_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_in, P[i,j,k], mdot[i,j,k], N[i])
-                #h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
-                h_2_calc, P_2_calc[i,j,k], N_calc[i,j,k] = compressor.Solve_2(state_in, p_2[i,j,k], mdot[i,j,k])
+                h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
+                #h_2_calc, P_2_calc[i,j,k], N_calc[i,j,k] = compressor.Solve_2(state_in, p_2[i,j,k], mdot[i,j,k])
                 heos.update(CoolProp.HmassP_INPUTS, h_2_calc, p_2[i,j,k])
                 T_2_calc[i,j,k] = heos.T()
             else : 
@@ -141,17 +144,86 @@ for i in range(len(N)) :
                 mdot_calc[i,j,k] = np.nan
                 N_calc[i,j,k] = np.nan
 
-plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', clip_on=False)
-plt.plot(P.flatten()/1e3, P.flatten()/1e3, 'k-', label='Ideal', clip_on=False)
-plt.show()
+error_P_max = np.nanmax(abs(P_2_calc.flatten() - P.flatten()))
+P_linspace = np.linspace(min(P.flatten()), max(P.flatten()), 100)
+plt.figure()
+plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', label = 'Calculated', clip_on=False)
+plt.plot(P_linspace/1e3, P_linspace/1e3, 'k-', label='Experimental', clip_on=False)
+plt.fill_between(P_linspace/1e3, (P_linspace - error_P_max)/1e3, (P_linspace + error_P_max)/1e3, color = 'orange', alpha=0.3, label='Error Range')
 
-plt.plot(mdot.flatten(), mdot_calc.flatten(), 'kx', clip_on=False)
-plt.plot(mdot.flatten(), mdot.flatten(), 'k-', label='Ideal', clip_on=False)
-plt.show()
+plt.text(P_linspace[len(P_linspace)//2]/1e3, (P_linspace[len(P_linspace)//2] - error_P_max)/1e3 - 0.5, r'$\Delta P_{max}$' + f': {error_P_max/1e3:.2f} kW', fontsize=12)
+plt.title(r'$P_{calc}$ [kW]', loc='left', fontsize=12)
+plt.xlabel(r'$P_{meas}$ [kW]', fontsize=12)
+# Hide top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+ax.set_xticks(np.arange(1, 7, 1))
+plt.xlim(1, 6)
+ax.set_yticks(np.arange(1, 7, 1))
+plt.ylim(1, 6)
+#plt.axis('equal')
+plt.legend(frameon=False, loc='best', fontsize=12)
+plt.tight_layout()
+plt.savefig('code/fitting/compressor/error_P_LP.pdf', dpi=300)
+#plt.show()
 
-plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', clip_on=False)
-plt.plot(T_2.flatten() - 273.15, T_2.flatten() - 273.15, 'k-', label='Ideal', clip_on=False)
-plt.show()
+plt.figure()
+error_mdot_max = np.nanmax(abs(mdot_calc.flatten() - mdot.flatten()))
+mdot_linspace = np.linspace(min(mdot.flatten()), max(mdot.flatten()), 100)
+plt.plot(mdot.flatten(), mdot_calc.flatten(), 'kx', label='Calculated', clip_on=False)
+plt.plot(mdot_linspace, mdot_linspace, 'k-', label='Experimental', clip_on=False)
+plt.fill_between(mdot_linspace, mdot_linspace - error_mdot_max, mdot_linspace + error_mdot_max, color = 'orange', alpha=0.3, label='Error Range')
+plt.text(mdot_linspace[len(mdot_linspace)//2], mdot_linspace[len(mdot_linspace)//2] - error_mdot_max - 0.005, r'$\Delta \dot{m}_{max}$' + f': {error_mdot_max:.4f} kg/s', fontsize=12)
+plt.title(r'$\dot{m}_{calc}$ [kg/s]', loc='left', fontsize=12)
+plt.xlabel(r'$\dot{m}_{meas}$ [kg/s]', fontsize=12)
+# Hide top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+plt.xlim(0.02, 0.08)
+plt.yticks(np.arange(0.02, 0.09, 0.01))
+plt.xticks(np.arange(0.02, 0.09, 0.01))
+plt.ylim(0.02, 0.08)
+plt.legend(frameon=False, loc='best', fontsize=12)
+plt.tight_layout()
+plt.savefig('code/fitting/compressor/error_mdot_LP.pdf', dpi=300)
+#plt.show()
+
+error_T_max = np.nanmax(abs(T_2_calc.flatten() - T_2.flatten()))
+linspace_T = np.linspace(min(T_2.flatten()), max(T_2.flatten()), 100)
+plt.figure()
+plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', label='Calculated', clip_on=False)
+plt.plot(linspace_T - 273.15, linspace_T - 273.15, 'k-', label='Experimental', clip_on=False)
+plt.fill_between(linspace_T - 273.15, linspace_T + error_T_max - 273.15, linspace_T - error_T_max - 273.15, color = 'orange', alpha=0.3, label='Error Range')
+plt.text(linspace_T[len(linspace_T)//2] - 273.15, linspace_T[len(linspace_T)//2] - error_T_max - 273.15 - 5, r'$\Delta T_{max}$' + f': {error_T_max:.2f} °C', fontsize=12)
+plt.title(r'$T_{calc}$ [°C]', loc='left', fontsize=12)
+plt.xlabel(r'$T_{meas}$ [°C]', fontsize=12)
+# Hide top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+plt.xlim(50, 90)
+plt.ylim(50, 90)
+plt.legend(frameon=False, loc='best', fontsize=12)
+plt.tight_layout()
+plt.savefig('code/fitting/compressor/error_T_LP.pdf', dpi=300)
+#plt.show()
 
 plt.plot(N_calc.flatten(), N_calc.flatten(), 'kx', clip_on=False)
 plt.show()
@@ -306,8 +378,8 @@ for i in range(len(N)) :
                 
                 state_in = State(heos, p = p_1[i,j,k], T = T_1[i,j,k])
                 #p_2_calc[i,j,k], T_2_calc[i,j,k] = compressor.Solve(state_in, P[i,j,k], mdot[i,j,k], N[i])
-                #h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
-                h_2_calc, P_2_calc[i,j,k], N_calc[i,j,k] = compressor.Solve_2(state_in, p_2[i,j,k], mdot[i,j,k])
+                h_2_calc, P_2_calc[i,j,k], mdot_calc[i,j,k] = compressor.Solve(state_in, p_2[i,j,k], N[i])
+                #h_2_calc, P_2_calc[i,j,k], N_calc[i,j,k] = compressor.Solve_2(state_in, p_2[i,j,k], mdot[i,j,k])
                 heos.update(CoolProp.HmassP_INPUTS, h_2_calc, p_2[i,j,k])
                 T_2_calc[i,j,k] = heos.T()
             else : 
@@ -317,16 +389,80 @@ for i in range(len(N)) :
                 mdot_calc[i,j,k] = np.nan
                 N_calc[i,j,k] = np.nan
 
-plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', clip_on=False)
-plt.plot(P.flatten()/1e3, P.flatten()/1e3, 'k-', label='Ideal', clip_on=False)
+error_P_max = np.nanmax(abs(P_2_calc.flatten() - P.flatten()))
+P_linspace = np.linspace(min(P.flatten()), max(P.flatten()), 100)
+plt.figure()
+plt.plot(P.flatten()/1e3, P_2_calc.flatten()/1e3, 'kx', label = 'Calculated', clip_on=False)
+plt.plot(P_linspace/1e3, P_linspace/1e3, 'k-', label='Experimental', clip_on=False)
+plt.fill_between(P_linspace/1e3, (P_linspace - error_P_max)/1e3, (P_linspace + error_P_max)/1e3, color = 'orange', alpha=0.3, label='Error Range')
+
+plt.text(P_linspace[len(P_linspace)//2]/1e3, (P_linspace[len(P_linspace)//2] - error_P_max)/1e3 - 0.5, r'$\Delta P_{max}$' + f': {error_P_max/1e3:.2f} kW', fontsize=12)
+plt.title(r'$P_{calc}$ [kW]', loc='left', fontsize=12)
+plt.xlabel(r'$P_{meas}$ [kW]', fontsize=12)
+# Hide top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+ax.set_xticks(np.arange(1, 7, 1))
+plt.xlim(1, 6)
+ax.set_yticks(np.arange(1, 7, 1))
+plt.ylim(1, 6)
+#plt.axis('equal')
+plt.legend(frameon=False, loc='best', fontsize=12)
 plt.show()
 
-plt.plot(mdot.flatten(), mdot_calc.flatten(), 'kx', clip_on=False)
-plt.plot(mdot.flatten(), mdot.flatten(), 'k-', label='Ideal', clip_on=False)
+plt.figure()
+error_mdot_max = np.nanmax(abs(mdot_calc.flatten() - mdot.flatten()))
+mdot_linspace = np.linspace(min(mdot.flatten()), max(mdot.flatten()), 100)
+plt.plot(mdot.flatten(), mdot_calc.flatten(), 'kx', label='Calculated', clip_on=False)
+plt.plot(mdot_linspace, mdot_linspace, 'k-', label='Experimental', clip_on=False)
+plt.fill_between(mdot_linspace, mdot_linspace - error_mdot_max, mdot_linspace + error_mdot_max, color = 'orange', alpha=0.3, label='Error Range')
+plt.text(mdot_linspace[len(mdot_linspace)//2], mdot_linspace[len(mdot_linspace)//2] - error_mdot_max - 0.005, r'$\Delta \dot{m}_{max}$' + f': {error_mdot_max:.4f} kg/s', fontsize=12)
+plt.title(r'$\dot{m}_{calc}$ [kg/s]', loc='left', fontsize=12)
+plt.xlabel(r'$\dot{m}_{meas}$ [kg/s]', fontsize=12)
+# Hide top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+plt.xlim(0.02, 0.08)
+plt.yticks(np.arange(0.02, 0.09, 0.01))
+plt.xticks(np.arange(0.02, 0.09, 0.01))
+plt.ylim(0.02, 0.08)
+plt.legend(frameon=False, loc='best', fontsize=12)
+
 plt.show()
 
-plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', clip_on=False)
-plt.plot(T_2.flatten() - 273.15, T_2.flatten() - 273.15, 'k-', label='Ideal', clip_on=False)
+error_T_max = np.nanmax(abs(T_2_calc.flatten() - T_2.flatten()))
+linspace_T = np.linspace(min(T_2.flatten()), max(T_2.flatten()), 100)
+plt.figure()
+plt.plot(T_2.flatten() - 273.15, T_2_calc.flatten() - 273.15, 'kx', label='Calculated', clip_on=False)
+plt.plot(linspace_T - 273.15, linspace_T - 273.15, 'k-', label='Experimental', clip_on=False)
+plt.fill_between(linspace_T - 273.15, linspace_T + error_T_max - 273.15, linspace_T - error_T_max - 273.15, color = 'orange', alpha=0.3, label='Error Range')
+plt.text(linspace_T[len(linspace_T)//2] - 273.15, linspace_T[len(linspace_T)//2] - error_T_max - 273.15 - 5, r'$\Delta T_{max}$' + f': {error_T_max:.2f} °C', fontsize=12)
+plt.title(r'$T_{calc}$ [°C]', loc='left', fontsize=12)
+plt.xlabel(r'$T_{meas}$ [°C]', fontsize=12)
+# Hide top and right spines
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# Move bottom and left spines away
+ax.spines['bottom'].set_position(('outward', 20))
+ax.spines['left'].set_position(('outward', 15))
+plt.tick_params(axis='x', rotation=0)
+plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
+plt.xlim(50, 90)
+plt.ylim(50, 90)
+plt.legend(frameon=False, loc='best', fontsize=12)
 plt.show()
 
 plt.plot(N_calc.flatten(), N_calc.flatten(), 'kx', clip_on=False)
