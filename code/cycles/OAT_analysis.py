@@ -3,6 +3,7 @@
 ############################################################
 import sys
 from pathlib import Path
+from turtle import pd
 
 # Add the parent directory (code) to sys.path to enable relative imports
 code_dir = Path(__file__).parent.parent
@@ -17,12 +18,7 @@ from components.HEX import HEX_Operational
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import fsolve, root, minimize, least_squares
-import time
-import itertools
-from multiprocessing import Pool, cpu_count, Lock
 from matplotlib import pyplot as plt
-from cycles.CAD_8 import CAD
 
 ############################################################
 # Functions
@@ -41,16 +37,24 @@ def sensitivity_index(x_plus, x_minus, y_plus, y_minus) :
 # Parameters of the reference cycle
 ############################################################
 
+mode = "Q_HT_fixed"  # Mode of the cycle (Q_MT_fixed, Q_HT_fixed)
+#mode = "Q_MT_fixed"  # Mode of the cycle (Q_MT_fixed, Q_HT_fixed)
+
+if mode == "Q_HT_fixed" :
+    from CAD_Q_HT_fixed import CAD
+else :
+    from CAD_Q_MT_fixed import CAD
+
 # Condenser load
-Q_cond_ref = 25e3                                  # Condenser load of the reference cycle [W
+Q_ref = 25e3                                  # Condenser load of the reference cycle [W]
 
 # Frequencies of the compressors
 N_LP_ref = 38                                       # Frequency of the low-pressure compressor [Hz]
-N_HP_ref = 38                                       # Frequency of the high-pressure compressor [Hz]
+N_HP_ref = 38.5                                       # Frequency of the high-pressure compressor [Hz]
 
 # Valve openings
-z_LP_ref = 13.5                                     # Opening of the low-pressure valve [%]
-z_HP_ref = 20                                       # Opening of the high-pressure valve [%]
+z_LP_ref = 11.5                                     # Opening of the low-pressure valve [%]
+z_HP_ref = 23.5                                       # Opening of the high-pressure valve [%]
 
 # Heat sources parameters
 
@@ -79,108 +83,117 @@ recuperator_LP = True
 # Parameters for the OAT analysis
 ############################################################
 
-dN_max = 20                                       # Maximum variation of the compressor frequencies [Hz]
-dz_max = 15                                        # Maximum variation of the valve openings [%]
-n_points = 5                                      # Number of points for the OAT analysis (n_points = 1 means only maximum and minimum values, n_points = 2 means maximum, minimum and reference values, etc.)
-file_results = "code/Figures/CAD/results_super.txt"
-file_sensitivity_analysis = "code/Figures/CAD/sensitivity_analysis.txt"
+dN_max = 5                                       # Maximum variation of the compressor frequencies [Hz]
+dz_max = 2                                        # Maximum variation of the valve openings [%]
+n_points = 1                                      # Number of points for the OAT analysis (n_points = 1 means only maximum and minimum values, n_points = 2 means maximum, minimum and reference values, etc.)
+file_results = f"code/Figures/CAD/{mode}/results.txt"
+file_sensitivity_analysis = f"code/Figures/CAD/{mode}/sensitivity_analysis.txt"
+run_simulation = False
+run_circular_graphs = False
 
+if run_simulation :
+    ############################################################
+    # Computing the cycles for the OAT analysis
+    ############################################################
 
-############################################################
-# Computing the cycles for the OAT analysis
-############################################################
+    # Reference cycle
+    initial_guess = np.log(np.array([1866950.78, 4674555.58, 706838.79, 501173.71, 1872400.48, 0.0233, 0.0721, 0.3216, 0.4849, 0.1482, 500583.47, 601167.06]))
+    cycle_ref = CAD(Q_ref, {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}, {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}, external_fluid_LT_param, external_fluid_MT_param, \
+                    external_fluid_HT_param, recuperator_LP, initial_guess, file_results = file_results, plot_figures = False, solve = False)
 
-# Reference cycle
-initial_guess = np.log(np.array([1781480.99, 4473182.32, 725165.01, 575682.12, 1783977.57, 0.0297, 0.0687, 0.4051, 0.3847, 0.1482, 574457.81, 598348.64]))
-#cycle_ref = CAD(Q_cond_ref, {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}, {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}, external_fluid_LT_param, external_fluid_MT_param, \
-                #external_fluid_HT_param, recuperator_LP, initial_guess, file_results = file_results, plot_figures = False, solve = False)
+    initial_guess_up = np.zeros((4, len(initial_guess)))
+    initial_guess_low = np.zeros((4, len(initial_guess)))
+    for i in range(4) :
+        initial_guess_up[i] = initial_guess 
+        initial_guess_low[i] = initial_guess 
 
-initial_guess_up = np.zeros((4, len(initial_guess)))
-initial_guess_low = np.zeros((4, len(initial_guess)))
-for i in range(4) :
-    initial_guess_up[i] = initial_guess 
-    initial_guess_low[i] = initial_guess 
-
-for n in range(n_points) :
-        if n != 0 :        
-            print(f"Computing cycle for point {n+1}/{n_points} of the OAT analysis...")
-            N_LP = N_LP_ref + dN_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP, 'N_HP': N_HP_ref}
-            valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_up[0], file_results = file_results, plot_figures = False, solve = False)
-            
-            N_LP = N_LP_ref - dN_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP, 'N_HP': N_HP_ref}
-            valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_low[0], file_results = file_results, plot_figures = False, solve = False)
-            
-            N_HP = N_HP_ref + dN_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP}
-            valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_up[1], file_results = file_results, plot_figures = False, solve = False)
-            
-            N_HP = N_HP_ref - dN_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP}
-            valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_low[1], file_results = file_results, plot_figures = False, solve = False)
-            
-            z_LP = z_LP_ref + dz_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
-            valve_inputs = {'z_LP': z_LP, 'z_HP': z_HP_ref}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_up[2], file_results = file_results, plot_figures = False, solve = False)            
-            
-            z_LP = z_LP_ref - dz_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
-            valve_inputs = {'z_LP': z_LP, 'z_HP': z_HP_ref}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_low[2], file_results = file_results, plot_figures = False, solve = False)
-            
-            z_HP = z_HP_ref + dz_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
-            valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_up[3], file_results = file_results, plot_figures = False, solve = False)            
-            
-            z_HP = z_HP_ref - dz_max * (n + 1) / n_points
-            compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
-            valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP}
-            CAD(Q_cond_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                        recuperator_LP, initial_guess_low[3], file_results = file_results, plot_figures = False, solve = False)  
+    for n in range(n_points) :
+                    
+        print(f"Computing cycle for point {n+1}/{n_points} of the OAT analysis...")
+        N_LP = 1.05 * N_LP_ref #+ dN_max * (n + 1) / n_points
+        print(f"Computing cycle for N_LP = {N_LP} Hz...")
+        compressor_inputs = {'N_LP': N_LP, 'N_HP': N_HP_ref}
+        valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_up[0], file_results = file_results, plot_figures = False, solve = False)
+        
+        N_LP = 0.95 * N_LP_ref #+ dN_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP, 'N_HP': N_HP_ref}
+        valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_low[0], file_results = file_results, plot_figures = False, solve = False)
+        
+        N_HP = 1.05 * N_HP_ref #+ dN_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP}
+        valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_up[1], file_results = file_results, plot_figures = False, solve = False)
+        
+        N_HP = 0.95 * N_HP_ref #+ dN_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP}
+        valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP_ref}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_low[1], file_results = file_results, plot_figures = False, solve = False)
+        
+        z_LP = 1.05 * z_LP_ref #+ dz_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
+        valve_inputs = {'z_LP': z_LP, 'z_HP': z_HP_ref}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_up[2], file_results = file_results, plot_figures = False, solve = False)            
+        
+        z_LP = 0.95 * z_LP_ref #+ dz_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
+        valve_inputs = {'z_LP': z_LP, 'z_HP': z_HP_ref}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_low[2], file_results = file_results, plot_figures = False, solve = False)
+        
+        z_HP = 1.05 * z_HP_ref #+ dz_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
+        valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_up[3], file_results = file_results, plot_figures = False, solve = False)            
+        
+        z_HP = 0.95 * z_HP_ref #+ dz_max * (n + 1) / n_points
+        compressor_inputs = {'N_LP': N_LP_ref, 'N_HP': N_HP_ref}
+        valve_inputs = {'z_LP': z_LP_ref, 'z_HP': z_HP}
+        CAD(Q_ref, compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
+                    recuperator_LP, initial_guess_low[3], file_results = file_results, plot_figures = False, solve = False)  
 
         data = np.loadtxt(file_results, skiprows=1, usecols = np.arange(5, 5 + len(initial_guess)))  # Skip the header row
         for i in range(4) :
             initial_guess_up[i] = np.log(data[-2*4 +2*i])  # Get the last 4 lines of the file (corresponding to the last 4 cycles computed) and assign the values to the initial guesses for the next cycle
             initial_guess_low[i] = np.log(data[-2*4 +2*i + 1])
 
-
-
-'''       
-
-
-file_name = "code/Figures/CAD/results_sub.txt"
-data = np.loadtxt(file_name, skiprows=1)  # Skip the header row
+      
+data = np.loadtxt(file_results, skiprows=1)  # Skip the header row
 reference_cycle = data[0]  # Assuming the first row corresponds to the reference cycle
 N_LP_cycles = data[1:3]
 N_HP_cycles = data[3:5]
 z_LP_cycles = data[5:7]
 z_HP_cycles = data[7:9]
 
-def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, plot_figure = False, save_figure = False) : 
+length_initial_guess = 0
+if recuperator_LP : 
+    length_initial_guess = 12
+else :
+    length_initial_guess = 10
+
+
+def OAT_analysis(cycles, variable_name, threshold = 0.2, save_analysis = False, plot_figure = False, save_figure = False) : 
     # Reference cycle analysis
     compressor_inputs_ref = {'N_LP': reference_cycle[1], 'N_HP': reference_cycle[2]}
     valve_inputs_ref = {'z_LP': reference_cycle[3], 'z_HP': reference_cycle[4]}
-    initial_guess_ref = np.log(reference_cycle[5:15])
-    cycle_ref = CAD(reference_cycle[0], compressor_inputs_ref, valve_inputs_ref, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, recuperator_LP, initial_guess_ref, save_results = False, plot_figures = False, solve = True)
+    initial_guess_ref = np.log(reference_cycle[5:5 + length_initial_guess])
+    residuals = reference_cycle[5 + length_initial_guess]
+    if residuals > threshold : 
+        print("Warning: the residuals of the reference cycle are higher than the threshold, the results of the OAT analysis may not be accurate.")
+    cycle_ref = CAD(reference_cycle[0], compressor_inputs_ref, valve_inputs_ref, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param,\
+                    recuperator_LP, initial_guess_ref, file_results = False, plot_figures = False, solve = True)
     T_points_ref, s_points_ref, states_ref = cycle_ref.Ts_diagram(save = False, only_points = True)  # Get the points for the Ts diagram
 
-    T_ref = [cycle_ref.state_1.T, cycle_ref.state_3.T, cycle_ref.state_5.T, cycle_ref.state_7.T, cycle_ref.state_8.T, cycle_ref.state_10.T, cycle_ref.state_3_evap.T,\
+    T_ref = [cycle_ref.state_1.T, cycle_ref.state_2.T, cycle_ref.state_3.T, cycle_ref.state_5.T, cycle_ref.state_7.T, cycle_ref.state_8.T, cycle_ref.state_9.T, cycle_ref.state_10.T, cycle_ref.state_3_evap.T,\
             cycle_ref.state_3_comp.T, cycle_ref.state_2_prime.T, cycle_ref.state_4_prime.T, cycle_ref.state_6_prime.T]
-    p_ref = [cycle_ref.state_1.p, cycle_ref.state_3.p, cycle_ref.state_5.p, cycle_ref.state_7.p, cycle_ref.state_8.p, cycle_ref.state_10.p, cycle_ref.state_3_evap.p,\
+    p_ref = [cycle_ref.state_1.p, cycle_ref.state_2.p, cycle_ref.state_3.p, cycle_ref.state_5.p, cycle_ref.state_7.p, cycle_ref.state_8.p, cycle_ref.state_9.p, cycle_ref.state_10.p, cycle_ref.state_3_evap.p,\
             cycle_ref.state_3_comp.p, cycle_ref.state_2_prime.p, cycle_ref.state_4_prime.p, cycle_ref.state_6_prime.p]
     mass_flow_rates_ref = [cycle_ref.mdot_wf_top, cycle_ref.mdot_wf_bottom, cycle_ref.mdot_LT, cycle_ref.mdot_MT, cycle_ref.mdot_HT]
     Q_ref = [cycle_ref.Q_LT, cycle_ref.Q_MT, cycle_ref.Q_HT]
@@ -203,16 +216,16 @@ def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, 
     for i in range(2): 
         compressor_inputs = {'N_LP': cycles[i][1], 'N_HP': cycles[i][2]}
         valve_inputs = {'z_LP': cycles[i][3], 'z_HP': cycles[i][4]}
-        initial_guess = np.log(cycles[i][5:15])
+        initial_guess = np.log(cycles[i][5:5 + length_initial_guess])
         cycle = CAD(cycles[i][0], compressor_inputs, valve_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, \
-                    recuperator_LP, initial_guess, save_results = False, plot_figures = False, solve = True)
+                    recuperator_LP, initial_guess, file_results = False, plot_figures = False, solve = True)
         
         T_points_cycle, s_points_cycle, states_cycle = cycle.Ts_diagram(save = False, only_points = True)  # Get the points for the Ts diagram
         T_points.append(T_points_cycle) ; s_points.append(s_points_cycle) ; states.append(states_cycle)
 
-        T.append([cycle.state_1.T, cycle.state_3.T, cycle.state_5.T, cycle.state_7.T, cycle.state_8.T, cycle.state_10.T, cycle.state_3_evap.T,\
+        T.append([cycle.state_1.T, cycle.state_2.T, cycle.state_3.T, cycle.state_5.T, cycle.state_7.T, cycle.state_8.T, cycle.state_9.T, cycle.state_10.T, cycle.state_3_evap.T,\
                 cycle.state_3_comp.T, cycle.state_2_prime.T, cycle.state_4_prime.T, cycle.state_6_prime.T])
-        p.append([cycle.state_1.p, cycle.state_3.p, cycle.state_5.p, cycle.state_7.p, cycle.state_8.p, cycle.state_10.p, cycle.state_3_evap.p,\
+        p.append([cycle.state_1.p, cycle.state_2.p, cycle.state_3.p, cycle.state_5.p, cycle.state_7.p, cycle.state_8.p, cycle.state_9.p, cycle.state_10.p, cycle.state_3_evap.p,\
                 cycle.state_3_comp.p, cycle.state_2_prime.p, cycle.state_4_prime.p, cycle.state_6_prime.p])
         mass_flow_rates.append([cycle.mdot_wf_top, cycle.mdot_wf_bottom, cycle.mdot_LT, cycle.mdot_MT, cycle.mdot_HT])
         Q.append([cycle.Q_LT, cycle.Q_MT, cycle.Q_HT])
@@ -257,7 +270,7 @@ def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, 
 
 
     if plot_figure : 
-
+        T = T.tolist() ; p = p.tolist() ; mass_flow_rates = mass_flow_rates.tolist() ; Q = Q.tolist() ; P = P.tolist() ; COP = COP.tolist() ; alpha = alpha.tolist()
         def draw_radar(ax, variables, values_min, values_max, max_value) :
             num_vars = len(variables)
             values_min = values_min.tolist()
@@ -302,11 +315,11 @@ def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, 
             
 
         # --- DONNÉES POUR LES 4 GRAPHIQUES ---
-
+        print(T)
         # Graphe 1 (Températures)
         vars1 = [r'$T_1$', r'$T_3$', r'$T_5$', r'$T_{3,evap}$', r'$T_{3,comp}$']
-        min1 = np.array(T[1][:3] + [T[0][6], T[0][7]]) / np.array(T_ref[:3] + [T_ref[6], T_ref[7]]) 
-        max1 = np.array(T[0][:3] + [T[1][6], T[1][7]]) / np.array(T_ref[:3] + [T_ref[6], T_ref[7]])
+        min1 = np.array(T[1][:3] + [T[1][6], T[1][7]]) / np.array(T_ref[:3] + [T_ref[6], T_ref[7]]) 
+        max1 = np.array(T[1][:3] + [T[0][6], T[0][7]]) / np.array(T_ref[:3] + [T_ref[6], T_ref[7]])
 
         # Graphe 2 (Pressions)
         vars2 = [r'$p_1$', r'$p_3$', r'$p_5$']
@@ -344,7 +357,7 @@ def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, 
         draw_radar(axes[1][1], vars4, min4, max4, max_value = max_value)
         plt.tight_layout()
         if save_figure :
-            plt.savefig(f"code/Figures/CAD/OAT_analysis_{variable_name}.png", dpi=300, bbox_inches='tight')
+            plt.savefig(f"code/Figures/CAD/{mode}/OAT_analysis_{variable_name}.png", dpi=300, bbox_inches='tight')
         plt.show()
 
         color = ['red', 'blue', 'green']
@@ -413,8 +426,8 @@ def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, 
         #plt.xlim((min(s_min_state/1e3, s_min_liq/1e3), s_max_state/1e3))
         #plt.ylim((T_min_state-273.15, max((T_max_state-273.15, T_crit-273.15))))
 
-        plt.xlim((1.2, 2.6))
-        plt.ylim((0, 120))
+        plt.xlim((1.2, 3))
+        plt.ylim((0, 150))
 
         T_sat = np.linspace(T_min_state, T_crit - 1, 100)
         s_liq = np.zeros(100)
@@ -454,16 +467,65 @@ def OAT_analysis(cycles, variable_name, threshold = 0.5, save_analysis = False, 
         order = [1, 2, 0]
         plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], frameon = False, fontsize = 10)
         if save_figure :
-            plt.savefig("code/Figures/CAD/Ts_diagram_" + variable_name + "_variation.png", dpi = 300, bbox_inches = 'tight')
+            plt.savefig(f"code/Figures/CAD/{mode}/Ts_diagram_{variable_name}_variation.png", dpi = 300, bbox_inches = 'tight')
         plt.show()
         
     
 
     return 
-'''
 
-OAT_analysis(N_LP_cycles, "N_LP", plot_figure = True, save_figure = True, save_analysis = False)
-OAT_analysis(N_HP_cycles, "N_HP", plot_figure = True, save_figure = True, save_analysis = False)
-OAT_analysis(z_LP_cycles, "z_LP", plot_figure = True, save_figure = True, save_analysis = False)
-OAT_analysis(z_HP_cycles, "z_HP", plot_figure = True, save_figure = True, save_analysis = False)
 
+#OAT_analysis(N_LP_cycles, "N_LP", plot_figure = True, save_figure = True, save_analysis = True)
+#OAT_analysis(N_HP_cycles, "N_HP", plot_figure = True, save_figure = True, save_analysis = True)
+#OAT_analysis(z_LP_cycles, "z_LP", plot_figure = True, save_figure = True, save_analysis = True)
+#OAT_analysis(z_HP_cycles, "z_HP", plot_figure = True, save_figure = True, save_analysis = True)
+
+import pandas as pd
+import seaborn as sns
+if mode == "Q_HT_fixed" :
+    data = np.loadtxt(file_sensitivity_analysis, skiprows=1, usecols = (14, 16, 17, 27, 28, 32, 33, 35, 36))[:4]  # Skip the header row
+    inputs = [r'$N_{LP}$', r'$N_{HP}$', r'$z_{LP}$', r'$z_{HP}$']
+    outputs = [r'$p_1$', r'$p_3$', r'$p_5$', r'$\dot{m}_{wf,top}$', r'$\dot{m}_{wf,bottom}$', \
+           r'$Q_{LT}$', r'$Q_{MT}$', r'$P_{comp,top}$', r'$P_{comp,bottom}$']  # Exemple de sorties (ajustez selon vos besoins)
+elif mode == "Q_MT_fixed" :
+    data = np.loadtxt(file_sensitivity_analysis, skiprows=1, usecols = (14, 16, 17, 27, 28, 32, 34, 35, 36))[4:8]  # Skip the header row
+    inputs = [r'$N_{LP}$', r'$N_{HP}$', r'$z_{LP}$', r'$z_{HP}$']
+    outputs = [r'$p_1$', r'$p_3$', r'$p_5$', r'$\dot{m}_{wf,top}$', r'$\dot{m}_{wf,bottom}$', \
+               r'$Q_{LT}$', r'$Q_{HT}$', r'$P_{comp,top}$', r'$P_{comp,bottom}$']  # Exemple de sorties (ajustez selon vos besoins)
+
+# Création d'un DataFrame (entrées en lignes, sorties en colonnes)
+df = pd.DataFrame(data, index=inputs, columns=outputs)
+
+
+# 2. Configuration du style graphique
+plt.figure(figsize=(10, 5)) # Ajustez la taille du rectangle ici
+sns.set_theme(style="white")
+
+# 3. Création de la heatmap rectangulaire
+ax = sns.heatmap(
+    df, 
+    annot=True,             # Affiche les valeurs numériques dans les cases
+    fmt=".2f",              # Formate les nombres avec 2 décimales
+    cmap="RdBu_r",            # Palette de couleurs : Rouge (négatif) à Bleu (positif)
+    center=0,               # Le blanc est centré sur la valeur 0
+    vmin=df.values.min(), vmax=df.values.max(),        # Limites de la barre de couleur
+    square=True,           # Permet d'avoir un format rectangulaire libre
+    linewidths=0.5,         # Ajoute la fine ligne blanche de séparation entre les cases
+    cbar_kws={"shrink": 1},  # Taille de la barre de couleur latérale
+)
+
+# 4. Personnalisation des axes pour imiter votre image
+# 1. Move the X-axis to the top FIRST
+plt.gca().xaxis.tick_top()
+
+# 2. NOW apply your styling, rotation, and alignment
+plt.xticks(fontsize=12, rotation=45, ha='left')  # Changed to 45 so they don't overlap, use 90 if you prefer completely vertical
+plt.yticks(fontsize=12, rotation=0) 
+
+# 3. Hide the little tick marks
+ax.tick_params(axis='both', which='both', length=0)
+
+# 4. Clean up layout and display
+plt.tight_layout()
+plt.savefig(f"code/Figures/CAD/{mode}/heatmap_sensitivity_analysis.pdf", dpi=300, bbox_inches='tight')
+plt.show()
