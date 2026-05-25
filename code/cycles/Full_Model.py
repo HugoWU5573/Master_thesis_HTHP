@@ -20,7 +20,7 @@ import numpy as np
 from scipy.optimize import root, fsolve, minimize, brentq, differential_evolution
 from time import time
 
-def run_Full_Model(name="", transcritical=False, recuperators=[False, False], alpha=0.5, save_results=False):
+def run_Full_Model(name="", transcritical=False, recuperators=[False, False], Q_HT=25e3, Q_MT=10e3, save_results=False, plot_results=False):
 
     ############################################################
     # Model input parameters
@@ -28,7 +28,6 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
 
     ## Cycle parameters
     working_fluid = 'R290'      # Working fluid
-    Q = 25e3                    # Heat load at the condenser/gas cooler [W]
 
     ## Heat sources parameters
 
@@ -98,6 +97,10 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
             # Check that the pressures are in the correct order
             if (p3 <= p1) or (p5 <= p3) :
                 raise ValueError(f"Invalid pressures : p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar. They must satisfy p1 < p3 < p5.")
+            
+            # Check that the compressor frequencies are positive
+            if (N_LP <= 0) or (N_HP <= 0) :
+                raise ValueError(f"Invalid compressor frequencies : N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz. They must be positive.")
 
             # Initial guesses
 
@@ -109,20 +112,18 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
                 # Mass flow rate in the condenser/gas cooler
             HEOS_external_fluid_HT.update(CoolProp.PT_INPUTS, p_prime_HT, T5_prime)
             cp = HEOS_external_fluid_HT.cpmass()
-            m_dot_HT_first_guess = Q/(cp*glide_HT)
+            m_dot_HT_first_guess = Q_HT/(cp*glide_HT)
 
                 # Mass flow rate in the Evaporator LT
-            COP_guess = 4
-            Q_evap_LT_guess = (COP_guess-1)/COP_guess*Q*(1-alpha)
+            Q_evap_LT_guess = Q_MT   # Assuming an alpha of 0.5 for the initial guess
             HEOS_external_fluid_LT.update(CoolProp.PT_INPUTS, p_prime_LT, T1_prime)
             cp = HEOS_external_fluid_LT.cpmass()
             m_dot_LT_first_guess = Q_evap_LT_guess/(cp*glide_LT)
 
                 # Mass flow rate in the Evaporator MT
-            Q_evap_MT_guess = (COP_guess-1)/COP_guess*Q*alpha
             HEOS_external_fluid_MT.update(CoolProp.PT_INPUTS, p_prime_MT, T3_prime)
             cp = HEOS_external_fluid_MT.cpmass()
-            m_dot_MT_first_guess = Q_evap_MT_guess/(cp*glide_MT)
+            m_dot_MT_first_guess = Q_MT/(cp*glide_MT)
 
                 # Pressure drop in the evaporator LT
             delta_p_evap_LT_guess = 2000
@@ -158,7 +159,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
                     print(f"The input parameters are p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz.")
 
                 # Stop if there are too many iterations to avoid infinite loops
-                if iteration_counter > 20 :
+                if iteration_counter > 30 :
                     raise ValueError("Too many iterations. The solution may not be converging.")
 
                 # STATE 1
@@ -343,22 +344,23 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
                                 Transform('comp', '4', '5', Comp_HP)]
 
             if recuperators[0] :
-                cycle.transforms.append(Transform('hex', '1', '2', Recuperator_LT))
+                cycle.transforms.append(Transform('hex', '1', '2', Recuperator_LT, label_in_secondary='7', label_out_secondary='9'))
             if recuperators[1] :
-                cycle.transforms.append(Transform('hex', '3', '4', Recuperator_MT))
+                cycle.transforms.append(Transform('hex', '3', '4', Recuperator_MT, label_in_secondary='6', label_out_secondary='7'))
             
             cycle.mdot_wf_top = mdot_wf_top
             cycle.mdot_wf_bottom = mdot_wf_bottom
             cycle.P_comp_top = P_HP
             cycle.P_comp_bottom = P_LP
             cycle.alpha = (Evaporator_MT.Q)/(Evaporator_LT.Q + Evaporator_MT.Q)
+            Q_calculated = Condenser_Gas_Cooler.Q
 
             cycle.COP = Q_calculated/(cycle.P_comp_top + cycle.P_comp_bottom)
 
             if results:
 
-                cycle.Ts_diagram(save = save_results)
-                cycle.ph_diagram(save = save_results)
+                cycle.Ts_diagram(save = save_results, plot=plot_results)
+                cycle.ph_diagram(save = save_results, plot=plot_results)
 
                 print(cycle)
                 
@@ -369,13 +371,13 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
                     print(Recuperator_LT)
                 if recuperators[1] :
                     print(Recuperator_MT)
-                Evaporator_LT._plot(save = save_results, name_cycle=cycle.name)
-                Evaporator_MT._plot(save = save_results, name_cycle=cycle.name)
-                Condenser_Gas_Cooler._plot(save = save_results, name_cycle=cycle.name)
+                Evaporator_LT._plot(save = save_results, name_cycle=cycle.name, plot=plot_results)
+                Evaporator_MT._plot(save = save_results, name_cycle=cycle.name, plot=plot_results)
+                Condenser_Gas_Cooler._plot(save = save_results, name_cycle=cycle.name, plot=plot_results)
                 if recuperators[0] :
-                    Recuperator_LT._plot(save = save_results, name_cycle=cycle.name)
+                    Recuperator_LT._plot(save = save_results, name_cycle=cycle.name, plot=plot_results)
                 if recuperators[1] :
-                    Recuperator_MT._plot(save = save_results, name_cycle=cycle.name)
+                    Recuperator_MT._plot(save = save_results, name_cycle=cycle.name, plot=plot_results)
 
                 # Save prints to a text file
                 if save_results:
@@ -392,16 +394,15 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
                             f.write('\n' + str(Recuperator_MT) + '\n')
 
 
-            residual_Q = (Q_calculated - Q)/Q
-            alpha_calculated = Evaporator_MT.Q/(Evaporator_LT.Q + Evaporator_MT.Q)
-            residual_alpha = alpha_calculated - alpha
+            residual_Q_HT = (Q_calculated - Q_HT)/Q_HT
+            residual_Q_MT = (Evaporator_MT.Q - Q_MT)/Q_MT
             COP = cycle.COP
 
-            results = COP, residual_Q, residual_alpha
+            returns = COP, residual_Q_HT, residual_Q_MT
 
-            if verbose : print(f"End : COP = {cycle.COP:.2f}, z_LP = {z_LP:.2f} %, z_HP = {z_HP:.2f} %, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz, Q_calculated = {Q_calculated/1e3:.2f} kW, alpha_calculated = {alpha_calculated:.4f}" + "\n")
+            if verbose : print(f"End : COP = {cycle.COP:.2f}, z_LP = {z_LP:.2f} %, z_HP = {z_HP:.2f} %, N_LP = {N_LP:.2f} Hz, N_HP = {N_HP:.2f} Hz, Q_HT = {Q_calculated/1e3:.2f} kW, Q_MT = {Evaporator_MT.Q/1e3:.2f} kW\n")
 
-            return results
+            return returns
         
         except Exception as e:
 
@@ -455,7 +456,7 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
 
         result = run_cycle(p1, p3, p5, N_LP, N_HP, results=results, tol=tol)
 
-        if (result[1] or result[2]) > 1e-4 :
+        if (result[1] or result[2]) > 5e-4 :
             print(f"Warning : High residuals for p1 = {p1/1e5:.2f} bar, p3 = {p3/1e5:.2f} bar, p5 = {p5/1e5:.2f} bar : residual_Q = {result[1]:.2e}, residual_alpha = {result[2]:.2e}")
             return 1e6
 
@@ -526,33 +527,24 @@ def run_Full_Model(name="", transcritical=False, recuperators=[False, False], al
 
 if __name__ == "__main__":
 
-    run_SC2 = False
-    run_SC2R = False
-    run_TC2 = False
     run_TC2R_single_recup = True
-    run_TC2R_dual_recup = False
 
     save_results = True
+    plot_results = False
 
     start = time()
 
-    # SC2 cycle
-    if run_SC2 :
-        run_Full_Model(name="SC2", transcritical=False, recuperators=[False, False], save_results=save_results)
-
-    # SC2R cycle
-    if run_SC2R :
-        run_Full_Model(name="SC2R", transcritical=False, recuperators=[True, False], save_results=save_results)
-
-    if run_TC2 :
-        run_Full_Model(name="TC2", transcritical=True, recuperators=[False, False], save_results=save_results)
-    
     if run_TC2R_single_recup :
-        run_Full_Model(name="TC2R_alpha_0_5", transcritical=True, recuperators=[True, False], alpha=0.5, save_results=save_results)
-        #run_Full_Model(name="TC2R_alpha_0_6", transcritical=True, recuperators=[True, False], alpha=0.6, save_results=save_results)
+        run_Full_Model(name="TC2R_25_10", transcritical=True, recuperators=[True, False], Q_HT=25e3, Q_MT=10e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_25_12", transcritical=True, recuperators=[True, False], Q_HT=25e3, Q_MT=12e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_25_8", transcritical=True, recuperators=[True, False], Q_HT=25e3, Q_MT=8e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_25_6", transcritical=True, recuperators=[True, False], Q_HT=25e3, Q_MT=6e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_25_4", transcritical=True, recuperators=[True, False], Q_HT=25e3, Q_MT=4e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_23_10", transcritical=True, recuperators=[True, False], Q_HT=23e3, Q_MT=10e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_27_10", transcritical=True, recuperators=[True, False], Q_HT=27e3, Q_MT=10e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_21_10", transcritical=True, recuperators=[True, False], Q_HT=21e3, Q_MT=10e3, save_results=save_results, plot_results=plot_results)
+        #run_Full_Model(name="TC2R_31_10", transcritical=True, recuperators=[True, False], Q_HT=31e3, Q_MT=10e3, save_results=save_results, plot_results=plot_results)
 
-    if run_TC2R_dual_recup :
-        run_Full_Model(name="TC2R_dual_recup", transcritical=True, recuperators=[True, True], save_results=save_results)
 
 
     end = time()

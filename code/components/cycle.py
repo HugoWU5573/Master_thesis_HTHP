@@ -287,7 +287,7 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, plot = True, n=100, save = True, external_circuits = False, only_points = False) : 
+    def Ts_diagram(self, plot = True, n=200, save = True, external_circuits = False, only_points = False) : 
         # Generate saturation curve for working fluid
 
         if plot is False and save is False :
@@ -441,7 +441,7 @@ class Cycle():
         if plot : plt.show()
         return
     
-    def ph_diagram(self, plot = True, n=100, save = True) :
+    def ph_diagram(self, plot = True, n=200, save = True) :
         # Generate saturation curve for working fluid
 
         if plot is False and save is False :

@@ -1226,7 +1226,7 @@ class HEX_Design():
         dPc_ratio = np.where(dPc_ratio > yticks[-1], np.nan, dPc_ratio)
 
         # X ticks
-        xticks = np.array([N_array[0], N_array[-1]])
+        xticks = np.array([N_array[0], self.Nb_plates,N_array[-1]])
 
         plt.figure(self.name + "_Design")
         plt.plot(N_array, area_ratio, color="black",marker=".", clip_on=False, label=r"$\frac{A_{\mathrm{geom}}}{A_{\mathrm{required}}}$")
@@ -1257,7 +1257,7 @@ class HEX_Design():
                         labelsize=11,
                         direction='in')
 
-        plt.legend(loc='upper right', fontsize=12, frameon=True, edgecolor='black')
+        plt.legend(fontsize=14, frameon=False)
         plt.tight_layout()
 
         if save and (name_cycle is not None):
@@ -2466,6 +2466,36 @@ class HEX_Operational():
             for i in range(len(h)):
                 self.HEOS_cold.update(CoolProp.HmassP_INPUTS, h[i], p[i])
                 s[i] = self.HEOS_cold.smass()
+
+        if self.state_in_c.fluid != "Water" and self.state_in_h.fluid != "Water" :
+
+            T1 = self.TemperatureVector_c
+            p1 = self.PressureVector_c
+            h1 = self.EnthalpyVector_c
+            s1 = np.zeros(len(h1))
+            for i in range(len(h1)):
+                self.HEOS_cold.update(CoolProp.HmassP_INPUTS, h1[i], p1[i])
+                s1[i] = self.HEOS_cold.smass()
+            T2 = self.TemperatureVector_h
+            p2 = self.PressureVector_h
+            h2 = self.EnthalpyVector_h
+            s2 = np.zeros(len(h2))
+            for i in range(len(h2)):
+                self.HEOS_hot.update(CoolProp.HmassP_INPUTS, h2[i], p2[i])
+                s2[i] = self.HEOS_hot.smass()
+
+            intermediate_T = np.nan
+            intermediate_p = np.nan
+            intermediate_h = np.nan
+            intermediate_s = np.nan
+
+            T = np.concatenate((T1, [intermediate_T], T2))
+            p = np.concatenate((p1, [intermediate_p], p2))
+            h = np.concatenate((h1, [intermediate_h], h2))
+            s = np.concatenate((s1, [intermediate_s], s2))
+
+            print(self.name)
+            print(T)
 
         return T, s, p, h
 
