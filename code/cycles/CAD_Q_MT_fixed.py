@@ -20,8 +20,6 @@ import CoolProp
 import numpy as np
 from scipy.optimize import fsolve, root, minimize, least_squares
 import time
-import itertools
-from multiprocessing import Pool, cpu_count, Lock
 from matplotlib import pyplot as plt
 
 def CAD(Q_MT,compressors_inputs, valves_inputs, external_fluid_LT_param, external_fluid_MT_param, external_fluid_HT_param, recuperator, initial_guess, method = 'hybr', file_results = None, plot_figures = False, solve = False) :
