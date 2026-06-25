@@ -227,7 +227,7 @@ def OAT_analysis(cycles, variable_name, threshold = 0.2, save_analysis = False, 
                 cycle.state_3_comp.T, cycle.state_2_prime.T, cycle.state_4_prime.T, cycle.state_6_prime.T])
         p.append([cycle.state_1.p, cycle.state_2.p, cycle.state_3.p, cycle.state_5.p, cycle.state_7.p, cycle.state_8.p, cycle.state_9.p, cycle.state_10.p, cycle.state_3_evap.p,\
                 cycle.state_3_comp.p, cycle.state_2_prime.p, cycle.state_4_prime.p, cycle.state_6_prime.p])
-        mass_flow_rates.append([cycle.mdot_wf_top, cycle.mdot_wf_bottom, cycle.mdot_LT, cycle.mdot_MT, cycle.mdot_HT])
+        mass_flow_rates.append([cycle.mdot_wf_top, cycle.mdot_wf_bottom, cycle.mdot_wf_top - cycle.mdot_wf_bottom, cycle.mdot_LT, cycle.mdot_MT, cycle.mdot_HT])
         Q.append([cycle.Q_LT, cycle.Q_MT, cycle.Q_HT])
         P.append([cycle.P_comp_top, cycle.P_comp_bottom])
         COP.append(cycle.COP)
@@ -482,23 +482,24 @@ def OAT_analysis(cycles, variable_name, threshold = 0.2, save_analysis = False, 
 
 import pandas as pd
 import seaborn as sns
+
 if mode == "Q_HT_fixed" :
-    data = np.loadtxt(file_sensitivity_analysis, skiprows=1, usecols = (14, 16, 17, 27, 28, 32, 33, 35, 36))[:4]  # Skip the header row
+    data = np.loadtxt(file_sensitivity_analysis, skiprows=1, usecols = (14, 16, 17, 27, 28, 29, 34))[:4]  # Skip the header row
     inputs = [r'$N_{LP}$', r'$N_{HP}$', r'$z_{LP}$', r'$z_{HP}$']
-    outputs = [r'$p_1$', r'$p_3$', r'$p_5$', r'$\dot{m}_{wf,top}$', r'$\dot{m}_{wf,bottom}$', \
-           r'$Q_{LT}$', r'$Q_{MT}$', r'$P_{comp,top}$', r'$P_{comp,bottom}$']  # Exemple de sorties (ajustez selon vos besoins)
+    outputs = [r'$p_1$', r'$p_3$', r'$p_5$', r'$\dot{m}_{wf,top}$', r'$\dot{m}_{wf,bottom}$', r'$\Delta \dot{m}_{wf}$', \
+           r'$\dot{Q}_{MT}$']  # Exemple de sorties (ajustez selon vos besoins)
 elif mode == "Q_MT_fixed" :
-    data = np.loadtxt(file_sensitivity_analysis, skiprows=1, usecols = (14, 16, 17, 27, 28, 32, 34, 35, 36))[4:8]  # Skip the header row
+    data = np.loadtxt(file_sensitivity_analysis, skiprows=1, usecols = (14, 16, 17, 27, 28, 29, 35), max_rows=4)[:4]  # Skip the header row
     inputs = [r'$N_{LP}$', r'$N_{HP}$', r'$z_{LP}$', r'$z_{HP}$']
-    outputs = [r'$p_1$', r'$p_3$', r'$p_5$', r'$\dot{m}_{wf,top}$', r'$\dot{m}_{wf,bottom}$', \
-               r'$Q_{LT}$', r'$Q_{HT}$', r'$P_{comp,top}$', r'$P_{comp,bottom}$']  # Exemple de sorties (ajustez selon vos besoins)
+    outputs = [r'$p_1$', r'$p_3$', r'$p_5$', r'$\dot{m}_{wf,top}$', r'$\dot{m}_{wf,bottom}$', r'$\Delta \dot{m}_{wf}$', \
+               r'$\dot{Q}_{HT}$']  # Exemple de sorties (ajustez selon vos besoins)
 
 # Création d'un DataFrame (entrées en lignes, sorties en colonnes)
 df = pd.DataFrame(data, index=inputs, columns=outputs)
 
 
 # 2. Configuration du style graphique
-plt.figure(figsize=(10, 5)) # Ajustez la taille du rectangle ici
+plt.figure() # Ajustez la taille du rectangle ici
 sns.set_theme(style="white")
 
 # 3. Création de la heatmap rectangulaire
@@ -511,7 +512,7 @@ ax = sns.heatmap(
     vmin=df.values.min(), vmax=df.values.max(),        # Limites de la barre de couleur
     square=True,           # Permet d'avoir un format rectangulaire libre
     linewidths=0.5,         # Ajoute la fine ligne blanche de séparation entre les cases
-    cbar_kws={"shrink": 1},  # Taille de la barre de couleur latérale
+    cbar = False
 )
 
 # 4. Personnalisation des axes pour imiter votre image

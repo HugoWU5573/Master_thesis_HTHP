@@ -181,7 +181,8 @@ if LP_compressor :
         heos.update(CoolProp.QT_INPUTS, 0, T_evap_other[j])
         p_evap_other[j] = heos.p()
 
-    N = [25, 50] 
+    N = np.array([25, 50])
+    N_mech = [int(n * 60 / 2) for n in N]
 
     P_25 = 1e3 * np.array([
         [2.1, 2.2, 2.3, 2.3],      # 60°C
@@ -455,8 +456,8 @@ if LP_compressor :
     # Plots
     ###############################################################################
 
-    plt.plot(T_2.flatten()-273.15, T_2_calc.flatten()-273.15, 'o', label='Measured data')
-    plt.plot(T_2.flatten()-273.15, T_2_calc.flatten()-273.15, 'x', label='Fitted data')
+    plt.plot(T_2.flatten()-273.15, T_2_calc.flatten()-273.15, 'o', label='Datasheet for ')
+    plt.plot(T_2.flatten()-273.15, T_2_calc.flatten()-273.15, 'x', label='Calculated for ')
     plt.xlabel(r'$T_2$ [°C]', fontsize=15)
     plt.ylabel(r'$T_2$ [°C]', fontsize=15)
     plt.legend(fontsize=14)
@@ -521,8 +522,8 @@ if LP_compressor :
     plt.figure(figsize=(8,6))
 
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), T_2[i,:,:].flatten()-273.15, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), T_2_calc[i,:,:].flatten()-273.15, 'x', color = colors[2*i], label=f'Fitted data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), T_2[i,:,:].flatten()-273.15, 'o', color = colors[2*i], label=f'Datasheet for  N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), T_2_calc[i,:,:].flatten()-273.15, 'x', color = colors[2*i], label=f'Calculated for  N={N[i]} Hz')
 
     plt.xlabel(r'$v_1 / v_2$', fontsize=15)
     plt.ylabel(r'$T_2$ [°C]', fontsize=15)
@@ -551,8 +552,8 @@ if LP_compressor :
 
     plt.figure(figsize=(8,6))
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), P[i,:,:].flatten()/1000, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), P_calc[i,:,:].flatten()/1000, 'x', color = colors[2*i], label=f'Fitted data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), P[i,:,:].flatten()/1000, 'o', color = colors[2*i], label=f'Datasheet for  N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), P_calc[i,:,:].flatten()/1000, 'x', color = colors[2*i], label=f'Calculated for  N={N[i]} Hz')
     plt.xlabel(r'$v_1 / v_2$', fontsize=15)
     plt.ylabel(r'$P$ [kW]', fontsize=15)
     plt.legend(fontsize=14)
@@ -578,8 +579,8 @@ if LP_compressor :
 
     plt.figure(figsize=(8,6))
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), mdot[i,:,:].flatten()*3600, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), mdot_calc[i,:,:].flatten()*3600, 'x', color = colors[2*i], label=f'Fitted data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), mdot[i,:,:].flatten()*3600, 'o', color = colors[2*i], label=f'Datasheet for  N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), mdot_calc[i,:,:].flatten()*3600, 'x', color = colors[2*i], label=f'Calculated for  N={N[i]} Hz')
     plt.xlabel(r'$v_1 / v_2$', fontsize=15)
     plt.ylabel(r'$\dot{m}$ [kg/h]', fontsize=15)
     plt.legend(fontsize=14)
@@ -592,16 +593,16 @@ if LP_compressor :
 
     plt.figure()
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Datasheet for  N={N_mech[i]} RPM', clip_on = False)
         ratio_sorted_indices = np.argsort(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten())
-        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*i], label=f'Calculated for  N={N_mech[i]} RPM')
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
     plt.legend(fontsize=12, frameon=False)
     
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'$\eta_{is}$', loc='left', fontsize=12)
+    ax.set_title(r'$\eta_{\mathrm{is}} $', loc='left', fontsize=12)
 
     # Hide top and right spines
     ax.spines['top'].set_visible(False)
@@ -623,22 +624,22 @@ if LP_compressor :
     plt.xlim(1.4, 3.4)
     ax.set_xticks([1.4, 1.8, 2.2, 2.6, 3.0, 3.4])
     plt.tight_layout()
-    plt.savefig('code/fitting/compressor/eta_is_LP.pdf', dpi=300)
+    plt.savefig('code/fitting/compressor/eta_is_LP.png', dpi=300)
 
     # Total efficiency
     plt.figure()
     range_of_ratios = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
-        plt.plot(range_of_ratios, np.polyval(coeffs_eta_total[i,:], range_of_ratios), '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Datasheet for  N={N_mech[i]} RPM', clip_on = False)
+        plt.plot(range_of_ratios, np.polyval(coeffs_eta_total[i,:], range_of_ratios), '-', color = colors[2*i], label=f'Calculated for  N={N_mech[i]} RPM', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12, frameon=False)
+    #plt.legend(fontsize=12, frameon=False)
 
     #plt.tight_layout()
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'$\eta_{tot}$', loc='left', fontsize=12)
+    ax.set_title(r'$\eta_{\mathrm{tot}} $', loc='left', fontsize=12)
 
     # Hide top and right spines
     ax.spines['top'].set_visible(False)
@@ -660,7 +661,7 @@ if LP_compressor :
     plt.xlim(1.4, 3.4)
     ax.set_xticks([1.4, 1.8, 2.2, 2.6, 3.0, 3.4])
     plt.tight_layout()
-    plt.savefig('code/fitting/compressor/eta_tot_LP.pdf', dpi=300)
+    plt.savefig('code/fitting/compressor/eta_tot_LP.png', dpi=300)
     #plt.show()
 
     plt.figure()
@@ -668,10 +669,9 @@ if LP_compressor :
     eta_v_interpolated = np.zeros((len(N), len(volume_ratio_range)))
 
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz', clip_on = False)
-        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*i], label=f'Datasheet for  N={N_mech[i]} RPM', clip_on = False)
+        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*i], label=f'Calculated for  N={N_mech[i]} RPM', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.title(r'$\eta_v$', loc='left', fontsize=12)
 
     plt.xlim(1.4, 3.4)
     ax = plt.gca()
@@ -682,7 +682,7 @@ if LP_compressor :
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'$\eta_{v}$', loc='left', fontsize=12)
+    ax.set_title(r'$\eta_{\mathrm{v}}$', loc='left', fontsize=12)
 
     # Hide top and right spines
     ax.spines['top'].set_visible(False)
@@ -702,7 +702,7 @@ if LP_compressor :
     ax.set_yticks([floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100, floor(np.nanmin(eta_v[1,:,:].flatten()) * 100)/100, ceil(np.nanmax(eta_v[0,:,:].flatten()) * 100)/100])
     plt.ylim(floor(np.nanmin(eta_v.flatten())*100)/100, ceil(max(eta_v.flatten())*100)/100)
     plt.tight_layout()
-    plt.savefig('code/fitting/compressor/eta_v_LP.pdf', dpi=300)
+    plt.savefig('code/fitting/compressor/eta_v_LP.png', dpi=300)
     #plt.show()
 
     print(v_1.flatten()/v_2_calc.flatten())
@@ -719,6 +719,7 @@ if HP_compressor :
     V_s = bore**2 * np.pi/4 * stroke * n_cylinders
 
     N = np.array([50])
+    N_mech = [int(n * 60 / 2) for n in N]
 
     p_cond = np.array([50, 45, 40]) * 1e5
     T_evap = np.array([25, 30, 35, 40, 45, 50]) + 273.15
@@ -1003,8 +1004,8 @@ if HP_compressor :
     plt.figure(figsize=(8,6))
 
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), T_2[i,:,:].flatten()-273.15, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), T_2_calc[i,:,:].flatten()-273.15, 'x', color = colors[2*i], label=f'Fitted data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), T_2[i,:,:].flatten()-273.15, 'o', color = colors[2*i], label=f'Datasheet for  N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), T_2_calc[i,:,:].flatten()-273.15, 'x', color = colors[2*i], label=f'Calculated for  N={N[i]} Hz')
 
     plt.xlabel(r'$v_1 / v_2$', fontsize=15)
     plt.ylabel(r'$T_2$ [°C]', fontsize=15)
@@ -1033,8 +1034,8 @@ if HP_compressor :
 
     plt.figure(figsize=(8,6))
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), P[i,:,:].flatten()/1000, 'o', color = colors[2*i], label=f'Measured data N={N[i]} Hz')
-        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), P_calc[i,:,:].flatten()/1000, 'x', color = colors[2*i], label=f'Fitted data N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), P[i,:,:].flatten()/1000, 'o', color = colors[2*i], label=f'Datasheet for  N={N[i]} Hz')
+        plt.plot(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten(), P_calc[i,:,:].flatten()/1000, 'x', color = colors[2*i], label=f'Calculated for  N={N[i]} Hz')
     plt.xlabel(r'$v_1 / v_2$', fontsize=15)
     plt.ylabel(r'$P$ [kW]', fontsize=15)
     plt.legend(fontsize=14)
@@ -1047,16 +1048,16 @@ if HP_compressor :
 
     plt.figure()
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Measured data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_is[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Datasheet for  N={N_mech[i]} RPM', clip_on = False)
         ratio_sorted_indices = np.argsort(v_1[i,:,:].flatten()/v_2_calc[i,:,:].flatten())
-        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*(i+1)], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()[ratio_sorted_indices]/v_2_calc[i,:,:].flatten()[ratio_sorted_indices], eta_is_calc[i,:,:].flatten()[ratio_sorted_indices], '-', color = colors[2*(i+1)], label=f'Calculated for  N={N_mech[i]} RPM', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12, frameon=False)
+    #plt.legend(fontsize=12, frameon=False)
    
    # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'$\eta_{is}$', loc='left', fontsize=12)
+    ax.set_title(r'$\eta_{\mathrm{is}} $', loc='left', fontsize=12)
 
     # Hide top and right spines
     ax.spines['top'].set_visible(False)
@@ -1078,20 +1079,20 @@ if HP_compressor :
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
     plt.tight_layout()
-    plt.savefig('code/fitting/compressor/eta_is_HP.pdf', dpi=300)
+    plt.savefig('code/fitting/compressor/eta_is_HP.png', dpi=300)
 
     # Total efficiency
     plt.figure()
     range_of_ratios = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Measured data N={N[i]} Hz', clip_on = False)
-        plt.plot(range_of_ratios, np.polyval(coeffs_eta_total[i,:], range_of_ratios), '-', color = colors[2*(i+1)], label=f'Fitted data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_total[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Datasheet for  N={N_mech[i]} RPM', clip_on = False)
+        plt.plot(range_of_ratios, np.polyval(coeffs_eta_total[i,:], range_of_ratios), '-', color = colors[2*(i+1)], label=f'Calculated for  N={N_mech[i]} RPM', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
-    plt.legend(fontsize=12, frameon=False)
+    #plt.legend(fontsize=12, frameon=False)
   # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'$\eta_{tot}$', loc='left', fontsize=12)
+    ax.set_title(r'$\eta_{\mathrm{tot}} $', loc='left', fontsize=12)
 
     # Hide top and right spines
     ax.spines['top'].set_visible(False)
@@ -1108,26 +1109,26 @@ if HP_compressor :
     plt.tick_params(axis='x', rotation=0)
     plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
 
-    ax.set_yticks([floor(np.nanmin(eta_total.flatten())*100)/100, ceil(max(eta_total.flatten())*100)/100])
-    plt.ylim(floor(np.nanmin(eta_total.flatten())*100)/100, ceil(max(eta_total.flatten())*100)/100)
+    ax.set_yticks([0, floor(np.nanmin(eta_total.flatten())*100)/100, ceil(max(eta_total.flatten())*100)/100])
+    plt.ylim(0, ceil(max(eta_total.flatten())*100)/100)
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
     plt.tight_layout()
-    plt.savefig('code/fitting/compressor/eta_tot_HP.pdf', dpi=300)
+    plt.savefig('code/fitting/compressor/eta_tot_HP.png', dpi=300)
     #plt.show()
 
     volume_ratio_range = np.linspace(np.nanmin(v_1/v_2), np.nanmax(v_1/v_2), 100)
     plt.figure()
     for i in range(len(N)) :
-        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Measured data N={N[i]} Hz', clip_on = False)
-        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*(i+1)], label=f'Interpolated data N={N[i]} Hz', clip_on = False)
+        plt.plot(v_1[i,:,:].flatten()/v_2[i,:,:].flatten(), eta_v[i,:,:].flatten(), 'o', color = colors[2*(i+1)], label=f'Datasheet for  N={N_mech[i]} RPM', clip_on = False)
+        plt.plot(volume_ratio_range, slope * volume_ratio_range + offset[i], '-', color = colors[2*(i+1)], label=f'Calculated for  N={N_mech[i]} RPM', clip_on = False)
     plt.xlabel(r'$v_1 / v_2$', fontsize=12)
     plt.legend(fontsize=12, frameon=False)
     plt.xlim(2.4, 5.2)
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax = plt.gca()
     ax.tick_params(axis='both', which='major')
-    ax.set_title(r'$\eta_{v}$', loc='left', fontsize=12)
+    ax.set_title(r'$\eta_{\mathrm{v}}$', loc='left', fontsize=12)
 
     # Hide top and right spines
     ax.spines['top'].set_visible(False)
@@ -1149,7 +1150,7 @@ if HP_compressor :
     plt.xlim(2.4, 5.2)
     ax.set_xticks([2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2])
     plt.tight_layout()
-    plt.savefig('code/fitting/compressor/eta_v_HP.pdf', dpi=300)
+    plt.savefig('code/fitting/compressor/eta_v_HP.png', dpi=300)
     #plt.show()
 
 

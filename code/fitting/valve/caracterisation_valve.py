@@ -68,21 +68,27 @@ flow_coefficent = mdot / np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
 A = np.polyfit(opening, flow_coefficent, 2)
 print(f"Fitted valve coefficients: A = {A}")
 
-mdot_linspace = np.linspace(min(mdot), max(mdot), 100)
+mdot_linspace = np.linspace(0, 0.16, 100)
 mdot_calc = np.polyval(A, opening) * np.sqrt(2 * rho_valve_in * (p_valve_in - p_valve_out))
 
 print("Max error in mass flow rate: ", np.max(np.abs(mdot_calc - mdot) / mdot))
 
+error_max = np.max(np.abs(mdot_calc - mdot))
+error_rel = np.max(np.abs(mdot_calc - mdot) / mdot)
+print("Max error in mass flow rate (absolute): ", error_max)
 plt.figure()
-plt.scatter(mdot, mdot_calc, color = 'black', label='Calculated', clip_on=False)
-plt.plot(mdot_linspace, mdot_linspace, color='black', label='Experimental', clip_on=False)
-plt.xlabel(r'$\dot{m}_{meas}$ [kg/s]', fontsize = 12)
+plt.scatter(mdot, mdot_calc, color = 'black', label='Calculated', marker='x')
+plt.plot(mdot_linspace, mdot_linspace, color='black', label='Datasheet')
+plt.xlabel(r'$\dot{m}_{\mathrm{data}}$ [kg/s]', fontsize = 12)
 #plt.legend(fontsize = 12)
+plt.fill_between(mdot_linspace, (mdot_linspace) * (1 - error_rel), (mdot_linspace) * (1 + error_rel), color = 'orange', alpha=0.3, label='Error Range')
+
+plt.text(mdot_linspace[len(mdot_linspace)//2], (mdot_linspace[len(mdot_linspace)//2] - error_max) - 0.01, f'{error_rel*100:.1f}% error', fontsize=12)
     
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax = plt.gca()
 ax.tick_params(axis='both', which='major')
-ax.set_title(r'$\dot{m}_{calc}$ [kg/s]', loc='left', fontsize=12)
+ax.set_title(r'$\dot{m}_{\mathrm{calc}}$ [kg/s]', loc='left', fontsize=12)
 
 # Hide top and right spines
 ax.spines['top'].set_visible(False)
@@ -94,10 +100,11 @@ ax.spines['left'].set_position(('outward', 15))
 
 plt.tick_params(axis='x', rotation=0)
 plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
-plt.xlim(0.01, 0.15)
-plt.ylim(0.01, 0.15)
+plt.xlim(0, 0.16)
+plt.ylim(0, 0.16)
+plt.legend(frameon=False, loc='best', fontsize=12)
 plt.tight_layout()
-plt.savefig('code/fitting/valve/flow_coefficient.pdf', dpi=300)
+plt.savefig('code/fitting/valve/error_mdot.png', dpi=300)
 #plt.show()
 
 linspace_opening = np.linspace(10, 100, 100)
@@ -112,7 +119,7 @@ plt.xlabel(r'$z$ [%]', fontsize = 12)
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax = plt.gca()
 ax.tick_params(axis='both', which='major')
-ax.set_title(r'$C_D$', loc='left', fontsize=12)
+ax.set_title(r'$C$', loc='left', fontsize=12)
 
 # Hide top and right spines
 ax.spines['top'].set_visible(False)
@@ -127,7 +134,7 @@ plt.tick_params(axis='both', which='major', labelsize=11, direction='in')
 plt.xlim(10, 100)
 plt.ylim(0, 3e-6)
 plt.tight_layout()
-plt.savefig('code/fitting/valve/flow_coefficient.pdf', dpi=300)
+plt.savefig('code/fitting/valve/flow_coefficient.png', dpi=300)
 #plt.show()
 
 print(PropsSI('D', 'P', 40e5, 'Q', 0, 'R290'))
@@ -145,7 +152,7 @@ for i, opening in enumerate(openings):
 plt.figure()
 for i, opening in enumerate(openings):
     plt.plot(np.sqrt(dp/40e5), mdot[i, :], label=rf'$z = {{{opening}}}\%$', clip_on=False)
-plt.xlabel(r'$\sqrt{\Delta p / p_{in}}$', fontsize = 12)
+plt.xlabel(r'$\sqrt{\Delta p / p_{\mathrm{in}}}$', fontsize = 12)
 #plt.legend(fontsize = 12)
     
 # Add some text for labels, title and custom x-axis tick labels, etc.
@@ -168,7 +175,7 @@ plt.ylim(0, 0.14)
 
 plt.tight_layout()
 plt.legend(frameon=False, loc='best', fontsize=12)
-plt.savefig('code/fitting/valve/mass_flow_rate.pdf', dpi=300)
+plt.savefig('code/fitting/valve/mass_flow_rate.png', dpi=300)
 plt.show()
 
 
