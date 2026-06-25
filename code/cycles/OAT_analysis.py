@@ -41,9 +41,9 @@ mode = "Q_HT_fixed"  # Mode of the cycle (Q_MT_fixed, Q_HT_fixed)
 #mode = "Q_MT_fixed"  # Mode of the cycle (Q_MT_fixed, Q_HT_fixed)
 
 if mode == "Q_HT_fixed" :
-    from CAD_Q_HT_fixed import CAD
+    from code.cycles.operationnal.CAD_Q_HT_fixed import CAD
 else :
-    from CAD_Q_MT_fixed import CAD
+    from code.cycles.operationnal.CAD_Q_MT_fixed import CAD
 
 # Condenser load
 Q_ref = 25e3                                  # Condenser load of the reference cycle [W]

@@ -19,6 +19,10 @@ dict_colors_exergy_all = {label: color for label, color in zip(list_labels_exerg
 
 class Cycle(): 
 
+    """
+    Class representing a thermodynamic cycle with various states, mass flow rates, and performance metrics.
+    """
+
     def __init__(self, name):
         self.name = name
 
@@ -287,7 +291,27 @@ class Cycle():
         ]
         return "".join(output)
     
-    def Ts_diagram(self, plot = True, n=200, save = True, external_circuits = False, only_points = False) : 
+    def Ts_diagram(self, plot = True, n=200, save = False, external_circuits = False, only_points = False) : 
+        """
+        Plot the T-s diagram of the cycle, including saturation curves and state points.
+
+        Parameters:
+        - plot (bool): If True, display the plot.
+        - n (int): Number of points to generate between each state for plotting.
+        - save (bool): If True, save the plot as a PDF file.
+        - external_circuits (bool): If True, include external circuit information in the plot.
+        - only_points (bool): If True, return only the T and s points without plotting.
+
+        Returns:
+        - If only_points is True, returns a tuple (T_points, s_points, states) where:
+            - T_points: List of temperature points for each transform.
+            - s_points: List of entropy points for each transform.
+            - states: Dictionary of state objects keyed by their labels.
+        - Otherwise, displays or saves the T-s diagram plot.
+        
+        """
+
+
         # Generate saturation curve for working fluid
 
         if plot is False and save is False :
@@ -442,6 +466,18 @@ class Cycle():
         return
     
     def ph_diagram(self, plot = True, n=200, save = True) :
+        """
+        Plot the p-h diagram of the cycle, including saturation curves and state points.
+
+        Parameters:
+        - plot (bool): If True, display the plot.
+        - n (int): Number of points to generate between each state for plotting.
+        - save (bool): If True, save the plot as a PDF file.
+
+        Returns:
+        - Displays or saves the p-h diagram plot.
+
+        """
         # Generate saturation curve for working fluid
 
         if plot is False and save is False :
@@ -579,6 +615,18 @@ class Cycle():
 
 
     def energy_chart(self, plot=True, save=True):
+        """
+        Generate an energy chart for the cycle, showing received and delivered energy. Works only with thermodynamic cycles and not 
+        with operational models. 
+        
+        Parameters:
+        - plot (bool): If True, display the energy chart.
+        - save (bool): If True, save the energy chart as a PDF file.
+        
+        Returns:
+        - Displays or saves the energy chart plot.
+        
+        """
 
         if plot is False and save is False :
             return
@@ -723,6 +771,18 @@ class Cycle():
         return 
     
     def exergy_chart(self, T0, p0, plot = True, save = True, losses = 'per_type') :
+        """
+        Generate an exergy chart for the cycle, showing received and delivered exergy. Works only with thermodynamic cycles and not 
+        with operational models. 
+        
+        Parameters:
+        - plot (bool): If True, display the exergy chart.
+        - save (bool): If True, save the exergy chart as a PDF file.
+        
+        Returns:
+        - Displays or saves the exergy chart plot.
+        
+        """
 
         if plot is False and save is False :
             return
@@ -926,63 +986,6 @@ class Cycle():
         #plt.tight_layout()
         plt.xlim((0, sum(dict_received.values())/1e3))
         plt.xticks((0, sum(dict_received.values())/1e3), [f"", f"{sum(dict_received.values())/1e3:.1f}"])
-        '''
-        fig, (ax1, ax2) = plt.subplots(figsize=(10,6), nrows=1, ncols=2)
-        total = sum(dict_received.values())
-
-        # Create the second subplot
-        dict_delivered = dict(sorted(dict_delivered.items(), key=lambda item: item[1], reverse=True))
-        # Plot horizontal bars (convert to kW) and annotate values to the right of each bar
-        vals_perc = [v/total * 100 for v in dict_delivered.values()]
-        bars = ax2.barh(list(dict_delivered.keys()), vals_perc)
-
-        # Padding to place the text slightly to the right of the bar
-        pad = (max(vals_perc) * 0.01) if len(vals_perc) and max(vals_perc) > 0 else 0.01
-
-        for bar in bars:
-            width = bar.get_width()
-            y = bar.get_y() + bar.get_height() / 2
-            ax2.text(width + pad, y, f"{width:.1f} %", va='center', fontsize=11)
-        ax2.set_title('Exergy Outputs')
-        
-
-        # Hide top and right spines
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['right'].set_visible(False)
-        ax2.spines['left'].set_visible(False)
-        ax2.spines['bottom'].set_visible(False)
-
-        ax2.set_xticks([])  # Hide x-axis ticks
-        ax2.invert_yaxis()  # labels read top-to-bottom
-        ax2.set_xlim(0, 100)
-        ax2.tick_params(axis='y', which='both', length=0)
-
-
-        # Create the first subplot
-        dict_received = dict(sorted(dict_received.items(), key=lambda item: item[1], reverse=True))
-        # Plot horizontal bars (convert to kW) and annotate values to the right of each bar
-        vals_perc = [v/total * 100 for v in dict_received.values()]
-        bars = ax1.barh(list(dict_received.keys()), vals_perc)
-
-        # Padding to place the text slightly to the right of the bar
-        pad = (max(vals_perc) * 0.01) if len(vals_perc) and max(vals_perc) > 0 else 0.01
-
-        for bar in bars:
-            width = bar.get_width()
-            y = bar.get_y() + bar.get_height() / 2
-            ax1.text(width + pad, y, f"{width:.1f} %", va='center', fontsize=11)
-        ax1.set_title('Exergy Inputs')
-        # Hide top and right spines
-        ax1.spines['top'].set_visible(False)
-        ax1.spines['right'].set_visible(False)
-        ax1.spines['left'].set_visible(False)
-        ax1.spines['bottom'].set_visible(False)
-
-        ax1.set_xticks([])  # Hide x-axis ticks
-        ax1.invert_yaxis()  # labels read top-to-bottom
-        ax1.set_xlim(0, 100)
-        ax1.tick_params(axis='y', which='both', length=0)
-        '''
 
         fig_dir = f'code/Figures/{self.name}'
         os.makedirs(fig_dir, exist_ok=True)

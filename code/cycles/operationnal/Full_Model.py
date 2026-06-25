@@ -17,7 +17,7 @@ from components.HEX import HEX_Operational
 from components.cycle import Cycle
 import CoolProp
 import numpy as np
-from scipy.optimize import root, fsolve, minimize, brentq, differential_evolution
+from scipy.optimize import root, minimize
 from time import time
 
 def run_Full_Model(name="", transcritical=False, recuperators=[False, False], Q_HT=25e3, Q_MT=10e3, save_results=False, plot_results=False):

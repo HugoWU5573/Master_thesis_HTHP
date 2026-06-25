@@ -9,7 +9,7 @@ code_dir = Path(__file__).parent.parent
 if str(code_dir) not in sys.path:
     sys.path.insert(0, str(code_dir))
 
-from cycles.SC2R import run_SC2R_cycle
+from code.cycles.thermodynamic.SC2R import run_SC2R_cycle
 
 
 """
